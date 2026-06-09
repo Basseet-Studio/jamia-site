@@ -222,6 +222,24 @@ The app surfaces that summarise a month (household detail, family payment histor
 
 ---
 
+### User Story 13 — View all-time expenses and toggle between monthly and all-time views (Priority: P2)
+
+On the expenses screen the admin can toggle between a monthly view (scoped to a selected month via the month navigator) and an all-time view (every expense row ever recorded, regardless of month). The summary bar updates to reflect the selected scope. The month navigator is hidden or disabled while the all-time toggle is active, and the previously selected month is remembered so the admin can return to it with one toggle.
+
+**Why this priority**: A monthly-only expenses view makes it hard to audit the full history of what the masjid has spent. An all-time toggle is the minimal addition that supports year-end reviews and one-off lookups without forcing the admin to step through every month.
+
+**Independent Test**: Can be tested by adding expenses in three different months (some withdrawn, some not), then toggling to all-time view and confirming the table and summary bar match the lifetime totals, then toggling back to monthly view and confirming the previously selected month and its month navigator reappear with the correct data.
+
+**Acceptance Scenarios**:
+
+1. **Given** the admin is on the expenses screen in monthly view, **When** they activate the all-time toggle, **Then** every expense row ever recorded is shown regardless of month and the summary bar displays the all-time totals (total added and total withdrawn).
+2. **Given** the admin is in all-time view, **When** they deactivate the toggle, **Then** the view returns to the previously selected month and the month navigator is re-enabled.
+3. **Given** the admin is in all-time view, **When** they view the summary bar, **Then** "total added" equals the sum of every expense ever recorded and "total withdrawn" equals the sum of every withdrawn expense ever recorded.
+4. **Given** the admin is in all-time view, **When** the screen renders, **Then** the month navigator is hidden or disabled, and no month is required to interpret the table or summary bar.
+5. **Given** the admin switches to all-time view and no expenses exist, **When** the screen renders, **Then** the table shows an explicit empty state ("No expenses recorded yet") and the summary bar shows zeros, while the toggle itself remains functional.
+
+---
+
 ### Edge Cases
 
 - **Unauthorized sign-in**: A Google user not on the approved administrators list sees only the access-denied screen. No household, family, payment, expense, template, or setting data is returned or rendered.
@@ -239,6 +257,9 @@ The app surfaces that summarise a month (household detail, family payment histor
 - **Inactive families in summaries**: Inactive families are excluded from active counts and target totals but their payments are still included in "total collected" and "money on hand" calculations.
 - **Sign-in status changes mid-session**: If the signed-in identity is removed from the approved administrators list while the admin is using the app, subsequent data fetches must be rejected and the admin must be returned to the access-denied screen.
 - **Household deletion cascading**: Deleting a household removes every family under it and every payment row under those families. The confirmation must clearly state this and require the household name to be retyped.
+- **Opening balance not yet set**: If the opening balance has never been explicitly configured, the system treats it as zero. Money on hand is still computed and displayed correctly. No prompt or warning is shown until the admin visits settings.
+- **All-time expense toggle with no expenses**: When the admin switches to all-time view and no expenses exist, the expenses table shows an explicit empty state ("No expenses recorded yet") and the summary bar shows zeros. The toggle itself remains functional.
+- **Recent activity feed (out of scope for v1)**: The optional recent-activity feed described in the source product spec (last 5–10 payments and expenses with timestamp and recorded-by) is explicitly out of scope for v1 and is not implemented. The dashboard renders correctly without it.
 
 ## Requirements *(mandatory)*
 
@@ -306,6 +327,7 @@ The app surfaces that summarise a month (household detail, family payment histor
 #### Money on Hand
 
 - **FR-039**: Money on hand MUST be computed as `opening balance (from settings) + sum of all payments ever recorded across all families (active and inactive) − sum of all withdrawn expenses (all time)`.
+- **FR-039a**: If the opening balance has never been explicitly configured, the system MUST treat it as zero in the money-on-hand calculation. No prompt or warning is shown until the admin visits the settings surface.
 - **FR-040**: Money on hand MUST be displayed in the currency label stored in settings and MUST be visible on the dashboard.
 - **FR-041**: Money on hand MUST update reactively whenever a payment is added or deleted or whenever an expense is added, withdrawn, or deleted.
 
@@ -313,6 +335,8 @@ The app surfaces that summarise a month (household detail, family payment histor
 
 - **FR-042**: For a given month, the system MUST display a summary of: total expenses added (sum of expense amounts in that month), total expenses withdrawn (sum of withdrawn expense amounts in that month), and total expenses pending (added minus withdrawn).
 - **FR-043**: The expenses surface MUST also be able to display an all-time summary of total expenses added and total expenses withdrawn.
+- **FR-043a**: The expenses surface MUST provide a toggle that switches the expense table and summary bar between a monthly scope (the currently selected month) and an all-time scope (every expense row ever recorded). When the all-time scope is active, the month navigator MUST be hidden or disabled. The previously selected month MUST be remembered so deactivating the toggle returns the admin to that month.
+- **FR-043b**: When the all-time scope is active and no expenses exist, the table MUST show an explicit empty state ("No expenses recorded yet"), the summary bar MUST show zeros, and the toggle MUST remain functional.
 
 #### Settings
 
