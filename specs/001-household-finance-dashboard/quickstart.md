@@ -54,7 +54,7 @@ This is the ONLY manual step. The spec's "Not in v1" rule says admin management 
 2. Open Firebase Console → Firestore → start a collection `admins` → document id = the owner's Google UID (find it in Firebase Console → Authentication → Users).
 3. Add fields:
 
-   ```
+   ```9Ir81BQMdLelrHOyogF1FTzF3Dz1
    email         "owner@example.com"
    displayName   "Owner Name"
    role          "owner"
