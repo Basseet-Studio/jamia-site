@@ -1,0 +1,190 @@
+rules_version = '2';
+
+// Veeramangalam Juma Masjid Household Finance Dashboard
+// v1 — single admin app. See contracts/README.md and specs/001-household-finance-dashboard/.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Helpers ----
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // ---- admins ----
+
+    // Admin docs are written manually in the Firebase Console.
+    // The client never writes, updates, or deletes them in v1.
+    match /admins/{uid} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // ---- settings ----
+
+    // Singleton: settings/global. Anyone authorised can read. Only authorised admins can write.
+    match /settings/{doc} {
+      allow read: if isAdmin();
+      allow write: if isAdmin()
+        && doc == 'global'
+        && request.resource.data.keys().hasAll(['defaultContributionTarget', 'openingBalance', 'currency']);
+    }
+
+    // ---- households ----
+
+    match /households/{householdId} {
+      allow read: if isAdmin();
+
+      allow create: if isAdmin()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time;
+
+      // Update is not used in v1.
+      allow update: if false;
+
+      // Hard delete: cascades via batched write in the service layer.
+      // Rules do not enforce cascade — service layer is responsible.
+      allow delete: if isAdmin();
+
+      // ---- families (sub-collection) ----
+
+      match /families/{familyId} {
+        allow read: if isAdmin();
+
+        allow create: if isAdmin()
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.active == true
+          && request.resource.data.deletedAt == null
+          && request.resource.data.deletedBy == null
+          && request.resource.data.contributionTarget is number
+          && request.resource.data.contributionTarget >= 0;
+
+        // Update allowed for two cases:
+        //   (a) Soft-delete transition: active flips to false, deletedAt/deletedBy set, every other field immutable.
+        //   (b) Contribution-target edit (FR-009): only contributionTarget may change; family must stay active.
+        //       Name, createdAt, createdBy, active, deletedAt, deletedBy are immutable.
+        allow update: if isAdmin()
+          && (
+            // (a) soft-delete
+            (
+              resource.data.active == true
+              && request.resource.data.active == false
+              && request.resource.data.deletedAt == request.time
+              && request.resource.data.deletedBy == request.auth.uid
+              && request.resource.data.name == resource.data.name
+              && request.resource.data.contributionTarget == resource.data.contributionTarget
+              && request.resource.data.createdAt == resource.data.createdAt
+              && request.resource.data.createdBy == resource.data.createdBy
+            )
+            ||
+            // (b) contribution target edit while active
+            (
+              resource.data.active == true
+              && request.resource.data.active == true
+              && request.resource.data.deletedAt == resource.data.deletedAt
+              && request.resource.data.deletedBy == resource.data.deletedBy
+              && request.resource.data.name == resource.data.name
+              && request.resource.data.createdAt == resource.data.createdAt
+              && request.resource.data.createdBy == resource.data.createdBy
+              && request.resource.data.contributionTarget is number
+              && request.resource.data.contributionTarget >= 0
+            )
+          );
+
+        // Hard delete is NOT allowed on families. Soft delete only.
+        allow delete: if false;
+
+        // ---- payments (sub-sub-collection) ----
+
+        match /payments/{paymentId} {
+          allow read: if isAdmin();
+
+          allow create: if isAdmin()
+            && request.resource.data.recordedBy == request.auth.uid
+            && request.resource.data.recordedAt == request.time
+            && request.resource.data.amount is number
+            && request.resource.data.amount > 0
+            && request.resource.data.month is string
+            && request.resource.data.month.matches('^\\d{4}-(0[1-9]|1[0-2])$');
+
+          // No edit on payments in v1.
+          allow update: if false;
+
+          allow delete: if isAdmin();
+        }
+      }
+    }
+
+    // ---- expenses ----
+
+    match /expenses/{expenseId} {
+      allow read: if isAdmin();
+
+      // Create: not withdrawn by default.
+      allow create: if isAdmin()
+        && request.resource.data.addedBy == request.auth.uid
+        && request.resource.data.addedAt == request.time
+        && request.resource.data.withdrawn == false
+        && request.resource.data.withdrawnAt == null
+        && request.resource.data.withdrawnBy == null
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.month is string
+        && request.resource.data.month.matches('^\\d{4}-(0[1-9]|1[0-2])$')
+        && (request.resource.data.isRecurring == false || request.resource.data.recurringId is string);
+
+      // Update: only the withdraw transition is allowed.
+      // From: withdrawn=false, withdrawnAt=null, withdrawnBy=null
+      // To:   withdrawn=true,  withdrawnAt=request.time, withdrawnBy=request.auth.uid
+      // Every other field must match the existing value (immutable on withdraw).
+      allow update: if isAdmin()
+        && resource.data.withdrawn == false
+        && request.resource.data.withdrawn == true
+        && request.resource.data.withdrawnAt == request.time
+        && request.resource.data.withdrawnBy == request.auth.uid
+        && request.resource.data.name == resource.data.name
+        && request.resource.data.amount == resource.data.amount
+        && request.resource.data.date == resource.data.date
+        && request.resource.data.month == resource.data.month
+        && request.resource.data.note == resource.data.note
+        && request.resource.data.isRecurring == resource.data.isRecurring
+        && request.resource.data.recurringId == resource.data.recurringId
+        && request.resource.data.addedAt == resource.data.addedAt
+        && request.resource.data.addedBy == resource.data.addedBy;
+
+      allow delete: if isAdmin();
+    }
+
+    // ---- recurringExpenses ----
+
+    match /recurringExpenses/{templateId} {
+      allow read: if isAdmin();
+
+      allow create: if isAdmin()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.active == true
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0;
+
+      // Edit (name, amount, description, active). createdAt/createdBy immutable.
+      allow update: if isAdmin()
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.createdBy == resource.data.createdBy;
+
+      allow delete: if isAdmin();
+    }
+
+    // Default: deny everything else.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
