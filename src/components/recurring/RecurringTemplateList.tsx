@@ -7,14 +7,15 @@ import { AddForMonthButton } from "@/components/recurring/AddForMonthButton";
 import { Button } from "@/components/ui/button";
 import { archiveRecurringTemplate } from "@/lib/services/recurring";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useT } from "@/lib/i18n";
 
-const STATUS_LABEL: Record<
+const STATUS_KEY: Record<
   RecurringTemplateWithStatus["currentMonthStatus"],
   string
 > = {
-  NotAdded: "Not added",
-  PendingWithdrawal: "Pending withdrawal",
-  Withdrawn: "Withdrawn",
+  NotAdded: "recurring.statusNotAdded",
+  PendingWithdrawal: "recurring.statusPendingWithdrawal",
+  Withdrawn: "recurring.statusWithdrawn",
 };
 
 export function RecurringTemplateList({
@@ -29,26 +30,22 @@ export function RecurringTemplateList({
   onAdded?: () => void;
 }) {
   const { moh } = useMoneyOnHand();
-  const cur = moh.currency || "—";
+  const t = useT();
+  const cur = moh.currency || t("common.dash");
   const { user } = useAuth();
   const [busyId, setBusyId] = useState<string | null>(null);
 
   if (templates.length === 0) {
     return (
       <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-        {archived ? "No archived templates." : "No recurring templates yet."}
+        {archived ? t("recurring.noArchived") : t("recurring.noTemplates")}
       </div>
     );
   }
 
   async function onArchive(id: string) {
     if (!user) return;
-    if (
-      !confirm(
-        "Archive this template? Previously generated expenses stay intact.",
-      )
-    )
-      return;
+    if (!confirm(t("recurring.confirmArchive"))) return;
     setBusyId(id);
     try {
       await archiveRecurringTemplate(user.uid, id);
@@ -59,20 +56,23 @@ export function RecurringTemplateList({
 
   return (
     <ul className="divide-y rounded-md border">
-      {templates.map((t) => (
-        <li key={t.id} className="flex items-center justify-between gap-4 p-3">
+      {templates.map((tpl) => (
+        <li
+          key={tpl.id}
+          className="flex items-center justify-between gap-4 p-3"
+        >
           <div className="flex-1">
-            <div className="font-medium">{t.name}</div>
+            <div className="font-medium">{tpl.name}</div>
             <div className="text-sm text-muted-foreground">
-              {formatCurrency(t.amount, cur)} ·{" "}
-              {STATUS_LABEL[t.currentMonthStatus]}
-              {t.description ? ` · ${t.description}` : ""}
+              {formatCurrency(tpl.amount, cur)} ·{" "}
+              {t(STATUS_KEY[tpl.currentMonthStatus])}
+              {tpl.description ? ` · ${tpl.description}` : ""}
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {!archived && t.currentMonthStatus === "NotAdded" ? (
+            {!archived && tpl.currentMonthStatus === "NotAdded" ? (
               <AddForMonthButton
-                templateId={t.id}
+                templateId={tpl.id}
                 month={currentMonth}
                 onAdded={onAdded}
               />
@@ -81,10 +81,12 @@ export function RecurringTemplateList({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onArchive(t.id)}
-                disabled={busyId === t.id}
+                onClick={() => onArchive(tpl.id)}
+                disabled={busyId === tpl.id}
               >
-                {busyId === t.id ? "Archiving…" : "Archive"}
+                {busyId === tpl.id
+                  ? t("recurring.archiving")
+                  : t("recurring.archive")}
               </Button>
             ) : null}
           </div>

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { softDeleteFamily } from "@/lib/services/families";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useT } from "@/lib/i18n";
 
 export function SoftDeleteFamilyDialog({
   householdId,
@@ -28,6 +29,7 @@ export function SoftDeleteFamilyDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  const t = useT();
 
   async function onConfirm() {
     if (!user) return;
@@ -48,29 +50,27 @@ export function SoftDeleteFamilyDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="text-destructive">
-          {/* TODO(i18n): button label */}
-          Remove
+          {t("families.removeButton")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {/* TODO(i18n): dialog title */}
-            Remove {familyName}?
+            {t("families.removeTitle", { name: familyName })}
           </DialogTitle>
-          <DialogDescription>
-            {/* TODO(i18n): confirmation body */}
-            This family will be removed from the active list. Payment history
-            will be fully preserved.
-          </DialogDescription>
+          <DialogDescription>{t("families.removeBody")}</DialogDescription>
         </DialogHeader>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-            Cancel
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setOpen(false)}
+          >
+            {t("common.cancel")}
           </Button>
           <Button variant="destructive" onClick={onConfirm} disabled={busy}>
-            {busy ? "Removing…" : "Remove family"}
+            {busy ? t("families.removing") : t("families.removeAction")}
           </Button>
         </DialogFooter>
       </DialogContent>

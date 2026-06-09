@@ -6,9 +6,11 @@ import { AddExpenseDialog } from "@/components/expenses/AddExpenseDialog";
 import { MonthNavigator } from "@/components/nav/MonthNavigator";
 import { currentMonthKey } from "@/lib/utils/dates";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/i18n";
 import type { Expense } from "@/lib/types";
 
 export default function ExpensesPage() {
+  const t = useT();
   const [filter, setFilter] = useState<"all" | string>(currentMonthKey());
   const [prevMonth, setPrevMonth] = useState<string>(currentMonthKey());
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -28,7 +30,7 @@ export default function ExpensesPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Expenses</h1>
+        <h1 className="text-2xl font-semibold">{t("expenses.heading")}</h1>
         <AddExpenseDialog />
       </div>
       <div className="flex flex-wrap items-center gap-3">
@@ -50,16 +52,16 @@ export default function ExpensesPage() {
             }
           }}
         >
-          {isAllTime ? "Show by month" : "Show all time"}
+          {isAllTime ? t("expenses.showByMonth") : t("expenses.showAllTime")}
         </Button>
         {isAllTime ? (
           <span className="text-xs text-muted-foreground">
-            All-time totals across every recorded expense.
+            {t("expenses.allTimeNote")}
           </span>
         ) : null}
       </div>
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
       ) : (
         <ExpenseTable expenses={expenses} />
       )}

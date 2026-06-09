@@ -14,9 +14,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { createExpenseSchema, type CreateExpenseSchema } from "@/lib/schemas/expense";
+import {
+  createExpenseSchema,
+  type CreateExpenseSchema,
+} from "@/lib/schemas/expense";
 import { createExpense } from "@/lib/services/expenses";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useT } from "@/lib/i18n";
 import { format } from "date-fns";
 
 export function AddExpenseDialog() {
@@ -24,6 +28,7 @@ export function AddExpenseDialog() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  const t = useT();
 
   const form = useForm<CreateExpenseSchema>({
     resolver: zodResolver(createExpenseSchema),
@@ -62,22 +67,28 @@ export function AddExpenseDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Add expense</Button>
+        <Button>{t("expenses.addButton")}</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add expense</DialogTitle>
+          <DialogTitle>{t("expenses.addTitle")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="ax-name">Name</Label>
-            <Input id="ax-name" {...form.register("name")} placeholder="Water bill" />
+            <Label htmlFor="ax-name">{t("common.name")}</Label>
+            <Input
+              id="ax-name"
+              {...form.register("name")}
+              placeholder={t("expenses.namePlaceholder")}
+            />
             {form.formState.errors.name ? (
-              <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
+              <p className="text-xs text-destructive">
+                {form.formState.errors.name.message}
+              </p>
             ) : null}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ax-amount">Amount</Label>
+            <Label htmlFor="ax-amount">{t("common.amount")}</Label>
             <Input
               id="ax-amount"
               type="number"
@@ -86,11 +97,13 @@ export function AddExpenseDialog() {
               {...form.register("amount", { valueAsNumber: true })}
             />
             {form.formState.errors.amount ? (
-              <p className="text-xs text-destructive">{form.formState.errors.amount.message}</p>
+              <p className="text-xs text-destructive">
+                {form.formState.errors.amount.message}
+              </p>
             ) : null}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ax-date">Date</Label>
+            <Label htmlFor="ax-date">{t("common.date")}</Label>
             <Input
               id="ax-date"
               type="date"
@@ -102,16 +115,20 @@ export function AddExpenseDialog() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ax-note">Note (optional)</Label>
+            <Label htmlFor="ax-note">{t("common.noteOptional")}</Label>
             <Textarea id="ax-note" {...form.register("note")} maxLength={280} />
           </div>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={busy}>
-              {busy ? "Saving…" : "Save expense"}
+              {busy ? t("common.saving") : t("expenses.saveExpense")}
             </Button>
           </DialogFooter>
         </form>

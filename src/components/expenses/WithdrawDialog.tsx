@@ -14,6 +14,7 @@ import { withdrawExpense } from "@/lib/services/expenses";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useMoneyOnHand } from "@/lib/hooks/useMoneyOnHand";
 import { formatCurrency } from "@/lib/utils/currency";
+import { useT } from "@/lib/i18n";
 
 export function WithdrawDialog({
   expenseId,
@@ -29,7 +30,8 @@ export function WithdrawDialog({
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
   const { moh } = useMoneyOnHand();
-  const cur = moh.currency || "—";
+  const t = useT();
+  const cur = moh.currency || t("common.dash");
 
   async function onConfirm() {
     if (!user) return;
@@ -49,26 +51,30 @@ export function WithdrawDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
-          Withdraw
+          {t("expenses.withdrawButton")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            Withdraw {expenseName} ({formatCurrency(amount, cur)})?
+            {t("expenses.withdrawTitle", {
+              name: expenseName,
+              amount: formatCurrency(amount, cur),
+            })}
           </DialogTitle>
-          <DialogDescription>
-            This records the withdrawal and reduces money on hand by the
-            amount. There is no undo.
-          </DialogDescription>
+          <DialogDescription>{t("expenses.withdrawBody")}</DialogDescription>
         </DialogHeader>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-            Cancel
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setOpen(false)}
+          >
+            {t("common.cancel")}
           </Button>
           <Button onClick={onConfirm} disabled={busy}>
-            {busy ? "Withdrawing…" : "Confirm withdrawal"}
+            {busy ? t("expenses.withdrawing") : t("expenses.withdrawAction")}
           </Button>
         </DialogFooter>
       </DialogContent>

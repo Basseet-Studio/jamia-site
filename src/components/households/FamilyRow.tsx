@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { EditFamilyDialog } from "@/components/households/EditFamilyDialog";
 import { SoftDeleteFamilyDialog } from "@/components/households/SoftDeleteFamilyDialog";
 import { StatusBadge } from "@/components/payments/StatusBadge";
+import { useT } from "@/lib/i18n";
 
 export function FamilyRow({
   householdId,
@@ -18,7 +19,8 @@ export function FamilyRow({
   status: FamilyMonthlySummary | null;
 }) {
   const { moh } = useMoneyOnHand();
-  const cur = moh.currency || "—";
+  const t = useT();
+  const cur = moh.currency || t("common.dash");
   return (
     <tr className="border-b last:border-0">
       <td className="px-3 py-2 text-sm">
@@ -29,17 +31,23 @@ export function FamilyRow({
           {family.name}
         </Link>
         {!family.active ? (
-          <span className="ml-2 text-xs text-muted-foreground">(removed)</span>
+          <span className="ml-2 text-xs text-muted-foreground">
+            {t("families.removed")}
+          </span>
         ) : null}
       </td>
       <td className="px-3 py-2 text-right text-sm tabular-nums">
         {formatCurrency(family.contributionTarget, cur)}
       </td>
       <td className="px-3 py-2 text-right text-sm tabular-nums">
-        {status ? formatCurrency(status.totalPaid, cur) : "—"}
+        {status ? formatCurrency(status.totalPaid, cur) : t("common.dash")}
       </td>
       <td className="px-3 py-2 text-center">
-        {status ? <StatusBadge status={status.status} /> : <span className="text-muted-foreground">—</span>}
+        {status ? (
+          <StatusBadge status={status.status} />
+        ) : (
+          <span className="text-muted-foreground">{t("common.dash")}</span>
+        )}
       </td>
       <td className="px-3 py-2 text-right">
         {family.active ? (

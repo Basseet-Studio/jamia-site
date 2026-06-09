@@ -13,13 +13,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OpeningBalanceWarning } from "@/components/settings/OpeningBalanceWarning";
+import { useT } from "@/lib/i18n";
 import type { Setting } from "@/lib/types";
 
 export function SettingsForm() {
   const { user } = useAuth();
+  const t = useT();
   const [current, setCurrent] = useState<Setting | null>(null);
   const [loading, setLoading] = useState(true);
-  const [warning, setWarning] = useState<{ open: boolean; values: UpdateSettingsInput | null }>({
+  const [warning, setWarning] = useState<{
+    open: boolean;
+    values: UpdateSettingsInput | null;
+  }>({
     open: false,
     values: null,
   });
@@ -59,7 +64,10 @@ export function SettingsForm() {
 
   function onSubmit(values: UpdateSettingsInput) {
     if (!current) return;
-    if (values.openingBalance !== undefined && values.openingBalance !== current.openingBalance) {
+    if (
+      values.openingBalance !== undefined &&
+      values.openingBalance !== current.openingBalance
+    ) {
       setWarning({ open: true, values });
       return;
     }
@@ -70,24 +78,32 @@ export function SettingsForm() {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Global settings</CardTitle>
+          <CardTitle>{t("settings.globalSettings")}</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
+            <p className="text-sm text-muted-foreground">
+              {t("common.loading")}
+            </p>
           ) : (
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="set-target">Default monthly contribution target</Label>
+                <Label htmlFor="set-target">
+                  {t("settings.defaultTarget")}
+                </Label>
                 <Input
                   id="set-target"
                   type="number"
                   min={0}
-                  {...form.register("defaultContributionTarget", { valueAsNumber: true })}
+                  {...form.register("defaultContributionTarget", {
+                    valueAsNumber: true,
+                  })}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="set-opening">Opening balance</Label>
+                <Label htmlFor="set-opening">
+                  {t("settings.openingBalance")}
+                </Label>
                 <Input
                   id="set-opening"
                   type="number"
@@ -95,21 +111,27 @@ export function SettingsForm() {
                   {...form.register("openingBalance", { valueAsNumber: true })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Changing this shifts money on hand by the same amount.
+                  {t("settings.openingBalanceHelper")}
                 </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="set-currency">Currency label</Label>
+                <Label htmlFor="set-currency">{t("settings.currency")}</Label>
                 <Input
                   id="set-currency"
                   maxLength={8}
                   {...form.register("currency")}
-                  placeholder="AED"
+                  placeholder={current?.currency ?? "AED"}
                 />
               </div>
-              {error ? <p className="text-sm text-destructive">{error}</p> : null}
-              {saved ? <p className="text-sm text-emerald-700">Saved.</p> : null}
-              <Button type="submit">Save settings</Button>
+              {error ? (
+                <p className="text-sm text-destructive">{error}</p>
+              ) : null}
+              {saved ? (
+                <p className="text-sm text-emerald-700">
+                  {t("settings.saved")}
+                </p>
+              ) : null}
+              <Button type="submit">{t("settings.saveSettings")}</Button>
             </form>
           )}
         </CardContent>
@@ -118,7 +140,9 @@ export function SettingsForm() {
         open={warning.open}
         onOpenChange={(o) => setWarning((s) => ({ ...s, open: o }))}
         previousValue={current?.openingBalance ?? 0}
-        nextValue={warning.values?.openingBalance ?? current?.openingBalance ?? 0}
+        nextValue={
+          warning.values?.openingBalance ?? current?.openingBalance ?? 0
+        }
         currency={current?.currency ?? ""}
         onConfirm={async () => {
           if (warning.values) await commit(warning.values);

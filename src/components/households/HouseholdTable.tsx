@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useT } from "@/lib/i18n";
 
 export interface HouseholdRowData {
   household: Household;
@@ -25,13 +26,14 @@ export function HouseholdTable({
   loading: boolean;
 }) {
   const { moh } = useMoneyOnHand();
-  const cur = moh.currency || "—";
+  const t = useT();
+  const cur = moh.currency || t("common.dash");
+  const dash = t("common.dash");
 
   if (!loading && rows.length === 0) {
     return (
       <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-        {/* TODO(i18n): empty state */}
-        No households yet. Use “Add household” to create one.
+        {t("householdTable.empty")}
       </div>
     );
   }
@@ -40,14 +42,28 @@ export function HouseholdTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead className="text-right">Families</TableHead>
-          <TableHead className="text-right">Paid full</TableHead>
-          <TableHead className="text-right">Partial</TableHead>
-          <TableHead className="text-right">Unpaid</TableHead>
-          <TableHead className="text-right">Collected</TableHead>
-          <TableHead className="text-right">Target</TableHead>
-          <TableHead className="text-right">Rate</TableHead>
+          <TableHead>{t("householdTable.tableName")}</TableHead>
+          <TableHead className="text-right">
+            {t("householdTable.tableFamilies")}
+          </TableHead>
+          <TableHead className="text-right">
+            {t("householdTable.tablePaidFull")}
+          </TableHead>
+          <TableHead className="text-right">
+            {t("householdTable.tablePartial")}
+          </TableHead>
+          <TableHead className="text-right">
+            {t("householdTable.tableUnpaid")}
+          </TableHead>
+          <TableHead className="text-right">
+            {t("householdTable.tableCollected")}
+          </TableHead>
+          <TableHead className="text-right">
+            {t("householdTable.tableTarget")}
+          </TableHead>
+          <TableHead className="text-right">
+            {t("householdTable.tableRate")}
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -62,27 +78,27 @@ export function HouseholdTable({
               </Link>
             </TableCell>
             <TableCell className="text-right tabular-nums">
-              {summary?.totalFamilies ?? "—"}
+              {summary?.totalFamilies ?? dash}
             </TableCell>
             <TableCell className="text-right tabular-nums">
-              {summary?.familiesPaidFull ?? "—"}
+              {summary?.familiesPaidFull ?? dash}
             </TableCell>
             <TableCell className="text-right tabular-nums">
-              {summary?.familiesPartial ?? "—"}
+              {summary?.familiesPartial ?? dash}
             </TableCell>
             <TableCell className="text-right tabular-nums">
-              {summary?.familiesUnpaid ?? "—"}
+              {summary?.familiesUnpaid ?? dash}
             </TableCell>
             <TableCell className="text-right tabular-nums">
-              {summary ? formatCurrency(summary.totalCollected, cur) : "—"}
+              {summary ? formatCurrency(summary.totalCollected, cur) : dash}
             </TableCell>
             <TableCell className="text-right tabular-nums">
-              {summary ? formatCurrency(summary.totalTarget, cur) : "—"}
+              {summary ? formatCurrency(summary.totalTarget, cur) : dash}
             </TableCell>
             <TableCell className="text-right tabular-nums">
               {summary?.collectionRate != null
                 ? `${Math.round(summary.collectionRate * 100)}%`
-                : "—"}
+                : dash}
             </TableCell>
           </TableRow>
         ))}

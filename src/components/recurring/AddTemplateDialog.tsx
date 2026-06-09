@@ -20,12 +20,14 @@ import {
 } from "@/lib/schemas/recurringTemplate";
 import { createRecurringTemplate } from "@/lib/services/recurring";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useT } from "@/lib/i18n";
 
 export function AddTemplateDialog() {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  const t = useT();
 
   const form = useForm<CreateRecurringTemplateSchema>({
     resolver: zodResolver(createRecurringTemplateSchema),
@@ -50,22 +52,28 @@ export function AddTemplateDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Add template</Button>
+        <Button>{t("recurring.addButton")}</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add recurring template</DialogTitle>
+          <DialogTitle>{t("recurring.addTitle")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="rt-name">Name</Label>
-            <Input id="rt-name" {...form.register("name")} placeholder="Water bill" />
+            <Label htmlFor="rt-name">{t("common.name")}</Label>
+            <Input
+              id="rt-name"
+              {...form.register("name")}
+              placeholder={t("expenses.namePlaceholder")}
+            />
             {form.formState.errors.name ? (
-              <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
+              <p className="text-xs text-destructive">
+                {form.formState.errors.name.message}
+              </p>
             ) : null}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="rt-amount">Amount</Label>
+            <Label htmlFor="rt-amount">{t("common.amount")}</Label>
             <Input
               id="rt-amount"
               type="number"
@@ -74,20 +82,30 @@ export function AddTemplateDialog() {
               {...form.register("amount", { valueAsNumber: true })}
             />
             {form.formState.errors.amount ? (
-              <p className="text-xs text-destructive">{form.formState.errors.amount.message}</p>
+              <p className="text-xs text-destructive">
+                {form.formState.errors.amount.message}
+              </p>
             ) : null}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="rt-desc">Description (optional)</Label>
-            <Textarea id="rt-desc" {...form.register("description")} maxLength={280} />
+            <Label htmlFor="rt-desc">{t("common.descriptionOptional")}</Label>
+            <Textarea
+              id="rt-desc"
+              {...form.register("description")}
+              maxLength={280}
+            />
           </div>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={busy}>
-              {busy ? "Saving…" : "Save template"}
+              {busy ? t("common.saving") : t("recurring.saveTemplate")}
             </Button>
           </DialogFooter>
         </form>

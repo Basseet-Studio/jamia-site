@@ -4,10 +4,12 @@ import { subscribeHouseholds } from "@/lib/services/households";
 import { AddHouseholdDialog } from "@/components/households/AddHouseholdDialog";
 import { DeleteHouseholdDialog } from "@/components/households/DeleteHouseholdDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useT } from "@/lib/i18n";
 import { format } from "date-fns";
 import type { Household } from "@/lib/types";
 
 export default function HouseholdsPage() {
+  const t = useT();
   const [list, setList] = useState<Household[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -22,14 +24,14 @@ export default function HouseholdsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Households</h1>
+        <h1 className="text-2xl font-semibold">{t("households.heading")}</h1>
         <AddHouseholdDialog />
       </div>
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
       ) : list.length === 0 ? (
         <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-          No households yet. Add one to get started.
+          {t("households.empty")}
         </div>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
@@ -45,8 +47,17 @@ export default function HouseholdsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>{created ? `Created ${format(created, "yyyy-MM-dd")}` : "—"}</span>
-                  <DeleteHouseholdDialog householdId={h.id} householdName={h.name} />
+                  <span>
+                    {created
+                      ? t("households.createdOn", {
+                          date: format(created, "yyyy-MM-dd"),
+                        })
+                      : t("common.dash")}
+                  </span>
+                  <DeleteHouseholdDialog
+                    householdId={h.id}
+                    householdName={h.name}
+                  />
                 </CardContent>
               </Card>
             );

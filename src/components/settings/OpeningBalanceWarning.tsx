@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { formatCurrency } from "@/lib/utils/currency";
+import { useT } from "@/lib/i18n";
 
 export function OpeningBalanceWarning({
   open,
@@ -29,20 +30,21 @@ export function OpeningBalanceWarning({
   onConfirm: () => void | Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
+  const t = useT();
   const delta = nextValue - previousValue;
+  // Preserve the existing sign behavior: explicit "+" for positive, none for ≤ 0.
+  const deltaStr = `${delta > 0 ? "+" : ""}${formatCurrency(delta, currency)}`;
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Change opening balance?</AlertDialogTitle>
+          <AlertDialogTitle>{t("settings.warningTitle")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Money on hand will shift by {delta > 0 ? "+" : ""}
-            {formatCurrency(delta, currency)}. This is a one-time seed
-            adjustment; future changes here also shift money on hand.
+            {t("settings.warningBody", { delta: deltaStr })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={async (e) => {
               e.preventDefault();
@@ -55,7 +57,7 @@ export function OpeningBalanceWarning({
             }}
             disabled={busy}
           >
-            {busy ? "Saving…" : "Confirm change"}
+            {busy ? t("common.saving") : t("settings.warningAction")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

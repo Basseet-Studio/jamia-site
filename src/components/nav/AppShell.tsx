@@ -8,19 +8,21 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-const NAV_ITEMS: { href: string; label: string }[] = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/households", label: "Households" },
-  { href: "/expenses", label: "Expenses" },
-  { href: "/recurring", label: "Recurring" },
-  { href: "/settings", label: "Settings" },
-];
+import { useT } from "@/lib/i18n";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { admin, signOut } = useAuth();
+  const t = useT();
+
+  const navItems: { href: string; labelKey: string }[] = [
+    { href: "/dashboard", labelKey: "nav.dashboard" },
+    { href: "/households", labelKey: "nav.households" },
+    { href: "/expenses", labelKey: "nav.expenses" },
+    { href: "/recurring", labelKey: "nav.recurring" },
+    { href: "/settings", labelKey: "nav.settings" },
+  ];
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -28,12 +30,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-6">
             <Link href="/dashboard" className="text-base font-semibold">
-              {/* TODO(i18n): brand label */}
-              Veeramangalam Juma Masjid
+              {t("brand.name")}
             </Link>
             <nav className="flex items-center gap-2">
-              {NAV_ITEMS.map((it) => {
-                const active = pathname === it.href || pathname?.startsWith(it.href + "/");
+              {navItems.map((it) => {
+                const active =
+                  pathname === it.href || pathname?.startsWith(it.href + "/");
                 return (
                   <Link
                     key={it.href}
@@ -42,11 +44,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       "rounded-md px-3 py-1.5 text-sm",
                       active
                         ? "bg-muted font-medium"
-                        : "text-muted-foreground hover:bg-muted"
+                        : "text-muted-foreground hover:bg-muted",
                     )}
                   >
-                    {/* TODO(i18n): nav label */}
-                    {it.label}
+                    {t(it.labelKey)}
                   </Link>
                 );
               })}
@@ -55,7 +56,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-3">
             {admin ? (
               <span className="text-sm text-muted-foreground">
-                {/* TODO(i18n): admin identity */}
                 {admin.displayName} · {admin.email}
               </span>
             ) : null}
@@ -67,13 +67,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 router.replace("/sign-in");
               }}
             >
-              {/* TODO(i18n): sign out label */}
-              Sign out
+              {t("common.signOut")}
             </Button>
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+        {children}
+      </main>
     </div>
   );
 }

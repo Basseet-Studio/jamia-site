@@ -14,6 +14,7 @@ import { deletePayment } from "@/lib/services/payments";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useMoneyOnHand } from "@/lib/hooks/useMoneyOnHand";
 import { formatCurrency } from "@/lib/utils/currency";
+import { useT } from "@/lib/i18n";
 
 export function DeletePaymentDialog({
   householdId,
@@ -33,7 +34,8 @@ export function DeletePaymentDialog({
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
   const { moh } = useMoneyOnHand();
-  const cur = moh.currency || "—";
+  const t = useT();
+  const cur = moh.currency || t("common.dash");
 
   async function onConfirm() {
     if (!user) return;
@@ -49,31 +51,36 @@ export function DeletePaymentDialog({
     }
   }
 
+  const forFamily = familyName ? ` ${t("common.for")} ${familyName}` : "";
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="text-destructive">
-          Delete
+          {t("common.delete")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            Delete payment of {formatCurrency(paymentAmount, cur)}
-            {familyName ? ` for ${familyName}` : ""}?
+            {t("payments.deleteTitle", {
+              amount: formatCurrency(paymentAmount, cur),
+              forFamily,
+            })}
           </DialogTitle>
-          <DialogDescription>
-            This permanently removes the payment. Money on hand will decrease
-            by the same amount.
-          </DialogDescription>
+          <DialogDescription>{t("payments.deleteBody")}</DialogDescription>
         </DialogHeader>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-            Cancel
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setOpen(false)}
+          >
+            {t("common.cancel")}
           </Button>
           <Button variant="destructive" onClick={onConfirm} disabled={busy}>
-            {busy ? "Deleting…" : "Delete payment"}
+            {busy ? t("payments.deleting") : t("payments.deleteAction")}
           </Button>
         </DialogFooter>
       </DialogContent>

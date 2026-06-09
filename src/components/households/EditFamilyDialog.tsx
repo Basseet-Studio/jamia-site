@@ -16,6 +16,7 @@ import {
 import { editFamilySchema, type EditFamilySchema } from "@/lib/schemas/family";
 import { editFamily } from "@/lib/services/families";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useT } from "@/lib/i18n";
 import type { Family } from "@/lib/types";
 
 export function EditFamilyDialog({
@@ -29,6 +30,7 @@ export function EditFamilyDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  const t = useT();
 
   const form = useForm<EditFamilySchema>({
     resolver: zodResolver(editFamilySchema),
@@ -61,27 +63,25 @@ export function EditFamilyDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
-          {/* TODO(i18n): button label */}
-          Edit
+          {t("families.editButton")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            {/* TODO(i18n): dialog title */}
-            Edit family
-          </DialogTitle>
+          <DialogTitle>{t("families.editTitle")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="ef-name">Name</Label>
+            <Label htmlFor="ef-name">{t("common.name")}</Label>
             <Input id="ef-name" {...form.register("name")} />
             {form.formState.errors.name ? (
-              <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
+              <p className="text-xs text-destructive">
+                {form.formState.errors.name.message}
+              </p>
             ) : null}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ef-target">Monthly contribution target</Label>
+            <Label htmlFor="ef-target">{t("families.monthlyTarget")}</Label>
             <Input
               id="ef-target"
               type="number"
@@ -96,11 +96,15 @@ export function EditFamilyDialog({
           </div>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={busy}>
-              {busy ? "Saving…" : "Save"}
+              {busy ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </form>

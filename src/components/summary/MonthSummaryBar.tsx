@@ -9,9 +9,11 @@ import {
 import { formatCurrency } from "@/lib/utils/currency";
 import { useMoneyOnHand } from "@/lib/hooks/useMoneyOnHand";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useT } from "@/lib/i18n";
 
 export function MonthSummaryBar({ month }: { month: string }) {
   const { moh } = useMoneyOnHand();
+  const t = useT();
   const [m, setM] = useState<MonthlyExpenseSummary>({
     month,
     totalAdded: 0,
@@ -32,25 +34,34 @@ export function MonthSummaryBar({ month }: { month: string }) {
     };
   }, [month]);
 
-  const cur = moh.currency || "—";
+  const cur = moh.currency || t("common.dash");
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-sm text-muted-foreground">
-          {/* TODO(i18n): card title */}
-          This month
+          {t("summary.thisMonth")}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <dl className="grid grid-cols-3 gap-4 text-sm">
-          <Stat label="Added" value={formatCurrency(m.totalAdded, cur)} />
-          <Stat label="Withdrawn" value={formatCurrency(m.totalWithdrawn, cur)} />
-          <Stat label="Pending" value={formatCurrency(m.totalPending, cur)} />
+          <Stat
+            label={t("summary.added")}
+            value={formatCurrency(m.totalAdded, cur)}
+          />
+          <Stat
+            label={t("summary.withdrawn")}
+            value={formatCurrency(m.totalWithdrawn, cur)}
+          />
+          <Stat
+            label={t("summary.pending")}
+            value={formatCurrency(m.totalPending, cur)}
+          />
         </dl>
         <p className="mt-3 text-xs text-muted-foreground">
-          {/* TODO(i18n): all-time helper */}
-          All-time added: {formatCurrency(allTime.totalAdded, cur)} · withdrawn:{" "}
-          {formatCurrency(allTime.totalWithdrawn, cur)}
+          {t("summary.thisMonthHelper", {
+            added: formatCurrency(allTime.totalAdded, cur),
+            withdrawn: formatCurrency(allTime.totalWithdrawn, cur),
+          })}
         </p>
       </CardContent>
     </Card>

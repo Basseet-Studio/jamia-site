@@ -8,6 +8,7 @@ import { FamilyRow } from "@/components/households/FamilyRow";
 import { RecordPaymentDialog } from "@/components/payments/RecordPaymentDialog";
 import { MonthNavigator } from "@/components/nav/MonthNavigator";
 import { currentMonthKey, toMonthKey } from "@/lib/utils/dates";
+import { useT } from "@/lib/i18n";
 import {
   Table,
   TableBody,
@@ -24,6 +25,7 @@ export default function HouseholdDetailPage({
   params: Promise<{ householdId: string }>;
 }) {
   const { householdId } = use(params);
+  const t = useT();
   const [household, setHousehold] = useState<Household | null>(null);
   const [families, setFamilies] = useState<Family[]>([]);
   const [statuses, setStatuses] = useState<FamilyMonthlySummary[]>([]);
@@ -55,10 +57,16 @@ export default function HouseholdDetailPage({
   }, [statuses]);
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
+    return (
+      <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
+    );
   }
   if (!household) {
-    return <p className="text-sm text-muted-foreground">Household not found.</p>;
+    return (
+      <p className="text-sm text-muted-foreground">
+        {t("householdDetail.notFound")}
+      </p>
+    );
   }
 
   return (
@@ -73,20 +81,32 @@ export default function HouseholdDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Families</CardTitle>
+          <CardTitle>{t("householdDetail.families")}</CardTitle>
         </CardHeader>
         <CardContent>
           {families.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No families yet. Add one above.</p>
+            <p className="text-sm text-muted-foreground">
+              {t("householdDetail.noFamilies")}
+            </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead className="text-right">Target</TableHead>
-                  <TableHead className="text-right">Paid ({toMonthKey(new Date(month + "-01"))})</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("householdDetail.tableName")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("householdDetail.tableTarget")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t("householdDetail.tablePaid", {
+                      month: toMonthKey(new Date(month + "-01")),
+                    })}
+                  </TableHead>
+                  <TableHead className="text-center">
+                    {t("householdDetail.tableStatus")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t("householdDetail.tableActions")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -106,7 +126,7 @@ export default function HouseholdDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Quick actions</CardTitle>
+          <CardTitle>{t("householdDetail.quickActions")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">

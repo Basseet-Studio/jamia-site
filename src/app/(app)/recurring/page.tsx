@@ -5,10 +5,12 @@ import { AddTemplateDialog } from "@/components/recurring/AddTemplateDialog";
 import { RecurringTemplateList } from "@/components/recurring/RecurringTemplateList";
 import { MonthNavigator } from "@/components/nav/MonthNavigator";
 import { currentMonthKey } from "@/lib/utils/dates";
+import { useT } from "@/lib/i18n";
 import type { RecurringTemplateWithStatus } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function RecurringPage() {
+  const t = useT();
   const [month, setMonth] = useState<string>(currentMonthKey());
   const [templates, setTemplates] = useState<RecurringTemplateWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,28 +27,34 @@ export default function RecurringPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month]);
 
-  const active = templates.filter((t) => t.active);
-  const archived = templates.filter((t) => !t.active);
+  const active = templates.filter((tpl) => tpl.active);
+  const archived = templates.filter((tpl) => !tpl.active);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Recurring expenses</h1>
+        <h1 className="text-2xl font-semibold">{t("recurring.heading")}</h1>
         <AddTemplateDialog />
       </div>
       <div className="flex items-center gap-3">
-        <MonthNavigator month={month} onChange={setMonth} capAtCurrent={false} />
+        <MonthNavigator
+          month={month}
+          onChange={setMonth}
+          capAtCurrent={false}
+        />
         <span className="text-xs text-muted-foreground">
-          Status reflects expenses added for the selected month.
+          {t("recurring.monthStatus")}
         </span>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Active templates</CardTitle>
+          <CardTitle>{t("recurring.activeTemplates")}</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
+            <p className="text-sm text-muted-foreground">
+              {t("common.loading")}
+            </p>
           ) : (
             <RecurringTemplateList
               templates={active}
@@ -59,7 +67,7 @@ export default function RecurringPage() {
       {archived.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>Archived</CardTitle>
+            <CardTitle>{t("recurring.archived")}</CardTitle>
           </CardHeader>
           <CardContent>
             <RecurringTemplateList

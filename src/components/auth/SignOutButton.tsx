@@ -2,10 +2,12 @@
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useRouter } from "next/navigation";
+import { useT } from "@/lib/i18n";
 
 export function SignOutButton() {
   const { signOut } = useAuth();
   const router = useRouter();
+  const t = useT();
   return (
     <Button
       variant="outline"
@@ -14,7 +16,7 @@ export function SignOutButton() {
         router.replace("/sign-in");
       }}
     >
-      Sign out
+      {t("common.signOut")}
     </Button>
   );
 }

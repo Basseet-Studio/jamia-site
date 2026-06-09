@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { deleteHousehold } from "@/lib/services/households";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useT } from "@/lib/i18n";
 
 export function DeleteHouseholdDialog({
   householdId,
@@ -27,6 +28,7 @@ export function DeleteHouseholdDialog({
   const [error, setError] = useState<string | null>(null);
   const [confirmText, setConfirmText] = useState("");
   const { user } = useAuth();
+  const t = useT();
 
   const matches = confirmText.trim() === householdName;
 
@@ -48,27 +50,18 @@ export function DeleteHouseholdDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="text-destructive">
-          {/* TODO(i18n): button label */}
-          Delete
+          {t("households.deleteButton")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {/* TODO(i18n): dialog title */}
-            Delete {householdName}?
+            {t("households.deleteTitle", { name: householdName })}
           </DialogTitle>
-          <DialogDescription>
-            {/* TODO(i18n): warning body */}
-            This permanently deletes the household, all families, and all
-            payments. This cannot be undone. Type the household name to confirm.
-          </DialogDescription>
+          <DialogDescription>{t("households.deleteBody")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
-          <Label htmlFor="dh-name">
-            {/* TODO(i18n): label */}
-            Type the household name
-          </Label>
+          <Label htmlFor="dh-name">{t("households.deleteConfirmLabel")}</Label>
           <Input
             id="dh-name"
             value={confirmText}
@@ -78,11 +71,21 @@ export function DeleteHouseholdDialog({
         </div>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-            Cancel
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setOpen(false)}
+          >
+            {t("common.cancel")}
           </Button>
-          <Button variant="destructive" onClick={onConfirm} disabled={!matches || busy}>
-            {busy ? "Deleting…" : "Delete household"}
+          <Button
+            variant="destructive"
+            onClick={onConfirm}
+            disabled={!matches || busy}
+          >
+            {busy
+              ? t("households.deleting")
+              : t("households.deleteConfirmAction")}
           </Button>
         </DialogFooter>
       </DialogContent>

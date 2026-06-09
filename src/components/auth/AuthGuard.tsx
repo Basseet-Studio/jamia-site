@@ -7,10 +7,12 @@
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useT } from "@/lib/i18n";
 
 export function AuthGuard({ children }: { children: ReactNode }) {
   const { user, admin, loading } = useAuth();
   const router = useRouter();
+  const t = useT();
 
   // Redirect once we have definitive auth state
   useEffect(() => {
@@ -30,7 +32,7 @@ export function AuthGuard({ children }: { children: ReactNode }) {
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
-        Loading…
+        {t("common.loading")}
       </div>
     );
   }

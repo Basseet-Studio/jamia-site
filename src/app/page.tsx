@@ -2,10 +2,12 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useT } from "@/lib/i18n";
 
 export default function Home() {
   const router = useRouter();
   const { user, admin, loading } = useAuth();
+  const t = useT();
 
   useEffect(() => {
     if (loading) return;
@@ -15,8 +17,7 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
-      {/* TODO(i18n): loading label */}
-      Loading…
+      {t("common.loading")}
     </div>
   );
 }

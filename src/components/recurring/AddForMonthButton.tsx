@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { addRecurringForMonth } from "@/lib/services/recurring";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useT } from "@/lib/i18n";
 
 export function AddForMonthButton({
   templateId,
@@ -14,6 +15,7 @@ export function AddForMonthButton({
   onAdded?: () => void;
 }) {
   const { user } = useAuth();
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +36,7 @@ export function AddForMonthButton({
   return (
     <div className="flex items-center gap-2">
       <Button size="sm" onClick={onClick} disabled={busy}>
-        {busy ? "Adding…" : "Add for this month"}
+        {busy ? t("recurring.adding") : t("recurring.addForMonth")}
       </Button>
       {error ? <span className="text-xs text-destructive">{error}</span> : null}
     </div>

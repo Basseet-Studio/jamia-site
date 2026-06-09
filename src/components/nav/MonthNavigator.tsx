@@ -7,6 +7,7 @@ import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { fromMonthKey, stepMonthKey, toMonthKey } from "@/lib/utils/dates";
+import { useT } from "@/lib/i18n";
 
 export interface MonthNavigatorProps {
   month: string;
@@ -25,9 +26,10 @@ export function MonthNavigator({
   currentMonth,
   disabled = false,
 }: MonthNavigatorProps) {
+  const t = useT();
   const cur = useMemo(
     () => currentMonth ?? toMonthKey(new Date()),
-    [currentMonth]
+    [currentMonth],
   );
   const canForward = !capAtCurrent || stepMonthKey(month, 1) <= cur;
 
@@ -38,12 +40,11 @@ export function MonthNavigator({
         size="icon"
         onClick={() => onChange(stepMonthKey(month, -1))}
         disabled={disabled}
-        aria-label="Previous month"
+        aria-label={t("months.prev")}
       >
         <ChevronLeft className="h-4 w-4" />
       </Button>
       <div className="min-w-32 text-center text-sm font-medium tabular-nums">
-        {/* TODO(i18n): month label */}
         {formatMonthLabel(month)}
       </div>
       <Button
@@ -51,7 +52,7 @@ export function MonthNavigator({
         size="icon"
         onClick={() => onChange(stepMonthKey(month, 1))}
         disabled={disabled || !canForward}
-        aria-label="Next month"
+        aria-label={t("months.next")}
       >
         <ChevronRight className="h-4 w-4" />
       </Button>
@@ -60,6 +61,7 @@ export function MonthNavigator({
 }
 
 function formatMonthLabel(month: string): string {
+  // TODO(i18n): locale-aware formatting. v1 uses en-US (e.g. "May 2026").
   const d = fromMonthKey(month);
   return d.toLocaleDateString("en-US", { year: "numeric", month: "long" });
 }

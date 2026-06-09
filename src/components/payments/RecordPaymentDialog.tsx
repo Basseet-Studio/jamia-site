@@ -14,9 +14,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { recordPaymentSchema, type RecordPaymentSchema } from "@/lib/schemas/payment";
+import {
+  recordPaymentSchema,
+  type RecordPaymentSchema,
+} from "@/lib/schemas/payment";
 import { recordPayment } from "@/lib/services/payments";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useT } from "@/lib/i18n";
 import { format } from "date-fns";
 
 export function RecordPaymentDialog({
@@ -32,6 +36,7 @@ export function RecordPaymentDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  const t = useT();
 
   const form = useForm<RecordPaymentSchema>({
     resolver: zodResolver(recordPaymentSchema),
@@ -50,7 +55,13 @@ export function RecordPaymentDialog({
     setError(null);
     try {
       await recordPayment(user.uid, values);
-      form.reset({ householdId, familyId, amount: 0, date: new Date(), note: null });
+      form.reset({
+        householdId,
+        familyId,
+        amount: 0,
+        date: new Date(),
+        note: null,
+      });
       setOpen(false);
     } catch (e) {
       setError((e as Error).message);
@@ -62,21 +73,17 @@ export function RecordPaymentDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm">
-          {/* TODO(i18n): button label */}
-          Record payment
-        </Button>
+        <Button size="sm">{t("payments.recordButton")}</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {/* TODO(i18n): dialog title */}
-            Record payment for {familyName}
+            {t("payments.recordTitle", { name: familyName })}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="rp-amount">Amount</Label>
+            <Label htmlFor="rp-amount">{t("common.amount")}</Label>
             <Input
               id="rp-amount"
               type="number"
@@ -85,11 +92,13 @@ export function RecordPaymentDialog({
               {...form.register("amount", { valueAsNumber: true })}
             />
             {form.formState.errors.amount ? (
-              <p className="text-xs text-destructive">{form.formState.errors.amount.message}</p>
+              <p className="text-xs text-destructive">
+                {form.formState.errors.amount.message}
+              </p>
             ) : null}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="rp-date">Date</Label>
+            <Label htmlFor="rp-date">{t("common.date")}</Label>
             <Input
               id="rp-date"
               type="date"
@@ -101,21 +110,25 @@ export function RecordPaymentDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="rp-note">Note (optional)</Label>
+            <Label htmlFor="rp-note">{t("common.noteOptional")}</Label>
             <Textarea
               id="rp-note"
               {...form.register("note")}
               maxLength={280}
-              placeholder="Cash, transfer, etc."
+              placeholder={t("payments.notePlaceholder")}
             />
           </div>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={busy}>
-              {busy ? "Saving…" : "Save payment"}
+              {busy ? t("common.saving") : t("payments.savePayment")}
             </Button>
           </DialogFooter>
         </form>

@@ -14,16 +14,21 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 
-const useEmulator = process.env.FIRESTORE_EMULATOR_HOST || process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR;
+const useEmulator =
+  process.env.FIRESTORE_EMULATOR_HOST ||
+  process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR;
 
-const app = getApps()[0] ?? initializeApp({
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "demo-key",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "demo.firebaseapp.com",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "demo-jamia",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? "1:0:web:0",
-});
+const app =
+  getApps()[0] ??
+  initializeApp({
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "demo-key",
+    authDomain:
+      process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "demo.firebaseapp.com",
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "demo-jamia",
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? "1:0:web:0",
+  });
 
 const db = getFirestore(app);
 if (useEmulator && process.env.FIRESTORE_EMULATOR_HOST) {
@@ -32,7 +37,6 @@ if (useEmulator && process.env.FIRESTORE_EMULATOR_HOST) {
 }
 
 async function main() {
-  // TODO(i18n): seed labels
   await setDoc(doc(db, "settings", "global"), {
     defaultContributionTarget: 500,
     openingBalance: 0,

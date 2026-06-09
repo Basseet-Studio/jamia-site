@@ -13,15 +13,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { createHouseholdSchema, type CreateHouseholdSchema } from "@/lib/schemas/household";
+import {
+  createHouseholdSchema,
+  type CreateHouseholdSchema,
+} from "@/lib/schemas/household";
 import { createHousehold } from "@/lib/services/households";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useT } from "@/lib/i18n";
 
 export function AddHouseholdDialog() {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  const t = useT();
   const form = useForm<CreateHouseholdSchema>({
     resolver: zodResolver(createHouseholdSchema),
     defaultValues: { name: "" },
@@ -45,28 +50,19 @@ export function AddHouseholdDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          {/* TODO(i18n): button label */}
-          Add household
-        </Button>
+        <Button>{t("households.addButton")}</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            {/* TODO(i18n): dialog title */}
-            Add household
-          </DialogTitle>
+          <DialogTitle>{t("households.addTitle")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="hh-name">
-              {/* TODO(i18n): label */}
-              Name
-            </Label>
+            <Label htmlFor="hh-name">{t("common.name")}</Label>
             <Input
               id="hh-name"
               {...form.register("name")}
-              placeholder="Veeramangalam North"
+              placeholder={t("households.namePlaceholder")}
             />
             {form.formState.errors.name ? (
               <p className="text-xs text-destructive">
@@ -76,13 +72,15 @@ export function AddHouseholdDialog() {
           </div>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              {/* TODO(i18n): cancel */}
-              Cancel
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={busy}>
-              {busy ? "Saving…" : "Save"}
-              {/* TODO(i18n): save label */}
+              {busy ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </form>
