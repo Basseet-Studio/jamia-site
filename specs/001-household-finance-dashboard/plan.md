@@ -17,14 +17,12 @@ Single-admin web dashboard for the Veeramangalam Juma Masjid. Tracks monthly fam
 **Primary Dependencies**:
 - `next@15` (App Router, Server Components, Server Actions, Route Handlers)
 - `react@19`, `react-dom@19`
-- `firebase@11` (Web SDK — Auth + Firestore)
-- `firebase-admin@12` (server SDK for Server Actions that need privileged reads)
+- `firebase@11` (Web SDK — Auth + Firestore; used in browser and Server Actions with the user's ID token)
 - `tailwindcss@4` + `@tailwindcss/postcss`
 - shadcn/ui primitives (Radix UI + `class-variance-authority` + `tailwind-merge`)
 - `react-hook-form@7` + `zod@3` (form validation; Zod schemas double as service-layer guards)
 - `date-fns@3` (date math + `format(date, "yyyy-MM")` for the month key)
 - `lucide-react` (icons)
-- `@tanstack/react-query@5` (client cache + mutation invalidation)
 - `vitest@2` + `@testing-library/react@16` (unit + service)
 - `@playwright/test@1` (E2E on critical flows)
 
@@ -106,8 +104,12 @@ jamia-site/
 │   │   │   ├── dashboard/page.tsx
 │   │   │   ├── households/
 │   │   │   │   ├── page.tsx
-│   │   │   │   └── [householdId]/page.tsx
-│   │   │   │       └── families/[familyId]/history/page.tsx
+│   │   │   │   └── [householdId]/
+│   │   │   │       ├── page.tsx
+│   │   │   │       └── families/
+│   │   │   │           └── [familyId]/
+│   │   │   │               └── history/
+│   │   │   │                   └── page.tsx
 │   │   │   ├── expenses/page.tsx
 │   │   │   ├── recurring/page.tsx
 │   │   │   └── settings/page.tsx
@@ -125,8 +127,7 @@ jamia-site/
 │   │   └── auth/                          # GoogleSignInButton, AuthGuard
 │   ├── lib/
 │   │   ├── firebase/
-│   │   │   ├── client.ts                  # client SDK init (browser)
-│   │   │   ├── admin.ts                   # server SDK init (Node runtime only)
+│   │   │   ├── client.ts                  # client SDK init (browser + Server Actions, uses user ID token)
 │   │   │   └── rules/                     # firestore.rules (mirrored to repo root)
 │   │   ├── services/
 │   │   │   ├── admins.ts

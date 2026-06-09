@@ -105,19 +105,23 @@ Resolves all `NEEDS CLARIFICATION` items from `plan.md` Technical Context. Each 
 
 ---
 
-## 7. React Query + onSnapshot layering
+## 7. Data flow: onSnapshot everywhere, no client cache library
 
-**Decision**: TanStack Query for mutations, invalidation, optimistic updates. `onSnapshot` for live data subscriptions (dashboard, money on hand, household summary). Each Firestore read is wrapped in a React Query query with a Firestore live source.
+**Decision**: All live data (dashboard, money on hand, household summary, family history, expense list, recurring templates) is consumed via custom React hooks in `src/lib/hooks/` that wrap Firestore's `onSnapshot` and store the result in local state. Writes call service functions directly; the active `onSnapshot` listeners propagate the new value to the UI. No TanStack Query, no SWR, no manual cache invalidation.
 
 **Rationale**:
-- TanStack Query gives predictable cache invalidation after mutations (record payment → invalidate `['payments', familyId]` and `['household-summary', householdId, month]`).
-- `onSnapshot` covers the "live" surfaces that must feel instant.
-- Mixing is fine: React Query for read-on-mount with snapshot-driven refetch, plain `useEffect + onSnapshot` for the always-live surfaces (money on hand, dashboard cards).
+- The app is small (one admin, one tenant, low write rate). The complexity of a client cache library is not justified.
+- `onSnapshot` is already the source of truth for the "live" surfaces; introducing a parallel cache just creates two sources of truth that must be kept in sync.
+- Writes are simple imperative calls (e.g., `await services.payments.recordPayment(...)`). The matching `onSnapshot` listener fires on the next Firestore update and React re-renders. No optimistic update, no rollback.
+- This matches the spec's "updates immediately" rule (US-2, US-4, US-5) — the only way to guarantee that without polling is `onSnapshot`.
+- Smaller bundle, fewer dependencies, fewer abstractions to teach.
 
 **Alternatives considered**:
-- SWR: comparable, but TanStack Query's `useMutation` + `setQueryData` is more ergonomic for optimistic updates.
-- Just `onSnapshot` everywhere: works, but cache invalidation after writes gets verbose.
+- TanStack Query: gives optimistic updates and predictable cache invalidation, but requires a parallel cache that must be kept in sync with the Firestore live source. Not worth the complexity at this scale.
+- SWR: same trade-off as TanStack Query, less ergonomic for the mutation flow.
 - Server Actions + `revalidatePath`: works for read-after-write on the same server, but not for cross-client live updates.
+- Polling (`useSWR` with `refreshInterval`): wastes reads, violates the "updates immediately" spec rule.
+- One-shot `getDocs` only: fails SC-002 / SC-003 ("updates within 3 seconds").
 
 ---
 
