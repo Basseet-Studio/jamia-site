@@ -136,10 +136,10 @@ export function WithdrawDialog({
                   {formatCurrency(totals.totalPending, cur)}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {t("calendar.shortfall.onTrack")}:{" "}
-                  {formatCurrency(totals.shortfall.recurringTotal, cur)} ·{" "}
-                  {t("calendar.shortfall.watch").split(":")[0]}:{" "}
-                  {formatCurrency(totals.shortfall.shortfall, cur)}
+                  {/* TODO: localise this later — inline budget impact */}
+                  Recurring total:{" "}
+                  {formatCurrency(totals.shortfall.recurringTotal, cur)} ·
+                  Shortfall: {formatCurrency(totals.shortfall.shortfall, cur)}
                 </div>
               </div>
             ) : totalsError ? (

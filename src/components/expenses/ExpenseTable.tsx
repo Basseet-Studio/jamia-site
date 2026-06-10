@@ -74,7 +74,7 @@ export function ExpenseTable({ expenses }: { expenses: Expense[] }) {
                     ? ` · ${t(`mosqueSubCategory.${e.mosqueSubCategory}`)}`
                     : ""
                 }`
-              : `${t("expenseType.household")}${e.familyId ? "" : ""}`;
+              : t("expenseType.household");
           return (
             <TableRow
               key={e.id}

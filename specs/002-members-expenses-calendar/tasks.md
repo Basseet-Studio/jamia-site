@@ -59,26 +59,23 @@
 
 ### Tests for User Story 2
 
-- [ ] T015 [P] [US2] Unit test for the expense `discriminatedUnion` schema in `tests/unit/schemas/expense.discriminatedUnion.test.ts` — covers household branch, mosque branch, XOR violation (both fields set), and missing-type rejection
-- [ ] T016 [P] [US2] Unit test for expense create type wiring in `tests/unit/services/expenses.createType.test.ts` — module exports `createExpense`; calls write the new fields to Firestore
-- [ ] T017 [P] [US2] E2E test for expense type flow in `tests/e2e/expense-type.spec.ts` — admin adds household + mosque expenses, badges render, household filter works, household detail scopes correctly
-
-### Implementation for User Story 2
-
-- [ ] T018 [P] [US2] Extend `toExpense` in `src/lib/services/expenses.ts` to read `type`, `householdId`, `familyId`, `mosqueSubCategory`; default `type` to `"mosque"` on legacy docs (nullable migration)
-- [ ] T019 [US2] Extend `createExpense` in `src/lib/services/expenses.ts` to write the new fields (depends on T007, T018)
-- [ ] T020 [US2] Add `subscribeHouseholdExpenses(householdId, month, cb)` in `src/lib/services/expenses.ts` (query `type=="household"`, `householdId`, `month`)
-- [ ] T021 [P] [US2] Add `subscribeMosqueExpenses(month, subCategory, cb)` in `src/lib/services/expenses.ts` (query `type=="mosque"`, optional `mosqueSubCategory`, `month`)
-- [ ] T022 [US2] Extend `listExpenses` signature in `src/lib/services/expenses.ts` to `listExpenses(month, filter?: ExpenseFilter)`; v1 callers passing no filter still work
-- [ ] T023 [P] [US2] Extend `createRecurringTemplate` and `updateRecurringTemplate` in `src/lib/services/recurring.ts` to accept/persist the type + linkage fields; default `type` to `"mosque"` on create
-- [ ] T024 [US2] Extend `addRecurringForMonth` in `src/lib/services/recurring.ts` to copy `type`, `householdId`, `familyId`, `mosqueSubCategory` from the template onto the new expense
-- [ ] T025 [US2] Re-export `ExpenseType`, `MosqueSubCategory`, `ExpenseFilter` from `src/lib/services/index.ts`
-- [ ] T026 [P] [US2] Add type-selector + dynamic linkage pickers to `AddExpenseDialog` in `src/components/expenses/AddExpenseDialog.tsx`; show household/family dropdown for `type=="household"`, mosque sub-category dropdown for `type=="mosque"`; gate submit on a valid type
-- [ ] T027 [P] [US2] Add type badge column + type filter (All/Household/Mosque) + mosque sub-category filter to `ExpenseTable` in `src/components/expenses/ExpenseTable.tsx`
-- [ ] T028 [US2] Add type filter state to `src/app/(app)/expenses/page.tsx`; pass filter to `subscribeExpenses` / `listExpenses` (depends on T022, T027)
-- [ ] T029 [P] [US2] Add type-selector to `AddTemplateDialog` in `src/components/recurring/AddTemplateDialog.tsx`; mirror the dynamic linkage pickers from T026
-- [ ] T030 [P] [US2] Add type badge to each row in `RecurringTemplateList` in `src/components/recurring/RecurringTemplateList.tsx`
-- [ ] T031 [US2] Add a "Household expenses" section to `src/app/(app)/households/[householdId]/page.tsx`; subscribe via `subscribeHouseholdExpenses` from T020; render the expense rows (read-only in v1 per FR-013)
+- [x] T015 [P] [US2] Unit test for the expense `discriminatedUnion` schema in `tests/unit/schemas/expense.discriminatedUnion.test.ts` — covers household branch, mosque branch, XOR violation (both fields set), and missing-type rejection
+- [x] T016 [P] [US2] Unit test for expense create type wiring in `tests/unit/services/expenses.createType.test.ts` — module exports `createExpense`; calls write the new fields to Firestore
+- [x] T017 [P] [US2] E2E test for expense type flow in `tests/e2e/expense-type.spec.ts` — admin adds household + mosque expenses, badges render, household filter works, household detail scopes correctly
+- [x] T018 [P] [US2] Extend `toExpense` in `src/lib/services/expenses.ts` to read `type`, `householdId`, `familyId`, `mosqueSubCategory`; default `type` to `"mosque"` on legacy docs (nullable migration)
+- [x] T019 [US2] Extend `createExpense` in `src/lib/services/expenses.ts` to write the new fields (depends on T007, T018)
+- [x] T020 [US2] Add `subscribeHouseholdExpenses(householdId, month, cb)` in `src/lib/services/expenses.ts` (query `type=="household"`, `householdId`, `month`)
+- [x] T021 [P] [US2] Add `subscribeMosqueExpenses(month, subCategory, cb)` in `src/lib/services/expenses.ts` (query `type=="mosque"`, optional `mosqueSubCategory`, `month`)
+- [x] T022 [US2] Extend `listExpenses` signature in `src/lib/services/expenses.ts` to `listExpenses(month, filter?: ExpenseFilter)`; v1 callers passing no filter still work
+- [x] T023 [P] [US2] Extend `createRecurringTemplate` and `updateRecurringTemplate` in `src/lib/services/recurring.ts` to accept/persist the type + linkage fields; default `type` to `"mosque"` on create
+- [x] T024 [US2] Extend `addRecurringForMonth` in `src/lib/services/recurring.ts` to copy `type`, `householdId`, `familyId`, `mosqueSubCategory` from the template onto the new expense
+- [x] T025 [US2] Re-export `ExpenseType`, `MosqueSubCategory`, `ExpenseFilter` from `src/lib/services/index.ts`
+- [x] T026 [P] [US2] Add type-selector + dynamic linkage pickers to `AddExpenseDialog` in `src/components/expenses/AddExpenseDialog.tsx`; show household/family dropdown for `type=="household"`, mosque sub-category dropdown for `type=="mosque"`; gate submit on a valid type
+- [x] T027 [P] [US2] Add type badge column + type filter (All/Household/Mosque) + mosque sub-category filter to `ExpenseTable` in `src/components/expenses/ExpenseTable.tsx`
+- [x] T028 [US2] Add type filter state to `src/app/(app)/expenses/page.tsx`; pass filter to `subscribeExpenses` / `listExpenses` (depends on T022, T027)
+- [x] T029 [P] [US2] Add type-selector to `AddTemplateDialog` in `src/components/recurring/AddTemplateDialog.tsx`; mirror the dynamic linkage pickers from T026
+- [x] T030 [P] [US2] Add type badge to each row in `RecurringTemplateList` in `src/components/recurring/RecurringTemplateList.tsx`
+- [x] T031 [US2] Add a "Household expenses" section to `src/app/(app)/households/[householdId]/page.tsx`; subscribe via `subscribeHouseholdExpenses` from T020; render the expense rows (read-only in v1 per FR-013)
 
 **Checkpoint**: US2 fully functional — every expense + recurring template carries a `type`, badges render, filters work, household detail scope is correct.
 
@@ -94,14 +91,14 @@
 
 ### Tests for User Story 3
 
-- [ ] T032 [P] [US3] E2E test for recurring-withdraw confirmation in `tests/e2e/withdraw-recurring.spec.ts` — opens the expanded dialog, verifies all required fields render, cancel keeps expense pending, confirm flips to withdrawn
+- [x] T032 [P] [US3] E2E test for recurring-withdraw confirmation in `tests/e2e/withdraw-recurring.spec.ts` — opens the expanded dialog, verifies all required fields render, cancel keeps expense pending, confirm flips to withdrawn
 
 ### Implementation for User Story 3
 
-- [ ] T033 [P] [US3] Add `getMonthlyTotals(month)` service in `src/lib/services/calendarView.ts` (re-exported from `src/lib/services/index.ts`) returning `{ month, totalAdded, totalWithdrawn, totalPending, shortfall }` — uses `subscribeMonthlyExpenseSummary` snapshot + `subscribeMonthlyShortfall` (added in US5)
-- [ ] T034 [US3] Extend `WithdrawDialog` props in `src/components/expenses/WithdrawDialog.tsx` to accept `isRecurring: boolean`; render expanded view (name, amount, new month totals, shortfall figure) when true, else keep the v1 lighter view (depends on T033)
-- [ ] T035 [US3] Update `ExpenseTable` in `src/components/expenses/ExpenseTable.tsx` to pass `isRecurring={e.isRecurring}` to `WithdrawDialog` (depends on T034)
-- [ ] T036 [US3] Add best-effort fallback (3s timeout) for `getMonthlyTotals` in `WithdrawDialog`; show "Could not compute budget impact" if the call rejects or times out per FR-031
+- [x] T033 [P] [US3] Add `getMonthlyTotals(month)` service in `src/lib/services/calendarView.ts` (re-exported from `src/lib/services/index.ts`) returning `{ month, totalAdded, totalWithdrawn, totalPending, shortfall }` — uses `subscribeMonthlyExpenseSummary` snapshot + `subscribeMonthlyShortfall` (added in US5)
+- [x] T034 [US3] Extend `WithdrawDialog` props in `src/components/expenses/WithdrawDialog.tsx` to accept `isRecurring: boolean`; render expanded view (name, amount, new month totals, shortfall figure) when true, else keep the v1 lighter view (depends on T033)
+- [x] T035 [US3] Update `ExpenseTable` in `src/components/expenses/ExpenseTable.tsx` to pass `isRecurring={e.isRecurring}` to `WithdrawDialog` (depends on T034)
+- [x] T036 [US3] Add best-effort fallback (3s timeout) for `getMonthlyTotals` in `WithdrawDialog`; show "Could not compute budget impact" if the call rejects or times out per FR-031
 
 **Checkpoint**: US3 fully functional — recurring withdraws require explicit confirmation with full impact summary; ad-hoc flow preserved.
 
@@ -115,15 +112,15 @@
 
 ### Tests for User Story 5
 
-- [ ] T037 [P] [US5] Unit tests for `computeShortfall` in `tests/unit/services/shortfall.test.ts` — six FR-032 cases: zero recurring, exact match (`available == recurringTotal`), 5% gap, 10% gap (boundary inclusive), 50% gap, negative `available`
-- [ ] T038 [P] [US5] Module-export smoke test in `tests/unit/services/shortfall.test.ts` — confirms `computeShortfall` and `subscribeMonthlyShortfall` are exported; no `updateShortfall` or `deleteShortfall` methods exist (shortfall is derived, never stored)
+- [x] T037 [P] [US5] Unit tests for `computeShortfall` in `tests/unit/services/shortfall.test.ts` — six FR-032 cases: zero recurring, exact match (`available == recurringTotal`), 5% gap, 10% gap (boundary inclusive), 50% gap, negative `available`
+- [x] T038 [P] [US5] Module-export smoke test in `tests/unit/services/shortfall.test.ts` — confirms `computeShortfall` and `subscribeMonthlyShortfall` are exported; no `updateShortfall` or `deleteShortfall` methods exist (shortfall is derived, never stored)
 
 ### Implementation for User Story 5
 
-- [ ] T039 [P] [US5] Create `src/lib/services/shortfall.ts` exporting the pure `computeShortfall({ month, moneyOnHandAtStartOfMonth, paymentsThisMonth, withdrawnExpensesThisMonth, recurringTotal, asOf })` function with formula from `data-model.md` §5 and severity thresholds `ok` / `watch` / `risk`
-- [ ] T040 [US5] Create `src/lib/services/shortfallSubscription.ts` exporting `subscribeMonthlyShortfall(month, cb)`; opens 4 `onSnapshot` listeners (settings/global, expenses where date<firstOfMonth + month, payments where date<firstOfMonth + month, recurringExpenses) and re-emits via `computeShortfall` (depends on T039)
-- [ ] T041 [US5] Re-export shortfall functions from `src/lib/services/index.ts`
-- [ ] T042 [US5] Add a Vitest assertion in `tests/unit/services/shortfall.test.ts` that `computeShortfall` returns `severity="ok"` and `shortfall=0` for `recurringTotal=0` (banner hidden condition, FR-030)
+- [x] T039 [P] [US5] Create `src/lib/services/shortfall.ts` exporting the pure `computeShortfall({ month, moneyOnHandAtStartOfMonth, paymentsThisMonth, withdrawnExpensesThisMonth, recurringTotal, asOf })` function with formula from `data-model.md` §5 and severity thresholds `ok` / `watch` / `risk`
+- [x] T040 [US5] Create `src/lib/services/shortfallSubscription.ts` exporting `subscribeMonthlyShortfall(month, cb)`; opens 4 `onSnapshot` listeners (settings/global, expenses where date<firstOfMonth + month, payments where date<firstOfMonth + month, recurringExpenses) and re-emits via `computeShortfall` (depends on T039)
+- [x] T041 [US5] Re-export shortfall functions from `src/lib/services/index.ts`
+- [x] T042 [US5] Add a Vitest assertion in `tests/unit/services/shortfall.test.ts` that `computeShortfall` returns `severity="ok"` and `shortfall=0` for `recurringTotal=0` (banner hidden condition, FR-030)
 
 **Checkpoint**: US5 fully functional — pure function unit-tested against FR-032; live subscription re-emits within 1s of any underlying change.
 
