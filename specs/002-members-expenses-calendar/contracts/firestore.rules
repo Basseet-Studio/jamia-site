@@ -1,0 +1,107 @@
+rules_version = '2';
+
+// Veeramangalam Juma Masjid Household Finance Dashboard
+// 002 delta — applied on top of specs/001-household-finance-dashboard/contracts/firestore.rules.
+// Mirrored to repo root as the canonical rules file during deploy.
+
+// ----------------------------------------------------------------------------
+// PATCH INSTRUCTIONS
+// ----------------------------------------------------------------------------
+// This file is NOT a complete rules file. It contains the diff to apply to
+// the v1 rules. The deploy pipeline concatenates the v1 rules with this
+// delta to produce the final firestore.rules at the repo root.
+//
+// Concretely, the v1 rules file stays unchanged. The deploy step applies
+// these changes:
+//   1. household rule (match /households/{householdId}): replace
+//      `allow update: if false;` with the 002 allow-update block below.
+//   2. add new match for /households/{householdId}/memberHistory/{historyId}.
+//   3. expense rule (match /expenses/{expenseId}): extend the create and
+//      update guards to enforce the new type/householdId/familyId/
+//      mosqueSubCategory cross-field rules.
+//   4. recurringExpenses rule (match /recurringExpenses/{templateId}):
+//      relax the update rule to permit the new optional fields.
+// ----------------------------------------------------------------------------
+
+// ---- 1. Household update (replaces v1 `allow update: if false;`) ----
+
+// allow update: if isAdmin()
+//   && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+//     'memberCount', 'memberNames', 'updatedAt', 'updatedBy'
+//   ])
+//   && request.resource.data.memberCount is number
+//   && request.resource.data.memberCount >= 0
+//   && request.resource.data.memberNames is list
+//   && request.resource.data.memberNames.size() == request.resource.data.memberCount;
+
+// ---- 2. Member history sub-collection (append-only) ----
+
+// match /households/{householdId}/memberHistory/{historyId} {
+//   allow read: if isAdmin();
+//   allow create: if isAdmin()
+//     && request.resource.data.changedBy == request.auth.uid
+//     && request.resource.data.changedAt == request.time
+//     && request.resource.data.previousCount is number
+//     && request.resource.data.previousCount >= 0
+//     && request.resource.data.previousNames is list
+//     && request.resource.data.newCount is number
+//     && request.resource.data.newCount >= 0
+//     && request.resource.data.newNames is list;
+//   // Append-only: no update, no delete (spec FR-005).
+//   allow update, delete: if false;
+// }
+
+// ---- 3. Expense (extended guards) ----
+
+// The v1 create rule is augmented with the new type/required-fields
+// branch. The final create rule (replaces v1) is:
+
+// allow create: if isAdmin()
+//   && request.resource.data.addedBy == request.auth.uid
+//   && request.resource.data.addedAt == request.time
+//   && request.resource.data.withdrawn == false
+//   && request.resource.data.withdrawnAt == null
+//   && request.resource.data.withdrawnBy == null
+//   && request.resource.data.amount is number
+//   && request.resource.data.amount > 0
+//   && request.resource.data.month is string
+//   && request.resource.data.month.matches('^\\d{4}-(0[1-9]|1[0-2])$')
+//   && (request.resource.data.isRecurring == false || request.resource.data.recurringId is string)
+//   && (
+//     // household branch
+//     (request.resource.data.type == 'household'
+//       && request.resource.data.householdId is string
+//       && request.resource.data.mosqueSubCategory == null)
+//     ||
+//     // mosque branch
+//     (request.resource.data.type == 'mosque'
+//       && request.resource.data.householdId == null
+//       && request.resource.data.familyId == null
+//       && (request.resource.data.mosqueSubCategory == 'maintenance'
+//         || request.resource.data.mosqueSubCategory == 'salary'
+//         || request.resource.data.mosqueSubCategory == 'other'))
+//   );
+
+// The v1 update rule (withdraw-only) is augmented to require the new
+// fields equal the existing values. Field-equality list grows by:
+//   type, householdId, familyId, mosqueSubCategory
+// Each must match `resource.data.*`.
+
+// ---- 4. Recurring templates (relaxed update) ----
+
+// The v1 update rule for templates required createdAt/createdBy to be
+// unchanged. We keep that, and also enforce that the new fields (type,
+// householdId, familyId, mosqueSubCategory) are well-formed IF they
+// exist on the request. The XOR (type → required linkage) is enforced
+// in the Zod schema and service layer, not in the rules (doubles the
+// rule surface for marginal security value).
+
+// allow update: if isAdmin()
+//   && request.resource.data.createdAt == resource.data.createdAt
+//   && request.resource.data.createdBy == resource.data.createdBy
+//   && request.resource.data.type in ['household', 'mosque']
+//   && (
+//     request.resource.data.type == 'mosque'
+//     || (request.resource.data.type == 'household'
+//       && request.resource.data.householdId is string)
+//   );
