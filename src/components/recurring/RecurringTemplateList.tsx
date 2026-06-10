@@ -5,6 +5,7 @@ import { formatCurrency } from "@/lib/utils/currency";
 import { useMoneyOnHand } from "@/lib/hooks/useMoneyOnHand";
 import { AddForMonthButton } from "@/components/recurring/AddForMonthButton";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { archiveRecurringTemplate } from "@/lib/services/recurring";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useT } from "@/lib/i18n";
@@ -56,42 +57,56 @@ export function RecurringTemplateList({
 
   return (
     <ul className="divide-y rounded-md border">
-      {templates.map((tpl) => (
-        <li
-          key={tpl.id}
-          className="flex items-center justify-between gap-4 p-3"
-        >
-          <div className="flex-1">
-            <div className="font-medium">{tpl.name}</div>
-            <div className="text-sm text-muted-foreground">
-              {formatCurrency(tpl.amount, cur)} ·{" "}
-              {t(STATUS_KEY[tpl.currentMonthStatus])}
-              {tpl.description ? ` · ${tpl.description}` : ""}
+      {templates.map((tpl) => {
+        // TODO: localise this later — type label
+        const typeLabel =
+          tpl.type === "mosque"
+            ? `${t("expenseType.mosque")}${
+                tpl.mosqueSubCategory
+                  ? ` · ${t(`mosqueSubCategory.${tpl.mosqueSubCategory}`)}`
+                  : ""
+              }`
+            : t("expenseType.household");
+        return (
+          <li
+            key={tpl.id}
+            className="flex items-center justify-between gap-4 p-3"
+          >
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <div className="font-medium">{tpl.name}</div>
+                <Badge variant="secondary">{typeLabel}</Badge>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {formatCurrency(tpl.amount, cur)} ·{" "}
+                {t(STATUS_KEY[tpl.currentMonthStatus])}
+                {tpl.description ? ` · ${tpl.description}` : ""}
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {!archived && tpl.currentMonthStatus === "NotAdded" ? (
-              <AddForMonthButton
-                templateId={tpl.id}
-                month={currentMonth}
-                onAdded={onAdded}
-              />
-            ) : null}
-            {!archived ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onArchive(tpl.id)}
-                disabled={busyId === tpl.id}
-              >
-                {busyId === tpl.id
-                  ? t("recurring.archiving")
-                  : t("recurring.archive")}
-              </Button>
-            ) : null}
-          </div>
-        </li>
-      ))}
+            <div className="flex items-center gap-2">
+              {!archived && tpl.currentMonthStatus === "NotAdded" ? (
+                <AddForMonthButton
+                  templateId={tpl.id}
+                  month={currentMonth}
+                  onAdded={onAdded}
+                />
+              ) : null}
+              {!archived ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onArchive(tpl.id)}
+                  disabled={busyId === tpl.id}
+                >
+                  {busyId === tpl.id
+                    ? t("recurring.archiving")
+                    : t("recurring.archive")}
+                </Button>
+              ) : null}
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }

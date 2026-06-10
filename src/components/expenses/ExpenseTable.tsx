@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { WithdrawDialog } from "@/components/expenses/WithdrawDialog";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ export function ExpenseTable({ expenses }: { expenses: Expense[] }) {
           <TableHead className="text-right">
             {t("expenses.tableAmount")}
           </TableHead>
+          <TableHead>{t("expenses.tableType")}</TableHead>
           <TableHead>{t("expenses.tableStatus")}</TableHead>
           <TableHead>{t("expenses.tableNote")}</TableHead>
           <TableHead className="text-right">
@@ -64,6 +66,15 @@ export function ExpenseTable({ expenses }: { expenses: Expense[] }) {
       <TableBody>
         {expenses.map((e) => {
           const date = e.date?.toDate ? e.date.toDate() : new Date();
+          // TODO: localise this later — type label
+          const typeLabel =
+            e.type === "mosque"
+              ? `${t("expenseType.mosque")}${
+                  e.mosqueSubCategory
+                    ? ` · ${t(`mosqueSubCategory.${e.mosqueSubCategory}`)}`
+                    : ""
+                }`
+              : `${t("expenseType.household")}${e.familyId ? "" : ""}`;
           return (
             <TableRow
               key={e.id}
@@ -77,6 +88,9 @@ export function ExpenseTable({ expenses }: { expenses: Expense[] }) {
               <TableCell>{e.name}</TableCell>
               <TableCell className="text-right tabular-nums">
                 {formatCurrency(e.amount, cur)}
+              </TableCell>
+              <TableCell>
+                <Badge variant="secondary">{typeLabel}</Badge>
               </TableCell>
               <TableCell>
                 {e.withdrawn ? (
@@ -99,6 +113,8 @@ export function ExpenseTable({ expenses }: { expenses: Expense[] }) {
                       expenseId={e.id}
                       expenseName={e.name}
                       amount={e.amount}
+                      month={e.month}
+                      isRecurring={e.isRecurring}
                     />
                   ) : null}
                   <Button

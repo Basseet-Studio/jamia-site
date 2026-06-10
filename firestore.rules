@@ -1,7 +1,8 @@
 rules_version = '2';
 
 // Veeramangalam Juma Masjid Household Finance Dashboard
-// v1 — single admin app. See contracts/README.md and specs/001-household-finance-dashboard/.
+// 002 delta applied on top of v1.
+// See specs/001-household-finance-dashboard/contracts/firestore.rules for v1 origin.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -19,8 +20,6 @@ service cloud.firestore {
 
     // ---- admins ----
 
-    // Admin docs are written manually in the Firebase Console.
-    // The client never writes, updates, or deletes them in v1.
     match /admins/{uid} {
       allow read: if isSignedIn();
       allow write: if false;
@@ -28,7 +27,6 @@ service cloud.firestore {
 
     // ---- settings ----
 
-    // Singleton: settings/global. Anyone authorised can read. Only authorised admins can write.
     match /settings/{doc} {
       allow read: if isAdmin();
       allow write: if isAdmin()
@@ -45,11 +43,16 @@ service cloud.firestore {
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdAt == request.time;
 
-      // Update is not used in v1.
-      allow update: if false;
+      // 002 delta: narrow allowlist for member edits. All other field updates still rejected.
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'memberCount', 'memberNames', 'updatedAt', 'updatedBy'
+        ])
+        && request.resource.data.memberCount is number
+        && request.resource.data.memberCount >= 0
+        && request.resource.data.memberNames is list
+        && request.resource.data.memberNames.size() == request.resource.data.memberCount;
 
-      // Hard delete: cascades via batched write in the service layer.
-      // Rules do not enforce cascade — service layer is responsible.
       allow delete: if isAdmin();
 
       // ---- families (sub-collection) ----
@@ -66,13 +69,8 @@ service cloud.firestore {
           && request.resource.data.contributionTarget is number
           && request.resource.data.contributionTarget >= 0;
 
-        // Update allowed for two cases:
-        //   (a) Soft-delete transition: active flips to false, deletedAt/deletedBy set, every other field immutable.
-        //   (b) Contribution-target edit (FR-009): only contributionTarget may change; family must stay active.
-        //       Name, createdAt, createdBy, active, deletedAt, deletedBy are immutable.
         allow update: if isAdmin()
           && (
-            // (a) soft-delete
             (
               resource.data.active == true
               && request.resource.data.active == false
@@ -84,7 +82,6 @@ service cloud.firestore {
               && request.resource.data.createdBy == resource.data.createdBy
             )
             ||
-            // (b) contribution target edit while active
             (
               resource.data.active == true
               && request.resource.data.active == true
@@ -98,7 +95,6 @@ service cloud.firestore {
             )
           );
 
-        // Hard delete is NOT allowed on families. Soft delete only.
         allow delete: if false;
 
         // ---- payments (sub-sub-collection) ----
@@ -114,11 +110,27 @@ service cloud.firestore {
             && request.resource.data.month is string
             && request.resource.data.month.matches('^\\d{4}-(0[1-9]|1[0-2])$');
 
-          // No edit on payments in v1.
           allow update: if false;
-
           allow delete: if isAdmin();
         }
+      }
+
+      // 002 delta: append-only member history sub-collection (FR-005).
+      match /memberHistory/{historyId} {
+        allow read: if isAdmin();
+
+        allow create: if isAdmin()
+          && request.resource.data.changedBy == request.auth.uid
+          && request.resource.data.changedAt == request.time
+          && request.resource.data.previousCount is number
+          && request.resource.data.previousCount >= 0
+          && request.resource.data.previousNames is list
+          && request.resource.data.newCount is number
+          && request.resource.data.newCount >= 0
+          && request.resource.data.newNames is list;
+
+        // Append-only: no update, no delete.
+        allow update, delete: if false;
       }
     }
 
@@ -127,7 +139,7 @@ service cloud.firestore {
     match /expenses/{expenseId} {
       allow read: if isAdmin();
 
-      // Create: not withdrawn by default.
+      // 002 delta: extended create guard for the type/linkage XOR.
       allow create: if isAdmin()
         && request.resource.data.addedBy == request.auth.uid
         && request.resource.data.addedAt == request.time
@@ -138,12 +150,23 @@ service cloud.firestore {
         && request.resource.data.amount > 0
         && request.resource.data.month is string
         && request.resource.data.month.matches('^\\d{4}-(0[1-9]|1[0-2])$')
-        && (request.resource.data.isRecurring == false || request.resource.data.recurringId is string);
+        && (request.resource.data.isRecurring == false || request.resource.data.recurringId is string)
+        && (
+          // household branch
+          (request.resource.data.type == 'household'
+            && request.resource.data.householdId is string
+            && request.resource.data.mosqueSubCategory == null)
+          ||
+          // mosque branch
+          (request.resource.data.type == 'mosque'
+            && request.resource.data.householdId == null
+            && request.resource.data.familyId == null
+            && (request.resource.data.mosqueSubCategory == 'maintenance'
+              || request.resource.data.mosqueSubCategory == 'salary'
+              || request.resource.data.mosqueSubCategory == 'other'))
+        );
 
-      // Update: only the withdraw transition is allowed.
-      // From: withdrawn=false, withdrawnAt=null, withdrawnBy=null
-      // To:   withdrawn=true,  withdrawnAt=request.time, withdrawnBy=request.auth.uid
-      // Every other field must match the existing value (immutable on withdraw).
+      // 002 delta: update (withdraw) requires the new fields to be unchanged.
       allow update: if isAdmin()
         && resource.data.withdrawn == false
         && request.resource.data.withdrawn == true
@@ -157,7 +180,11 @@ service cloud.firestore {
         && request.resource.data.isRecurring == resource.data.isRecurring
         && request.resource.data.recurringId == resource.data.recurringId
         && request.resource.data.addedAt == resource.data.addedAt
-        && request.resource.data.addedBy == resource.data.addedBy;
+        && request.resource.data.addedBy == resource.data.addedBy
+        && request.resource.data.type == resource.data.type
+        && request.resource.data.householdId == resource.data.householdId
+        && request.resource.data.familyId == resource.data.familyId
+        && request.resource.data.mosqueSubCategory == resource.data.mosqueSubCategory;
 
       allow delete: if isAdmin();
     }
@@ -167,17 +194,36 @@ service cloud.firestore {
     match /recurringExpenses/{templateId} {
       allow read: if isAdmin();
 
+      // 002 delta: create accepts the new type/linkage fields and the default-mosque branch.
       allow create: if isAdmin()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdAt == request.time
         && request.resource.data.active == true
         && request.resource.data.amount is number
-        && request.resource.data.amount > 0;
+        && request.resource.data.amount > 0
+        && (
+          (request.resource.data.type == 'household'
+            && request.resource.data.householdId is string
+            && request.resource.data.mosqueSubCategory == null)
+          ||
+          (request.resource.data.type == 'mosque'
+            && request.resource.data.householdId == null
+            && request.resource.data.familyId == null
+            && (request.resource.data.mosqueSubCategory == 'maintenance'
+              || request.resource.data.mosqueSubCategory == 'salary'
+              || request.resource.data.mosqueSubCategory == 'other'))
+        );
 
-      // Edit (name, amount, description, active). createdAt/createdBy immutable.
+      // 002 delta: update keeps createdAt/createdBy immutable and the new fields well-formed.
       allow update: if isAdmin()
         && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.createdBy == resource.data.createdBy;
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.type in ['household', 'mosque']
+        && (
+          request.resource.data.type == 'mosque'
+          || (request.resource.data.type == 'household'
+            && request.resource.data.householdId is string)
+        );
 
       allow delete: if isAdmin();
     }

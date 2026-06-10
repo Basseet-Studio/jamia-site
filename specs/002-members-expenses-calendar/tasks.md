@@ -25,9 +25,9 @@
 
 **Purpose**: Project-wide scaffolding for the 002 delta.
 
-- [ ] T001 Verify `sonner` (or shadcn Radix toast) is present in `package.json` for the calendar toast; install if missing per `research.md` §12
-- [ ] T002 [P] Confirm `node`, `pnpm`, `firebase-tools` available locally; print versions
-- [ ] T003 [P] Create new component folders `src/components/calendar/` and `src/components/calendar/shortfall/` (empty, ready for later phases)
+- [x] T001 Verify `sonner` (or shadcn Radix toast) is present in `package.json` for the calendar toast; install if missing per `research.md` §12
+- [x] T002 [P] Confirm `node`, `pnpm`, `firebase-tools` available locally; print versions
+- [x] T003 [P] Create new component folders `src/components/calendar/` and `src/components/calendar/shortfall/` (empty, ready for later phases)
 
 ---
 
@@ -35,17 +35,17 @@
 
 **Purpose**: Core type definitions, schemas, indexes, and rules that ALL user stories depend on. **No user story work can begin until this phase is complete.**
 
-- [ ] T004 [P] Extend `Household`, `Expense`, `RecurringTemplate` types + add new types (`ExpenseType`, `MosqueSubCategory`, `HouseholdMemberHistory`, `MonthlyBudgetShortfall`, `CalendarTemplateRow`, `CalendarAdHocRow`, `CalendarView`, `MonthlyExpenseTotals`, `ShortfallSeverity`, `CalendarTemplateStatus`) in `src/lib/types/index.ts`
-- [ ] T005 [P] Create `householdMemberSchema` (memberCount int >= 0, memberNames string[1..80], trim) in `src/lib/schemas/householdMember.ts`
-- [ ] T006 [P] Create `memberHistorySchema` (previousCount/Names, newCount/Names, changedAt, changedBy) in `src/lib/schemas/memberHistory.ts`
-- [ ] T007 Replace `createExpenseSchema` with `z.discriminatedUnion("type", [...])` (household / mosque branches) in `src/lib/schemas/expense.ts`
-- [ ] T008 Replace `createRecurringTemplateSchema` + `updateRecurringTemplateSchema` with `z.discriminatedUnion("type", [...])` (default type "mosque") in `src/lib/schemas/recurringTemplate.ts`
-- [ ] T009 [P] Add 3 new composite indexes to `firestore.indexes.json`: `expenses(type, mosqueSubCategory, month)`, `expenses(householdId, type, month)`, `recurringExpenses(type, active)`
-- [ ] T010 Apply 002 rules delta to `firestore.rules`: relax household `update` to allowlist (memberCount/memberNames/updatedAt/updatedBy only), add `households/{hhId}/memberHistory/{histId}` match (append-only), extend expense `create` + `update` guards for new fields, relax `recurringExpenses` update to permit new fields
-- [ ] T011 [P] Add `calendar.*` i18n keys + `householdMembers.*` keys to `src/messages/en.json` (only `en.json`; other locales fall back per v1 rule). Strings: calendar.title, calendar.empty, calendar.recurringHeading, calendar.adHocHeading, calendar.status.*, calendar.action.addForMonth, calendar.shortfall.*, calendar.monthPrev/Next, householdMembers.*, expenseType.household/mosque, mosqueSubCategory.*, householdDetail.expenses, expenses.typeFilter.*, expenses.subCategoryFilter, recurring.withdrawConfirmTitle/Body, calendar.toast.shortfallWorsened
-- [ ] T012 [P] Mirror the new English keys into `src/messages/ar.json`, `src/messages/ta.json`, `src/messages/ml.json` (English placeholders until v1 i18n pass)
-- [ ] T013 [P] Create `useCalendarMonth(initialMonth?)` hook (useState + stepMonthKey helpers) in `src/lib/hooks/useCalendarMonth.ts`
-- [ ] T014 Update `firestore.rules` deploy docs in `specs/002-members-expenses-calendar/quickstart.md` if the file path diverges from the patch pipeline described in `contracts/firestore.rules`
+- [x] T004 [P] Extend `Household`, `Expense`, `RecurringTemplate` types + add new types (`ExpenseType`, `MosqueSubCategory`, `HouseholdMemberHistory`, `MonthlyBudgetShortfall`, `CalendarTemplateRow`, `CalendarAdHocRow`, `CalendarView`, `MonthlyExpenseTotals`, `ShortfallSeverity`, `CalendarTemplateStatus`) in `src/lib/types/index.ts`
+- [x] T005 [P] Create `householdMemberSchema` (memberCount int >= 0, memberNames string[1..80], trim) in `src/lib/schemas/householdMember.ts`
+- [x] T006 [P] Create `memberHistorySchema` (previousCount/Names, newCount/Names, changedAt, changedBy) in `src/lib/schemas/memberHistory.ts`
+- [x] T007 Replace `createExpenseSchema` with `z.discriminatedUnion("type", [...])` (household / mosque branches) in `src/lib/schemas/expense.ts`
+- [x] T008 Replace `createRecurringTemplateSchema` + `updateRecurringTemplateSchema` with `z.discriminatedUnion("type", [...])` (default type "mosque") in `src/lib/schemas/recurringTemplate.ts`
+- [x] T009 [P] Add 3 new composite indexes to `firestore.indexes.json`: `expenses(type, mosqueSubCategory, month)`, `expenses(householdId, type, month)`, `recurringExpenses(type, active)`
+- [x] T010 Apply 002 rules delta to `firestore.rules`: relax household `update` to allowlist (memberCount/memberNames/updatedAt/updatedBy only), add `households/{hhId}/memberHistory/{histId}` match (append-only), extend expense `create` + `update` guards for new fields, relax `recurringExpenses` update to permit new fields
+- [x] T011 [P] Add `calendar.*` i18n keys + `householdMembers.*` keys to `src/messages/en.json` (only `en.json`; other locales fall back per v1 rule). Strings: calendar.title, calendar.empty, calendar.recurringHeading, calendar.adHocHeading, calendar.status.*, calendar.action.addForMonth, calendar.shortfall.*, calendar.monthPrev/Next, householdMembers.*, expenseType.household/mosque, mosqueSubCategory.*, householdDetail.expenses, expenses.typeFilter.*, expenses.subCategoryFilter, recurring.withdrawConfirmTitle/Body, calendar.toast.shortfallWorsened
+- [x] T012 [P] Mirror the new English keys into `src/messages/ar.json`, `src/messages/ta.json`, `src/messages/ml.json` (English placeholders until v1 i18n pass)
+- [x] T013 [P] Create `useCalendarMonth(initialMonth?)` hook (useState + stepMonthKey helpers) in `src/lib/hooks/useCalendarMonth.ts`
+- [x] T014 Update `firestore.rules` deploy docs in `specs/002-members-expenses-calendar/quickstart.md` if the file path diverges from the patch pipeline described in `contracts/firestore.rules`
 
 **Checkpoint**: Foundation ready — types, schemas, indexes, rules, and i18n keys in place. User story work can begin.
 

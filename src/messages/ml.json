@@ -27,6 +27,7 @@
     "households": "വീടുകൾ",
     "expenses": "ചെലവുകൾ",
     "recurring": "സ്ഥിരം ചെലവുകൾ",
+    "calendar": "Calendar",
     "settings": "ക്രമീകരണങ്ങൾ"
   },
   "auth": {
@@ -70,7 +71,24 @@
     "tablePaid": "അടച്ചത് ({month})",
     "tableStatus": "സ്റ്റാറ്റസ്",
     "tableActions": "പ്രവർത്തനങ്ങൾ",
-    "quickActions": "പെട്ടെന്നുള്ള പ്രവർത്തനങ്ങൾ"
+    "quickActions": "പെട്ടെന്നുള്ള പ്രവർത്തനങ്ങൾ",
+    "members": "Members",
+    "membersCount": "{count} members",
+    "editMembers": "Edit members",
+    "editMembersTitle": "Edit members",
+    "saveMembers": "Save members",
+    "addMember": "Add member",
+    "removeMember": "Remove",
+    "memberNamePlaceholder": "Member name",
+    "viewHistory": "View member history",
+    "historyHeading": "Member change history",
+    "historyEmpty": "No edits recorded yet.",
+    "historyPrevious": "Previous",
+    "historyNew": "New",
+    "historyWhen": "When",
+    "historyBy": "By",
+    "householdExpenses": "Household expenses ({month})",
+    "noHouseholdExpenses": "No household-scoped expenses recorded for this month."
   },
   "householdTable": {
     "empty": "ഇതുവരെ വീടുകൾ ചേർത്തിട്ടില്ല. ഒരെണ്ണം സൃഷ്ടിക്കാൻ “വീട് ചേർക്കുക” ഉപയോഗിക്കുക.",
@@ -129,6 +147,28 @@
     "Met": "പൂർണ്ണം",
     "Over": "അധികം"
   },
+  "householdMembers": {
+    "sectionTitle": "Members",
+    "edit": "Edit members",
+    "title": "Edit members",
+    "save": "Save members",
+    "cancel": "Cancel",
+    "add": "Add member",
+    "remove": "Remove",
+    "namePlaceholder": "Member name",
+    "count": "{count} members",
+    "historyLink": "View change history",
+    "invalidCount": "Member count must match the number of names"
+  },
+  "expenseType": {
+    "household": "Household",
+    "mosque": "Mosque"
+  },
+  "mosqueSubCategory": {
+    "maintenance": "Maintenance",
+    "salary": "Salary",
+    "other": "Other"
+  },
   "expenses": {
     "heading": "ചെലവുകൾ",
     "addButton": "ചെലവ് ചേർക്കുക",
@@ -143,6 +183,7 @@
     "tableStatus": "സ്റ്റാറ്റസ്",
     "tableNote": "കുറിപ്പ്",
     "tableActions": "പ്രവർത്തനങ്ങൾ",
+    "tableType": "Type",
     "statusWithdrawn": "പിൻവലിച്ചു",
     "statusPending": "പെൻഡിങ്",
     "showByMonth": "മാസം തിരിച്ച് കാണുക",
@@ -152,7 +193,15 @@
     "withdrawTitle": "{name} ({amount}) പിൻവലിക്കണോ?",
     "withdrawBody": "ഇത് പണം പിൻവലിക്കൽ രേഖപ്പെടുത്തുകയും കൈവശമുള്ള പണത്തിൽ നിന്ന് ആ തുക കുറയ്ക്കുകയും ചെയ്യും. ഇത് പഴയപടിയാക്കാനാവില്ല.",
     "withdrawing": "പിൻവലിക്കുന്നു…",
-    "withdrawAction": "പിൻവലിക്കൽ സ്ഥിരീകരിക്കുക"
+    "withdrawAction": "പിൻവലിക്കൽ സ്ഥിരീകരിക്കുക",
+    "typeFilterAll": "All types",
+    "typeFilterHousehold": "Household",
+    "typeFilterMosque": "Mosque",
+    "subCategoryFilterAll": "All sub-categories",
+    "fieldType": "Type",
+    "fieldHousehold": "Household",
+    "fieldFamilyOptional": "Family (optional)",
+    "fieldSubCategory": "Sub-category"
   },
   "recurring": {
     "heading": "സ്ഥിരം ചെലവുകൾ",
@@ -171,7 +220,39 @@
     "confirmArchive": "ഈ ടെംപ്ലേറ്റ് ആർക്കൈവ് ചെയ്യണോ? മുമ്പ് സൃഷ്ടിച്ച ചെലവുകൾ മാറ്റമില്ലാതെ തുടരും.",
     "statusNotAdded": "ചേർത്തിട്ടില്ല",
     "statusPendingWithdrawal": "പിൻവലിക്കാൻ പെൻഡിങ്",
-    "statusWithdrawn": "പിൻവലിച്ചു"
+    "statusWithdrawn": "പിൻവലിച്ചു",
+    "tableType": "Type",
+    "fieldType": "Type",
+    "fieldHousehold": "Household",
+    "fieldFamilyOptional": "Family (optional)",
+    "fieldSubCategory": "Sub-category",
+    "withdrawConfirmTitle": "Withdraw recurring expense?",
+    "withdrawConfirmBody": "You are about to withdraw {name} ({amount}). This will reduce money on hand by that amount and cannot be undone."
+  },
+  "calendar": {
+    "title": "Calendar",
+    "empty": "No expenses scheduled or recorded for this month.",
+    "recurringHeading": "Recurring expenses",
+    "adHocHeading": "Ad-hoc expenses",
+    "status": {
+      "notAdded": "Not added",
+      "pendingWithdrawal": "Pending withdrawal",
+      "withdrawn": "Withdrawn"
+    },
+    "action": {
+      "addForMonth": "Add for this month"
+    },
+    "shortfall": {
+      "onTrack": "On track",
+      "watch": "Tight: short {amount}",
+      "risk": "At risk: short {amount}",
+      "suggestion": "Consider deferring or reducing non-essential expenses this month."
+    },
+    "monthPrev": "Previous month",
+    "monthNext": "Next month",
+    "toast": {
+      "shortfallWorsened": "Budget shortfall worsened to {severity}"
+    }
   },
   "settings": {
     "heading": "ക്രമീകരണങ്ങൾ",

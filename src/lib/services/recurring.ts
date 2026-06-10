@@ -1,9 +1,10 @@
 /**
  * Recurring expense templates service: `recurringExpenses`.
  *
- * - Templates are inert: no auto-creation of expenses (FR-034).
- * - addRecurringForMonth creates an expense with isRecurring=true, recurringId set;
- *   refuses to create a second one for the same (templateId, month) pair.
+ * 002 delta: every template carries a `type` (default "mosque" on create)
+ * with conditional linkage. addRecurringForMonth copies the type + linkage
+ * fields from the template onto the new expense. Legacy templates (no
+ * `type` field) are normalised to "mosque" on read.
  */
 import {
   addDoc,
@@ -25,9 +26,20 @@ import {
   type UpdateRecurringTemplateSchema,
 } from "@/lib/schemas/recurringTemplate";
 import { toMonthKey } from "@/lib/utils/dates";
-import type { RecurringTemplate, RecurringTemplateWithStatus } from "@/lib/types";
+import type {
+  ExpenseType,
+  MosqueSubCategory,
+  RecurringTemplate,
+  RecurringTemplateWithStatus,
+} from "@/lib/types";
 
-function toTemplate(id: string, data: Record<string, unknown>): RecurringTemplate {
+function toTemplate(
+  id: string,
+  data: Record<string, unknown>,
+): RecurringTemplate {
+  // 002: legacy templates have no `type` — default to "mosque" (mirrors expense.ts).
+  const rawType = data.type as ExpenseType | undefined;
+  const type: ExpenseType = rawType === "household" ? "household" : "mosque";
   return {
     id,
     name: String(data.name ?? ""),
@@ -36,14 +48,30 @@ function toTemplate(id: string, data: Record<string, unknown>): RecurringTemplat
     active: data.active !== false,
     createdAt: data.createdAt as RecurringTemplate["createdAt"],
     createdBy: String(data.createdBy ?? ""),
+    type,
+    householdId:
+      type === "household"
+        ? ((data.householdId as string | undefined) ?? null)
+        : null,
+    familyId:
+      type === "household"
+        ? ((data.familyId as string | undefined) ?? null)
+        : null,
+    mosqueSubCategory:
+      type === "mosque"
+        ? ((data.mosqueSubCategory as MosqueSubCategory | undefined) ?? null)
+        : null,
   };
 }
 
 export async function listRecurringTemplates(
-  activeOnly: boolean
+  activeOnly: boolean,
 ): Promise<RecurringTemplate[]> {
   const ref = activeOnly
-    ? query(collection(getDb(), "recurringExpenses"), where("active", "==", true))
+    ? query(
+        collection(getDb(), "recurringExpenses"),
+        where("active", "==", true),
+      )
     : collection(getDb(), "recurringExpenses");
   const snap = await getDocs(ref);
   return snap.docs.map((d) => toTemplate(d.id, d.data()));
@@ -51,19 +79,22 @@ export async function listRecurringTemplates(
 
 export function subscribeRecurringTemplates(
   activeOnly: boolean,
-  callback: (t: RecurringTemplate[]) => void
+  callback: (t: RecurringTemplate[]) => void,
 ): Unsubscribe {
   const ref = activeOnly
-    ? query(collection(getDb(), "recurringExpenses"), where("active", "==", true))
+    ? query(
+        collection(getDb(), "recurringExpenses"),
+        where("active", "==", true),
+      )
     : collection(getDb(), "recurringExpenses");
   return onSnapshot(ref, (snap) =>
-    callback(snap.docs.map((d) => toTemplate(d.id, d.data())))
+    callback(snap.docs.map((d) => toTemplate(d.id, d.data()))),
   );
 }
 
 export async function createRecurringTemplate(
   uid: string,
-  input: CreateRecurringTemplateSchema
+  input: CreateRecurringTemplateSchema,
 ): Promise<string> {
   const parsed = createRecurringTemplateSchema.parse(input);
   const ref = await addDoc(collection(getDb(), "recurringExpenses"), {
@@ -73,6 +104,11 @@ export async function createRecurringTemplate(
     active: true,
     createdAt: serverTimestamp(),
     createdBy: uid,
+    type: parsed.type,
+    householdId: parsed.type === "household" ? parsed.householdId : null,
+    familyId: parsed.type === "household" ? (parsed.familyId ?? null) : null,
+    mosqueSubCategory:
+      parsed.type === "mosque" ? parsed.mosqueSubCategory : null,
   });
   return ref.id;
 }
@@ -80,7 +116,7 @@ export async function createRecurringTemplate(
 export async function updateRecurringTemplate(
   uid: string,
   templateId: string,
-  input: UpdateRecurringTemplateSchema
+  input: UpdateRecurringTemplateSchema,
 ): Promise<void> {
   const parsed = updateRecurringTemplateSchema.parse(input);
   const ref = doc(getDb(), "recurringExpenses", templateId);
@@ -93,7 +129,7 @@ export async function updateRecurringTemplate(
 
 export async function archiveRecurringTemplate(
   uid: string,
-  templateId: string
+  templateId: string,
 ): Promise<void> {
   const ref = doc(getDb(), "recurringExpenses", templateId);
   await updateDoc(ref, {
@@ -105,37 +141,41 @@ export async function archiveRecurringTemplate(
 
 /**
  * Add a template for a specific month. Creates an expense with isRecurring=true,
- * recurringId=templateId, withdrawn=false. Refuses if a matching expense
- * already exists for (templateId, month).
+ * recurringId=templateId, withdrawn=false. Copies the template's type + linkage
+ * onto the new expense. Refuses if a matching expense already exists for
+ * (templateId, month).
  */
 export async function addRecurringForMonth(
   uid: string,
   templateId: string,
-  month: string
+  month: string,
 ): Promise<string> {
-  // Look up the template to capture name + amount.
+  // Look up the template to capture name + amount + type + linkage.
   const tplSnap = await getDocs(
-    query(collection(getDb(), "recurringExpenses"), where("__name__", "==", templateId))
+    query(
+      collection(getDb(), "recurringExpenses"),
+      where("__name__", "==", templateId),
+    ),
   );
   if (tplSnap.empty) {
     throw new Error(`recurring template ${templateId} not found`);
   }
   const tplData = tplSnap.docs[0].data();
-  const name = String(tplData.name ?? "Recurring");
-  const amount =
-    typeof tplData.amount === "number" ? (tplData.amount as number) : 0;
+  const tpl = toTemplate(tplSnap.docs[0].id, tplData);
+  const name = tpl.name;
+  const amount = tpl.amount;
 
   // Idempotency check: refuse if a recurring expense for this template+month exists.
   const dupSnap = await getDocs(
     query(
       collection(getDb(), "expenses"),
       where("recurringId", "==", templateId),
-      where("month", "==", month)
-    )
+      where("month", "==", month),
+    ),
   );
   if (!dupSnap.empty) {
     throw new Error(
-      `Recurring template already added for ${month} (expense ${dupSnap.docs[0].id})`
+      `Recurring template already added for ${month} (expense ${dupSnap.docs[0].id})`,
     );
   }
 
@@ -154,24 +194,25 @@ export async function addRecurringForMonth(
     withdrawnBy: null,
     addedAt: serverTimestamp(),
     addedBy: uid,
+    type: tpl.type,
+    householdId: tpl.householdId,
+    familyId: tpl.familyId,
+    mosqueSubCategory: tpl.mosqueSubCategory,
   });
   void toMonthKey;
   return ref.id;
 }
 
 export async function listRecurringTemplatesWithStatus(
-  month: string
+  month: string,
 ): Promise<RecurringTemplateWithStatus[]> {
   const templates = await listRecurringTemplates(false);
   if (templates.length === 0) return [];
   // Fetch one snapshot of expenses for this month; group by recurringId.
   const exSnap = await getDocs(
-    query(collection(getDb(), "expenses"), where("month", "==", month))
+    query(collection(getDb(), "expenses"), where("month", "==", month)),
   );
-  const byTpl = new Map<
-    string,
-    { id: string; withdrawn: boolean }
-  >();
+  const byTpl = new Map<string, { id: string; withdrawn: boolean }>();
   exSnap.docs.forEach((d) => {
     const data = d.data();
     const rid = data.recurringId as string | null;
@@ -184,7 +225,11 @@ export async function listRecurringTemplatesWithStatus(
   return templates.map((t) => {
     const hit = byTpl.get(t.id);
     if (!hit) {
-      return { ...t, currentMonthStatus: "NotAdded", currentMonthExpenseId: null };
+      return {
+        ...t,
+        currentMonthStatus: "NotAdded",
+        currentMonthExpenseId: null,
+      };
     }
     return {
       ...t,

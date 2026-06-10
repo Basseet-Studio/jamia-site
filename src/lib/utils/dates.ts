@@ -25,3 +25,9 @@ export function stepMonthKey(monthKey: string, n: number): string {
 export function isSameMonth(a: Date, b: Date): boolean {
   return toMonthKey(a) === toMonthKey(b);
 }
+
+/** First day of the month (00:00 local). */
+export function firstOfMonth(monthKey: string): Date {
+  const d = fromMonthKey(monthKey);
+  return startOfMonth(d);
+}

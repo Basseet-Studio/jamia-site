@@ -21,6 +21,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/households", labelKey: "nav.households" },
     { href: "/expenses", labelKey: "nav.expenses" },
     { href: "/recurring", labelKey: "nav.recurring" },
+    { href: "/calendar", labelKey: "nav.calendar" },
     { href: "/settings", labelKey: "nav.settings" },
   ];
 
