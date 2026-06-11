@@ -81,6 +81,39 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)(
       expect(a.length).toBeGreaterThan(0);
       expect(b.length).toBeGreaterThan(0);
     });
+
+    it("softDeleteFamily works on a family that already has members", async () => {
+      // Regression: families that have been member-edited carry
+      // memberCount + memberNames. The soft-delete transition must still
+      // pass the rules (only active / deletedAt / deletedBy change).
+      const { addDoc, serverTimestamp } = await import("firebase/firestore");
+      const { createFamily, softDeleteFamily, updateMembers } =
+        await import("@/lib/services/families");
+      const hhRef = await addDoc(collection(db, "households"), {
+        name: "T3",
+        createdAt: serverTimestamp(),
+        createdBy: "tester",
+      });
+      const fid = await createFamily("tester", {
+        householdId: hhRef.id,
+        name: "Family With Members",
+        contributionTarget: 300,
+      });
+      await updateMembers("tester", hhRef.id, fid, {
+        memberCount: 2,
+        memberNames: ["Ahmed", "Fatima"],
+      });
+      await softDeleteFamily("tester", hhRef.id, fid);
+      const snap = await getDoc(
+        doc(db, "households", hhRef.id, "families", fid),
+      );
+      const data = snap.data();
+      expect(data?.active).toBe(false);
+      expect(data?.deletedBy).toBe("tester");
+      // Members census must survive the soft-delete.
+      expect(data?.memberCount).toBe(2);
+      expect(data?.memberNames).toEqual(["Ahmed", "Fatima"]);
+    });
   },
 );
 

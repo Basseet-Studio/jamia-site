@@ -1,6 +1,7 @@
 "use client";
 import { SettingsForm } from "@/components/settings/SettingsForm";
 import { LanguageSwitcher } from "@/components/settings/LanguageSwitcher";
+import { AdminManagement } from "@/components/settings/AdminManagement";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { SignOutButton } from "@/components/auth/SignOutButton";
@@ -22,6 +23,7 @@ export default function SettingsPage() {
           <SignOutButton />
         </CardContent>
       </Card>
+      <AdminManagement />
     </div>
   );
 }

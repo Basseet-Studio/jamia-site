@@ -39,23 +39,24 @@ rules_version = '2';
 // ---- 2. Family update (extended with member-edit branch) ----
 
 // The v1 family update rule only allowed the soft-delete transition
-// (active true -> false). We add a second branch for the member edit:
-// memberCount + memberNames may change; name, contributionTarget, created*,
-// deleted*, active must equal the existing values.
-// The third branch (name/contributionTarget edit) is unchanged from 002.
+// (active true -> false). We add two more branches, one for the member
+// edit (memberCount + memberNames may change; everything else unchanged)
+// and one for the name/contributionTarget edit. Each branch uses
+// `affectedKeys().hasOnly([...])` to allow exactly the fields the
+// transition touches, which is more robust than listing every
+// unchanged-field equality and avoids the `request.time` vs
+// `serverTimestamp()` comparison pitfall.
 
 // allow update: if isAdmin()
 //   && (
 //     (
-//       // 1) soft-delete (unchanged from v1)
+//       // 1) soft-delete
 //       resource.data.active == true
 //       && request.resource.data.active == false
-//       && request.resource.data.deletedAt == request.time
 //       && request.resource.data.deletedBy == request.auth.uid
-//       && request.resource.data.name == resource.data.name
-//       && request.resource.data.contributionTarget == resource.data.contributionTarget
-//       && request.resource.data.createdAt == resource.data.createdAt
-//       && request.resource.data.createdBy == resource.data.createdBy
+//       && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+//         'active', 'deletedAt', 'deletedBy'
+//       ])
 //     )
 //     ||
 //     (
@@ -64,10 +65,11 @@ rules_version = '2';
 //       && request.resource.data.active == true
 //       && request.resource.data.deletedAt == resource.data.deletedAt
 //       && request.resource.data.deletedBy == resource.data.deletedBy
-//       && request.resource.data.createdAt == resource.data.createdAt
-//       && request.resource.data.createdBy == resource.data.createdBy
 //       && request.resource.data.contributionTarget is number
 //       && request.resource.data.contributionTarget >= 0
+//       && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+//         'name', 'contributionTarget', 'updatedAt', 'updatedBy'
+//       ])
 //     )
 //     ||
 //     (
@@ -78,12 +80,13 @@ rules_version = '2';
 //       && request.resource.data.deletedBy == resource.data.deletedBy
 //       && request.resource.data.name == resource.data.name
 //       && request.resource.data.contributionTarget == resource.data.contributionTarget
-//       && request.resource.data.createdAt == resource.data.createdAt
-//       && request.resource.data.createdBy == resource.data.createdBy
 //       && request.resource.data.memberCount is number
 //       && request.resource.data.memberCount >= 0
 //       && request.resource.data.memberNames is list
 //       && request.resource.data.memberNames.size() == request.resource.data.memberCount
+//       && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+//         'memberCount', 'memberNames', 'updatedAt', 'updatedBy'
+//       ])
 //     )
 //   );
 

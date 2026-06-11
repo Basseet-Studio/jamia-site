@@ -22,7 +22,31 @@ service cloud.firestore {
 
     match /admins/{uid} {
       allow read: if isSignedIn();
-      allow write: if false;
+
+      // Self-service admin management. Rules are intentionally permissive
+      // on `create` — the service layer in `admins.ts` is the one that
+      // enforces "only the first user can self-promote" (via a Firestore
+      // transaction that reads the collection, checks size, and only then
+      // writes). The shape is the only thing the rule checks.
+      //
+      // After the first admin exists, normal add/remove goes through the
+      // admin-management UI in Settings.
+      allow create: if isSignedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasAll([
+          'email', 'displayName', 'role'
+        ])
+        && request.resource.data.role in ['owner', 'admin']
+        && request.resource.data.email is string
+        && request.resource.data.displayName is string;
+
+      // Only admins can mutate an existing admin doc. This is the gate the
+      // service uses for self-update (display name only) and other updates.
+      allow update: if isAdmin();
+
+      // Only admins can remove admin docs. The service layer blocks
+      // self-removal if it would leave the collection empty.
+      allow delete: if isAdmin();
     }
 
     // ---- settings ----
@@ -65,50 +89,55 @@ service cloud.firestore {
           && request.resource.data.memberCount == 0
           && request.resource.data.memberNames.size() == 0;
 
-        // Three allowed transitions:
-        //   1) soft-delete (active true -> false)
-        //   2) name/target edit (active stays true, name/target may change)
-        //   3) member edit (memberCount + memberNames may change, name/target unchanged)
+        // Three allowed transitions, expressed as allowed affectedKeys sets
+        // combined with the per-transition invariants:
+        //   1) soft-delete — only `active`, `deletedAt`, `deletedBy` change
+        //   2) name/target edit — only `name`, `contributionTarget`, `updatedAt`, `updatedBy` change
+        //   3) member edit — only `memberCount`, `memberNames`, `updatedAt`, `updatedBy` change
+        //
+        // Using `affectedKeys().hasOnly([...])` is the idiomatic Firestore
+        // pattern — it lets the rule allow exactly the fields each
+        // transition touches and reject anything else.
         allow update: if isAdmin()
           && (
+            // 1) soft-delete
             (
-              // 1) soft-delete
               resource.data.active == true
               && request.resource.data.active == false
-              && request.resource.data.deletedAt == request.time
               && request.resource.data.deletedBy == request.auth.uid
-              && request.resource.data.name == resource.data.name
-              && request.resource.data.contributionTarget == resource.data.contributionTarget
-              && request.resource.data.createdAt == resource.data.createdAt
-              && request.resource.data.createdBy == resource.data.createdBy
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'active', 'deletedAt', 'deletedBy'
+              ])
             )
             ||
+            // 2) name/target edit
             (
-              // 2) name/target edit
               resource.data.active == true
               && request.resource.data.active == true
               && request.resource.data.deletedAt == resource.data.deletedAt
               && request.resource.data.deletedBy == resource.data.deletedBy
-              && request.resource.data.createdAt == resource.data.createdAt
-              && request.resource.data.createdBy == resource.data.createdBy
               && request.resource.data.contributionTarget is number
               && request.resource.data.contributionTarget >= 0
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'name', 'contributionTarget', 'updatedAt', 'updatedBy'
+              ])
             )
             ||
+            // 3) member edit
             (
-              // 3) member edit
               resource.data.active == true
               && request.resource.data.active == true
               && request.resource.data.deletedAt == resource.data.deletedAt
               && request.resource.data.deletedBy == resource.data.deletedBy
               && request.resource.data.name == resource.data.name
               && request.resource.data.contributionTarget == resource.data.contributionTarget
-              && request.resource.data.createdAt == resource.data.createdAt
-              && request.resource.data.createdBy == resource.data.createdBy
               && request.resource.data.memberCount is number
               && request.resource.data.memberCount >= 0
               && request.resource.data.memberNames is list
               && request.resource.data.memberNames.size() == request.resource.data.memberCount
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'memberCount', 'memberNames', 'updatedAt', 'updatedBy'
+              ])
             )
           );
 

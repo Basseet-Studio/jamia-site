@@ -23,6 +23,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/recurring", labelKey: "nav.recurring" },
     { href: "/calendar", labelKey: "nav.calendar" },
     { href: "/settings", labelKey: "nav.settings" },
+    { href: "/debug", labelKey: "nav.debug" },
   ];
 
   return (

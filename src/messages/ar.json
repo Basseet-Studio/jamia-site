@@ -29,7 +29,8 @@
     "expenses": "Expenses",
     "recurring": "Recurring",
     "calendar": "Calendar",
-    "settings": "Settings"
+    "settings": "Settings",
+    "debug": "Debug"
   },
   "auth": {
     "signInTitle": "Veeramangalam Juma Masjid",
@@ -38,7 +39,10 @@
     "signingIn": "Signing in…",
     "accessDeniedTitle": "Access denied",
     "accessDeniedBody": "Your account is signed in, but is not on the administrator list. Ask the owner to add you in the Firebase console.",
-    "signedInAs": "Signed in as {email}"
+    "signedInAs": "Signed in as {email}",
+    "bootstrapTitle": "No admin yet — bootstrap as the first owner?",
+    "bootstrapBody": "No administrator has been set up for this project. Click below to make your account the owner. You can add more admins from Settings afterwards.",
+    "bootstrapAction": "Become the first admin"
   },
   "dashboard": {
     "heading": "Dashboard",
@@ -275,6 +279,29 @@
     "language": "Language",
     "languageDescription": "Choose the language for the dashboard. Changes apply immediately.",
     "languageLabel": "Display language"
+  },
+  "adminManagement": {
+    "title": "Admins",
+    "body": "Admins can record payments, manage families, and add or remove other admins. Owner is a marker role; both owner and admin have the same UI permissions.",
+    "empty": "No admins yet.",
+    "tableName": "Name",
+    "tableEmail": "Email",
+    "tableRole": "Role",
+    "you": "you",
+    "cantRemoveSelf": "Can't remove yourself",
+    "removeButton": "Remove",
+    "removeTitle": "Remove {name}?",
+    "removeBody": "This will revoke admin access for {email}. They will need to be re-invited to use the dashboard.",
+    "removeConfirmLabel": "Type the admin's email to confirm",
+    "removeAction": "Remove admin",
+    "promoteButton": "Add admin",
+    "promoteTitle": "Add a new admin",
+    "promoteBody": "Enter the Firebase Authentication UID of the person you want to grant access. They must have already signed in to the app at least once so their UID exists in Firebase Auth.",
+    "fieldUid": "Firebase Auth UID",
+    "fieldUidHelp": "The UID is a 28-character string. Ask the user to sign in once and copy the UID from their Account info, or find it in the Firebase Console under Authentication.",
+    "fieldEmail": "Email",
+    "fieldName": "Display name",
+    "fieldRole": "Role"
   },
   "summary": {
     "moneyOnHand": "Money on hand",
