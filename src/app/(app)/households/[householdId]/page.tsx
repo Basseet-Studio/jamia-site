@@ -6,7 +6,6 @@ import { subscribeHousehold } from "@/lib/services/households";
 import { subscribeHouseholdExpenses } from "@/lib/services/expenses";
 import { AddFamilyDialog } from "@/components/households/AddFamilyDialog";
 import { FamilyRow } from "@/components/households/FamilyRow";
-import { MembersSection } from "@/components/households/MembersSection";
 import { RecordPaymentDialog } from "@/components/payments/RecordPaymentDialog";
 import { MonthNavigator } from "@/components/nav/MonthNavigator";
 import { currentMonthKey, toMonthKey } from "@/lib/utils/dates";
@@ -128,6 +127,9 @@ export default function HouseholdDetailPage({
                     {t("householdDetail.tableStatus")}
                   </TableHead>
                   <TableHead className="text-right">
+                    {t("families.tableMembers")}
+                  </TableHead>
+                  <TableHead className="text-right">
                     {t("householdDetail.tableActions")}
                   </TableHead>
                 </TableRow>
@@ -146,8 +148,6 @@ export default function HouseholdDetailPage({
           )}
         </CardContent>
       </Card>
-
-      <MembersSection household={household} />
 
       <Card>
         <CardHeader>

@@ -129,6 +129,15 @@ export function subscribeFamilyMonthlyStatuses(
         active: d.data().active !== false,
         deletedAt: (d.data().deletedAt as Family["deletedAt"]) ?? null,
         deletedBy: (d.data().deletedBy as Family["deletedBy"]) ?? null,
+        memberCount:
+          typeof d.data().memberCount === "number"
+            ? (d.data().memberCount as number)
+            : 0,
+        memberNames: Array.isArray(d.data().memberNames)
+          ? (d.data().memberNames as string[])
+          : [],
+        updatedAt: (d.data().updatedAt as Family["updatedAt"]) ?? null,
+        updatedBy: (d.data().updatedBy as Family["updatedBy"]) ?? null,
       }));
       rewirePayments(families);
       emit();
@@ -208,6 +217,15 @@ export function subscribeHouseholdMonthlySummary(
         active: d.data().active !== false,
         deletedAt: (d.data().deletedAt as Family["deletedAt"]) ?? null,
         deletedBy: (d.data().deletedBy as Family["deletedBy"]) ?? null,
+        memberCount:
+          typeof d.data().memberCount === "number"
+            ? (d.data().memberCount as number)
+            : 0,
+        memberNames: Array.isArray(d.data().memberNames)
+          ? (d.data().memberNames as string[])
+          : [],
+        updatedAt: (d.data().updatedAt as Family["updatedAt"]) ?? null,
+        updatedBy: (d.data().updatedBy as Family["updatedBy"]) ?? null,
       }));
       emit();
     },

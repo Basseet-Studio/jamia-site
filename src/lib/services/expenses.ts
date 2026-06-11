@@ -10,15 +10,14 @@ import {
   addDoc,
   collection,
   collectionGroup,
-  deleteDoc,
   doc,
   getDoc,
   getDocs,
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
-  updateDoc,
   where,
   type Unsubscribe,
 } from "firebase/firestore";
@@ -28,7 +27,7 @@ import {
   type CreateExpenseSchema,
 } from "@/lib/schemas/expense";
 import { toMonthKey } from "@/lib/utils/dates";
-import { adjustMoneyOnHand } from "@/lib/services/moneyOnHand";
+import { shiftMoneyOnHandInTx } from "@/lib/services/moneyOnHand";
 import type {
   Expense,
   ExpenseFilter,
@@ -105,7 +104,9 @@ export async function listExpenses(
       : query(collection(getDb(), "expenses"), where("month", "==", month));
   const ref = applyFilter(base, filter);
   const snap = await getDocs(ref as ReturnType<typeof query>);
-  return snap.docs.map((d) => toExpense(d.id, d.data()));
+  return snap.docs.map((d) =>
+    toExpense(d.id, d.data() as Record<string, unknown>),
+  );
 }
 
 export function subscribeExpenses(
@@ -119,7 +120,11 @@ export function subscribeExpenses(
       : query(collection(getDb(), "expenses"), where("month", "==", month));
   const ref = applyFilter(base, filter);
   return onSnapshot(ref as ReturnType<typeof query>, (snap) =>
-    callback(snap.docs.map((d) => toExpense(d.id, d.data()))),
+    callback(
+      snap.docs.map((d) =>
+        toExpense(d.id, d.data() as Record<string, unknown>),
+      ),
+    ),
   );
 }
 
@@ -198,17 +203,26 @@ export async function withdrawExpense(
   expenseId: string,
 ): Promise<void> {
   const ref = doc(getDb(), "expenses", expenseId);
-  await updateDoc(ref, {
-    withdrawn: true,
-    withdrawnAt: serverTimestamp(),
-    withdrawnBy: uid,
+  await runTransaction(getDb(), async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) {
+      throw new Error(`expense ${expenseId} not found`);
+    }
+    const data = snap.data() as Record<string, unknown>;
+    const amount =
+      typeof data.amount === "number" ? (data.amount as number) : 0;
+    const alreadyWithdrawn = data.withdrawn === true;
+    tx.update(ref, {
+      withdrawn: true,
+      withdrawnAt: serverTimestamp(),
+      withdrawnBy: uid,
+    });
+    // SC-009: the state flip and the MOH decrement commit together. Re-
+    // withdrawing an already-withdrawn expense is a no-op on the total.
+    if (!alreadyWithdrawn) {
+      await shiftMoneyOnHandInTx(tx, -amount);
+    }
   });
-  const snap = await getDoc(ref);
-  const amount =
-    snap.exists() && typeof snap.data().amount === "number"
-      ? (snap.data().amount as number)
-      : 0;
-  await adjustMoneyOnHand(-amount);
 }
 
 export async function deleteExpense(
@@ -216,15 +230,20 @@ export async function deleteExpense(
   expenseId: string,
 ): Promise<void> {
   const ref = doc(getDb(), "expenses", expenseId);
-  const snap = await getDoc(ref);
-  const data = snap.exists() ? snap.data() : {};
-  const amount = typeof data.amount === "number" ? (data.amount as number) : 0;
-  const wasWithdrawn = data.withdrawn === true;
-  await deleteDoc(ref);
-  // SC-009: deleting a withdrawn expense puts the amount back.
-  if (wasWithdrawn) {
-    await adjustMoneyOnHand(+amount);
-  }
+  await runTransaction(getDb(), async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) return;
+    const data = snap.data() as Record<string, unknown>;
+    const amount =
+      typeof data.amount === "number" ? (data.amount as number) : 0;
+    const wasWithdrawn = data.withdrawn === true;
+    tx.delete(ref);
+    // SC-009: deleting a withdrawn expense puts the amount back, atomically
+    // with the row removal.
+    if (wasWithdrawn) {
+      await shiftMoneyOnHandInTx(tx, +amount);
+    }
+  });
   void uid;
 }
 

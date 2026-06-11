@@ -5,6 +5,7 @@ import { formatCurrency } from "@/lib/utils/currency";
 import { useMoneyOnHand } from "@/lib/hooks/useMoneyOnHand";
 import { Button } from "@/components/ui/button";
 import { EditFamilyDialog } from "@/components/households/EditFamilyDialog";
+import { FamilyMembersDialog } from "@/components/households/FamilyMembersDialog";
 import { SoftDeleteFamilyDialog } from "@/components/households/SoftDeleteFamilyDialog";
 import { StatusBadge } from "@/components/payments/StatusBadge";
 import { useT } from "@/lib/i18n";
@@ -49,9 +50,15 @@ export function FamilyRow({
           <span className="text-muted-foreground">{t("common.dash")}</span>
         )}
       </td>
+      <td className="px-3 py-2 text-right text-sm tabular-nums">
+        {family.memberCount > 0
+          ? t("householdMembers.count", { count: family.memberCount })
+          : t("families.membersNone")}
+      </td>
       <td className="px-3 py-2 text-right">
         {family.active ? (
           <div className="flex justify-end gap-2">
+            <FamilyMembersDialog householdId={householdId} family={family} />
             <EditFamilyDialog householdId={householdId} family={family} />
             <SoftDeleteFamilyDialog
               householdId={householdId}

@@ -28,22 +28,36 @@ export type ExpenseType = "household" | "mosque";
 /** Sub-category on mosque-scoped expenses and templates. */
 export type MosqueSubCategory = "maintenance" | "salary" | "other";
 
-/** Household (extended). */
+/** Household (identity only). Members are tracked on the family. */
 export interface Household {
   id: string;
   name: string;
-  memberCount: number;
-  memberNames: string[]; // length MUST equal memberCount
   createdAt: Timestamp;
   createdBy: string;
+}
+
+/** Family (extended with per-family member census). */
+export interface FamilyWithMembers {
+  id: string;
+  householdId: string;
+  name: string;
+  contributionTarget: number;
+  createdAt: Timestamp;
+  createdBy: string;
+  active: boolean;
+  deletedAt: Timestamp | null;
+  deletedBy: string | null;
+  memberCount: number;
+  memberNames: string[]; // length MUST equal memberCount
   updatedAt: Timestamp | null; // last member edit
   updatedBy: string | null;
 }
 
-/** Append-only history of member edits. */
-export interface HouseholdMemberHistory {
+/** Append-only history of per-family member edits. */
+export interface FamilyMemberHistory {
   id: string;
   householdId: string;
+  familyId: string;
   previousCount: number;
   previousNames: string[];
   newCount: number;
@@ -85,7 +99,10 @@ export interface MonthlyBudgetShortfall {
 }
 
 /** Per-month status of one recurring template, used by Calendar. */
-export type CalendarTemplateStatus = "NotAdded" | "PendingWithdrawal" | "Withdrawn";
+export type CalendarTemplateStatus =
+  | "NotAdded"
+  | "PendingWithdrawal"
+  | "Withdrawn";
 
 export interface CalendarTemplateRow {
   template: RecurringTemplate;
@@ -119,7 +136,7 @@ export interface MonthlyExpenseTotals {
 // Input types
 // ============================================================================
 
-export interface UpdateMembersInput {
+export interface UpdateFamilyMembersInput {
   memberCount: number; // must equal memberNames.length
   memberNames: string[]; // each 1-80 chars, trimmed
 }
@@ -168,22 +185,29 @@ export interface ExpenseFilter {
 // ============================================================================
 
 export interface HouseholdFinanceService002 {
-  // ---- Household members (US-1) ----
+  // ---- Family members (US-1) ----
 
   /**
-   * Update the household's memberCount + memberNames AND append a
-   * HouseholdMemberHistory doc in a single batched write. The service
+   * Update a family's memberCount + memberNames AND append a
+   * FamilyMemberHistory doc in a single batched write. The service
    * MUST reject if memberCount !== memberNames.length.
+   * Hierarchy: household -> family -> members.
    */
-  updateMembers(uid: string, householdId: string, input: UpdateMembersInput): Promise<void>;
+  updateMembers(
+    uid: string,
+    householdId: string,
+    familyId: string,
+    input: UpdateFamilyMembersInput,
+  ): Promise<void>;
 
   /**
-   * Live subscription to the member-change history for a household,
-   * newest-first.
+   * Live subscription to the member-change history for a family,
+   * newest-first. History path: `households/{hhId}/families/{fid}/memberHistory`.
    */
   subscribeMemberHistory(
     householdId: string,
-    callback: (h: HouseholdMemberHistory[]) => void
+    familyId: string,
+    callback: (h: FamilyMemberHistory[]) => void,
   ): () => void;
 
   // ---- Expense types (US-2) ----
@@ -195,14 +219,14 @@ export interface HouseholdFinanceService002 {
   subscribeMosqueExpenses(
     month: string,
     subCategory: MosqueSubCategory | null,
-    callback: (e: Expense[]) => void
+    callback: (e: Expense[]) => void,
   ): () => void;
 
   /** Household-scoped expense subscription. */
   subscribeHouseholdExpenses(
     householdId: string,
     month: string,
-    callback: (e: Expense[]) => void
+    callback: (e: Expense[]) => void,
   ): () => void;
 
   /**
@@ -211,7 +235,7 @@ export interface HouseholdFinanceService002 {
    */
   listExpenses(
     month: string | "all",
-    filter?: ExpenseFilter
+    filter?: ExpenseFilter,
   ): Promise<Expense[]>;
 
   // ---- Recurring templates (type field, US-2 / US-4) ----
@@ -225,7 +249,7 @@ export interface HouseholdFinanceService002 {
   addRecurringForMonth(
     uid: string,
     templateId: string,
-    month: string
+    month: string,
   ): Promise<string>;
 
   // ---- Calendar view (US-4) ----
@@ -233,7 +257,7 @@ export interface HouseholdFinanceService002 {
   /** Live subscription to the calendar view for a selected month. */
   subscribeCalendarView(
     month: string,
-    callback: (v: CalendarView) => void
+    callback: (v: CalendarView) => void,
   ): () => void;
 
   /** Per-month totals + shortfall for the withdraw confirmation dialog. */
@@ -258,7 +282,7 @@ export interface HouseholdFinanceService002 {
   /** Live subscription to the monthly shortfall. */
   subscribeMonthlyShortfall(
     month: string,
-    callback: (s: MonthlyBudgetShortfall) => void
+    callback: (s: MonthlyBudgetShortfall) => void,
   ): () => void;
 
   // ---- Household hard delete (extended cascade) ----
@@ -266,9 +290,7 @@ export interface HouseholdFinanceService002 {
   /**
    * Hard delete a household. Cascades in chunked batches of 500 to:
    *   - the household doc
-   *   - all families under it
-   *   - all payments under each family
-   *   - all member-history docs under the household
+   *   - all families under it (and their payments + member-history)
    *   - all expenses where type === "household" AND householdId === hhId
    *
    * Mosque expenses and unrelated households are unaffected.

@@ -17,7 +17,7 @@ export type {
   ExpenseType,
   MosqueSubCategory,
   ExpenseFilter,
-  HouseholdMemberHistory,
+  FamilyMemberHistory,
   MonthlyBudgetShortfall,
   ShortfallSeverity,
   MonthlyExpenseTotals,

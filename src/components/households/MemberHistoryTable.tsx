@@ -1,5 +1,10 @@
 "use client";
-import type { HouseholdMemberHistory } from "@/lib/types";
+/**
+ * MemberHistoryTable — shows the per-family member change history,
+ * newest first. The list is rendered read-only (the underlying
+ * collection is append-only by spec).
+ */
+import type { FamilyMemberHistory } from "@/lib/types";
 import { useT } from "@/lib/i18n";
 import { format } from "date-fns";
 
@@ -7,7 +12,7 @@ export function MemberHistoryTable({
   history,
   loading,
 }: {
-  history: HouseholdMemberHistory[];
+  history: FamilyMemberHistory[];
   loading: boolean;
 }) {
   const t = useT();

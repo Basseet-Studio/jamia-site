@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // Veeramangalam Juma Masjid Household Finance Dashboard
-// 002 delta applied on top of v1.
+// Hierarchy: household -> family -> members. Members are per-family.
 // See specs/001-household-finance-dashboard/contracts/firestore.rules for v1 origin.
 
 service cloud.firestore {
@@ -43,15 +43,9 @@ service cloud.firestore {
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdAt == request.time;
 
-      // 002 delta: narrow allowlist for member edits. All other field updates still rejected.
-      allow update: if isAdmin()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'memberCount', 'memberNames', 'updatedAt', 'updatedBy'
-        ])
-        && request.resource.data.memberCount is number
-        && request.resource.data.memberCount >= 0
-        && request.resource.data.memberNames is list
-        && request.resource.data.memberNames.size() == request.resource.data.memberCount;
+      // The household doc carries identity only — no member fields. All other
+      // edits (e.g. name) are still blocked.
+      allow update: if false;
 
       allow delete: if isAdmin();
 
@@ -67,11 +61,18 @@ service cloud.firestore {
           && request.resource.data.deletedAt == null
           && request.resource.data.deletedBy == null
           && request.resource.data.contributionTarget is number
-          && request.resource.data.contributionTarget >= 0;
+          && request.resource.data.contributionTarget >= 0
+          && request.resource.data.memberCount == 0
+          && request.resource.data.memberNames.size() == 0;
 
+        // Three allowed transitions:
+        //   1) soft-delete (active true -> false)
+        //   2) name/target edit (active stays true, name/target may change)
+        //   3) member edit (memberCount + memberNames may change, name/target unchanged)
         allow update: if isAdmin()
           && (
             (
+              // 1) soft-delete
               resource.data.active == true
               && request.resource.data.active == false
               && request.resource.data.deletedAt == request.time
@@ -83,15 +84,31 @@ service cloud.firestore {
             )
             ||
             (
+              // 2) name/target edit
+              resource.data.active == true
+              && request.resource.data.active == true
+              && request.resource.data.deletedAt == resource.data.deletedAt
+              && request.resource.data.deletedBy == resource.data.deletedBy
+              && request.resource.data.createdAt == resource.data.createdAt
+              && request.resource.data.createdBy == resource.data.createdBy
+              && request.resource.data.contributionTarget is number
+              && request.resource.data.contributionTarget >= 0
+            )
+            ||
+            (
+              // 3) member edit
               resource.data.active == true
               && request.resource.data.active == true
               && request.resource.data.deletedAt == resource.data.deletedAt
               && request.resource.data.deletedBy == resource.data.deletedBy
               && request.resource.data.name == resource.data.name
+              && request.resource.data.contributionTarget == resource.data.contributionTarget
               && request.resource.data.createdAt == resource.data.createdAt
               && request.resource.data.createdBy == resource.data.createdBy
-              && request.resource.data.contributionTarget is number
-              && request.resource.data.contributionTarget >= 0
+              && request.resource.data.memberCount is number
+              && request.resource.data.memberCount >= 0
+              && request.resource.data.memberNames is list
+              && request.resource.data.memberNames.size() == request.resource.data.memberCount
             )
           );
 
@@ -113,24 +130,28 @@ service cloud.firestore {
           allow update: if false;
           allow delete: if isAdmin();
         }
-      }
 
-      // 002 delta: append-only member history sub-collection (FR-005).
-      match /memberHistory/{historyId} {
-        allow read: if isAdmin();
+        // ---- member history (sub-sub-collection, per family) ----
+        // Append-only. The atomic create is the same batched write that
+        // updates the family doc's member fields.
+        match /memberHistory/{historyId} {
+          allow read: if isAdmin();
 
-        allow create: if isAdmin()
-          && request.resource.data.changedBy == request.auth.uid
-          && request.resource.data.changedAt == request.time
-          && request.resource.data.previousCount is number
-          && request.resource.data.previousCount >= 0
-          && request.resource.data.previousNames is list
-          && request.resource.data.newCount is number
-          && request.resource.data.newCount >= 0
-          && request.resource.data.newNames is list;
+          allow create: if isAdmin()
+            && request.resource.data.changedBy == request.auth.uid
+            && request.resource.data.changedAt == request.time
+            && request.resource.data.householdId == householdId
+            && request.resource.data.familyId == familyId
+            && request.resource.data.previousCount is number
+            && request.resource.data.previousCount >= 0
+            && request.resource.data.previousNames is list
+            && request.resource.data.newCount is number
+            && request.resource.data.newCount >= 0
+            && request.resource.data.newNames is list;
 
-        // Append-only: no update, no delete.
-        allow update, delete: if false;
+          // Append-only: no update, no delete.
+          allow update, delete: if false;
+        }
       }
     }
 
@@ -139,7 +160,7 @@ service cloud.firestore {
     match /expenses/{expenseId} {
       allow read: if isAdmin();
 
-      // 002 delta: extended create guard for the type/linkage XOR.
+      // Extended create guard for the type/linkage XOR.
       allow create: if isAdmin()
         && request.resource.data.addedBy == request.auth.uid
         && request.resource.data.addedAt == request.time
@@ -166,7 +187,7 @@ service cloud.firestore {
               || request.resource.data.mosqueSubCategory == 'other'))
         );
 
-      // 002 delta: update (withdraw) requires the new fields to be unchanged.
+      // Update (withdraw) requires the new fields to be unchanged.
       allow update: if isAdmin()
         && resource.data.withdrawn == false
         && request.resource.data.withdrawn == true
@@ -194,7 +215,7 @@ service cloud.firestore {
     match /recurringExpenses/{templateId} {
       allow read: if isAdmin();
 
-      // 002 delta: create accepts the new type/linkage fields and the default-mosque branch.
+      // Create accepts the new type/linkage fields and the default-mosque branch.
       allow create: if isAdmin()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdAt == request.time
@@ -214,7 +235,7 @@ service cloud.firestore {
               || request.resource.data.mosqueSubCategory == 'other'))
         );
 
-      // 002 delta: update keeps createdAt/createdBy immutable and the new fields well-formed.
+      // Update keeps createdAt/createdBy immutable and the new fields well-formed.
       allow update: if isAdmin()
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.createdBy == resource.data.createdBy

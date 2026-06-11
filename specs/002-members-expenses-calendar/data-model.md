@@ -8,45 +8,72 @@ Defines every new and modified entity, fields, types, validation rules, state tr
 
 ---
 
-## 1. Household (modified)
+## 1. Household (identity only)
 
 **Path**: `households/{householdId}`
+
+The household document carries only identity metadata. Members live on the family
+(doc hierarchy: `households -> families -> members`).
+
+**Fields** (unchanged from v1): `id`, `name`, `createdAt`, `createdBy`.
+
+**Update permission**:
+- The household `update` rule is `false` — the household document is immutable
+  after creation (consistent with v1).
+
+**Lifecycle** (inherits v1 hard-delete cascade, extended):
+- Hard delete cascades to:
+  - All families under the household (and their payments + member-history)
+  - All `expenses` docs where `type === "household" AND householdId === hhId` (FR-015)
+- Cascade remains chunked at 500 ops per batch (Firestore limit).
+
+---
+
+## 2. Family (extended with per-family member census)
+
+**Path**: `households/{householdId}/families/{familyId}`
 
 Inherits v1 fields. New fields:
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `memberCount` | number | yes (after v1+1 migration; nullable on legacy docs) | non-negative integer; UI saves `memberNames.length` |
-| `memberNames` | string[] | yes (nullable on legacy docs) | JSON array; each 1-80 chars trimmed; order preserved |
+| `memberCount` | number | yes (after migration; legacy families default to 0) | non-negative integer; UI saves `memberNames.length` |
+| `memberNames` | string[] | yes (legacy families default to `[]`) | JSON array; each 1-80 chars trimmed; order preserved |
 | `updatedAt` | Timestamp \| null | yes | set on every member edit; null on legacy |
 | `updatedBy` | string (UID) \| null | yes | admin who last edited members; null on legacy |
 
-**Validation** (Zod schema in `src/lib/schemas/household.ts`):
+**Validation** (Zod schema in `src/lib/schemas/family.ts` + `familyMember.ts`):
 - `memberCount`: integer >= 0
 - `memberNames`: array of strings, each `trim().min(1).max(80)`
 - Invariant enforced in service: `memberCount === memberNames.length` (rejected if not — see FR-003)
-- Member-name uniqueness is NOT required (different families can share a first name; spec edge case L114)
+- Member-name uniqueness is NOT required (different families can share a first name)
 
-**Update permission** (rules delta):
-- Allow `update` iff `request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount', 'memberNames', 'updatedAt', 'updatedBy'])`
-- This is the ONLY allowed household update. All other edits (e.g. `name`) are still blocked.
+**Create rule** (firestore.rules delta):
+- New families must be created with `memberCount == 0 AND memberNames.size() == 0`.
+  The first members are added through a separate `updateMembers` write.
 
-**Lifecycle** (inherits v1 hard-delete cascade, extended):
-- Hard delete now also cascades to:
-  - All docs in `households/{hhId}/memberHistory/*` (FR-007)
-  - All `expenses` docs where `type === "household" AND householdId === hhId` (FR-015)
-- Cascade remains chunked at 500 ops per batch (Firestore limit).
+**Update permission** (firestore.rules delta):
+- The family `update` rule now allows three transitions, each with full immutability of the others:
+  1. **soft-delete** (active: true -> false)
+  2. **name/target edit** (active stays true, name and contributionTarget may change)
+  3. **member edit** (memberCount + memberNames may change, name and contributionTarget unchanged)
+- The member edit branch enforces `memberCount is number AND memberCount >= 0 AND memberNames is list AND memberNames.size() == memberCount`.
 
-**Migration**: legacy households (no `memberCount` field) read with `memberCount = 0` and `memberNames = []`. The first member edit writes the new shape.
+**Migration**: legacy family docs (no `memberCount` field) read with `memberCount = 0` and `memberNames = []`. The first member edit writes the new shape.
 
 ---
 
-## 2. HouseholdMemberHistory (new)
+## 3. FamilyMemberHistory (new)
 
-**Path**: `households/{householdId}/memberHistory/{historyId}`
+**Path**: `households/{householdId}/families/{familyId}/memberHistory/{historyId}`
+
+History is stored per family. The path is a sub-collection of the family doc,
+sibling to `payments`.
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
+| `householdId` | string | yes | denormalised; matches the parent household |
+| `familyId` | string | yes | denormalised; matches the parent family |
 | `previousCount` | number | yes | count before this edit |
 | `previousNames` | string[] | yes | names before this edit (JSON array) |
 | `newCount` | number | yes | count after this edit |
@@ -54,18 +81,20 @@ Inherits v1 fields. New fields:
 | `changedAt` | Timestamp | yes | server timestamp of the write |
 | `changedBy` | string (UID) | yes | admin who made the change |
 
-**Validation** (Zod schema in `src/lib/schemas/memberHistory.ts`):
-- All four history fields: same rules as the household `memberCount` / `memberNames`
+**Validation** (Zod schema in `src/lib/schemas/familyMemberHistory.ts`):
+- All four history fields: same rules as the family `memberCount` / `memberNames`
+- `householdId` and `familyId`: non-empty, must equal the path
 - `changedBy`: non-empty string
-- The history record MUST reflect a real change (if `previousCount === newCount` AND `previousNames === newNames`, the service layer still writes the record so even no-op edits are logged — spec edge case L115)
+- The history record MUST reflect a real change (if `previousCount === newCount` AND `previousNames === newNames`, the service layer still writes the record so even no-op edits are logged)
 
 **Lifecycle**:
 - **Append-only**. No `updateMemberHistory` / `deleteMemberHistory` methods in the service layer.
 - `firestore.rules`: `allow update, delete: if false` on this sub-collection.
+- `allow create` is restricted to writes that include `householdId == <hh> AND familyId == <fid>` (path-binding), preventing cross-family writes.
 - Read newest-first via `orderBy("changedAt", "desc")`.
-- Created atomically in the same batched write as the household update (see `updateMembers` in `households.ts`).
+- Created atomically in the same batched write as the family update (see `updateMembers` in `families.ts`).
 
-**Invariant (FR-005)**: a household with N edits has exactly N history records. Verified by tests counting records after a sequence of edits.
+**Invariant (FR-005)**: a family with N edits has exactly N history records. Verified by tests counting records after a sequence of edits.
 
 ---
 
@@ -219,7 +248,7 @@ When a household is hard-deleted, the following are removed in a single (chunked
 | `households/{hhId}` | root |
 | `households/{hhId}/families/*` | v1 cascade |
 | `households/{hhId}/families/*/payments/*` | v1 cascade |
-| `households/{hhId}/memberHistory/*` | FR-007 (new) |
+| `households/{hhId}/families/*/memberHistory/*` | FR-007 (new) |
 | `expenses/*` where `type === "household" AND householdId === hhId` | FR-015 (new) |
 
 **Not removed**: `recurringExpenses` templates that reference the deleted household (they become `householdId` orphans, but the template row itself is not a child of the household doc — it lives at the top level). Per Edge case L117, archived templates are hidden from the active list but the row persists. The plan does NOT auto-archive templates when their household is deleted; admins can manually archive via the Recurring screen. This matches "no auto-cleanup" rule from v1.
@@ -247,12 +276,13 @@ All other queries are covered by existing single-field equality filters (no comp
 
 ## 9. State transitions summary (delta)
 
-No new state machines. All transitions on existing entities are inherited from v1. New entity (HouseholdMemberHistory) has zero transitions (append-only).
+No new state machines. All transitions on existing entities are inherited from v1. New entity (FamilyMemberHistory) has zero transitions (append-only).
 
 | Entity | States | Transitions |
 |---|---|---|
-| Household | (v1) + `noMembers` ↔ `withMembers` | Admin: `updateMembers` (batched with history) |
-| HouseholdMemberHistory | (none — append-only) | — |
+| Household | (v1) — identity only | (immutable) |
+| Family | (v1) + `noMembers` ↔ `withMembers` | Admin: `updateMembers` (batched with history) |
+| FamilyMemberHistory | (none — append-only) | — |
 | Expense | (v1) | Inherits; new fields immutable after create |
 | RecurringTemplate | (v1) | Inherits; new fields mutable via `updateRecurringTemplate` |
 | MonthlyBudgetShortfall | (none — derived) | — |
@@ -263,8 +293,8 @@ No new state machines. All transitions on existing entities are inherited from v
 
 | Schema | Path | Discriminator | Notes |
 |---|---|---|---|
-| `householdMemberSchema` | `schemas/householdMember.ts` | — | `memberCount: int >= 0`, `memberNames: string[1..80]` |
-| `memberHistorySchema` | `schemas/memberHistory.ts` | — | Inherits + `previousCount/Names`, `newCount/Names`, `changedBy` |
+| `familyMemberSchema` | `schemas/familyMember.ts` | — | `memberCount: int >= 0`, `memberNames: string[1..80]` |
+| `familyMemberHistorySchema` | `schemas/familyMemberHistory.ts` | — | Inherits + `householdId`, `familyId`, `previousCount/Names`, `newCount/Names`, `changedBy` |
 | `createExpenseSchema` | `schemas/expense.ts` | `type` | household / mosque branches |
 | `createRecurringTemplateSchema` | `schemas/recurringTemplate.ts` | `type` | household / mosque branches; default `mosque` |
 

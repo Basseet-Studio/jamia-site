@@ -1,11 +1,12 @@
 import { z } from "zod";
 
 /**
- * Members input for a household (FR-003, FR-004).
+ * Members input for a family (per-family census).
+ * Hierarchy: household -> family -> members.
  * Invariant enforced in the service layer: memberCount === memberNames.length.
  * The form computes memberCount from memberNames.length before submit.
  */
-export const householdMemberSchema = z.object({
+export const familyMemberSchema = z.object({
   memberCount: z
     .number()
     .int("Member count must be a whole number")
@@ -21,4 +22,4 @@ export const householdMemberSchema = z.object({
     .max(200, "Too many members"),
 });
 
-export type HouseholdMemberSchema = z.infer<typeof householdMemberSchema>;
+export type FamilyMemberSchema = z.infer<typeof familyMemberSchema>;

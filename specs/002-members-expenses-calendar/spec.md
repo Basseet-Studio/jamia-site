@@ -128,10 +128,10 @@ A dedicated service computes, for any given month, the budget shortfall: the amo
 
 #### Household Members
 
-- **FR-001**: System MUST store on each household document a `memberCount` (non-negative integer) and a `memberNames` field containing a JSON array of strings (each 1-80 chars, trimmed).
-- **FR-002**: System MUST allow an authorised admin to edit `memberCount` and `memberNames` from the household detail screen. The form MUST allow adding, removing, renaming, and reordering names.
+- **FR-001**: System MUST store on each family document a `memberCount` (non-negative integer) and a `memberNames` field containing a JSON array of strings (each 1-80 chars, trimmed). The hierarchy is `household -> family -> members`; a "pokot big household" contains many families, and each family tracks its own members.
+- **FR-002**: System MUST allow an authorised admin to edit `memberCount` and `memberNames` from the household detail screen, scoped to a single family row. The form MUST allow adding, removing, renaming, and reordering names.
 - **FR-003**: `memberCount` MUST be derivable from `memberNames.length` on read; the system MUST treat the two as consistent (warn or reject on save if they diverge, per validation rule in plan).
-- **FR-004**: Every successful change to `memberCount` or `memberNames` MUST create a new document in a member-history collection whose path is a sibling of the families collection (i.e. at `households/{householdId}/memberHistory/{historyId}` — see Assumptions), capturing: the previous `memberCount` and `memberNames`, the new `memberCount` and `memberNames`, the server timestamp, and the admin UID that made the change.
+- **FR-004**: Every successful change to a family's `memberCount` or `memberNames` MUST create a new document in a member-history collection at `households/{householdId}/families/{familyId}/memberHistory/{historyId}` (a sub-collection of the family, sibling to `payments`), capturing: the previous `memberCount` and `memberNames`, the new `memberCount` and `memberNames`, the householdId, the familyId, the server timestamp, and the admin UID that made the change.
 - **FR-005**: The history collection is append-only. The system MUST NOT modify or delete a history record through the admin UI.
 - **FR-006**: System MUST allow an authorised admin to open a read-only "Member change history" view for a household, showing records newest first with the change timestamp, admin, previous values, and new values.
 - **FR-007**: When a household is hard-deleted, the system MUST cascade the deletion to the household document, all member-history documents, all families, and all family-scoped payments and expenses, in a single batched write.
@@ -179,7 +179,7 @@ A dedicated service computes, for any given month, the budget shortfall: the amo
 
 ### Key Entities *(include if feature involves data)*
 
-- **HouseholdMemberHistory**: a record of one change to a household's `memberCount` or `memberNames`. Fields: `previousCount`, `previousNames` (JSON), `newCount`, `newNames` (JSON), `changedAt` (Timestamp), `changedBy` (admin UID). Sibling collection to families; not a sub-document of Family.
+- **HouseholdMemberHistory**: replaced by **FamilyMemberHistory**: a record of one change to a family's `memberCount` or `memberNames`. Fields: `householdId`, `familyId`, `previousCount`, `previousNames` (JSON), `newCount`, `newNames` (JSON), `changedAt` (Timestamp), `changedBy` (admin UID). Lives at `households/{hhId}/families/{fid}/memberHistory/{historyId}`.
 - **ExpenseType**: the classification of an expense — `household` (linked to a household, optionally a family) or `mosque` (linked to a mosque sub-category: maintenance, salary, other). Stored as `type` on every expense and on every recurring expense template. The existing `Expense` and `RecurringExpenseTemplate` entities gain new required fields.
 - **MonthlyBudgetShortfall** (derived, not stored): the result of `BudgetShortfallService.computeMonthlyShortfall(month)`. Fields: `available`, `recurringTotal`, `shortfall`, `severity`, `asOf`. Computed live; never persisted.
 
@@ -187,7 +187,7 @@ A dedicated service computes, for any given month, the budget shortfall: the amo
 
 ### Measurable Outcomes
 
-- **SC-001**: An authorised admin can add or edit household members and see a new history record appear in the member-history view within 2 seconds of the save.
+- **SC-001**: An authorised admin can add or edit a family's members and see a new history record appear in the per-family member-history view within 2 seconds of the save.
 - **SC-002**: An authorised admin can classify an expense as `household` or `mosque` from the expense form in under 30 seconds, and the saved expense renders the correct type badge and appears in the correct lists (household detail or mosque filter) without a manual refresh.
 - **SC-003**: When the admin clicks Withdraw on a recurring expense, the confirmation dialog appears within 1 second and shows the expense name, amount, new month totals, and current shortfall figure.
 - **SC-004**: The Calendar screen loads for the current month in under 2 seconds on broadband and re-renders the selected month in under 1 second when the admin steps forwards or backwards.
@@ -198,7 +198,7 @@ A dedicated service computes, for any given month, the budget shortfall: the amo
 
 ## Assumptions
 
-- **Member-history path**: Recorded as `households/{householdId}/memberHistory/{historyId}` — i.e. a sub-collection of the household but a sibling of the `families` sub-collection. The user's wording "separate table from families table" is interpreted as "not inside the families sub-collection"; the plan phase may revisit whether a top-level collection is preferred.
+- **Member-history path**: Recorded as `households/{householdId}/families/{familyId}/memberHistory/{historyId}` — a sub-collection of the family, sibling to `payments`. The user's revised wording "household has many families, every family has members" makes the family the natural owner of member census and history.
 - **Recurring template default type**: New recurring templates default to `type: "mosque"` since the original use case (electricity, salaries) is mosque-wide. The plan may add a UI control to switch a template to `type: "household"` with a household/family picker.
 - **Shortfall formula direction**: The shortfall compares `available` to `recurringTotal`. The user's example (2000 had, 500 spent, 1800 recurring, 300 short) maps to `available = 1500`, `recurringTotal = 1800`, `shortfall = 300`, severity `risk` (300/1800 = 16.7%). The plan may refine the formula (e.g. add a safety buffer) but the comparison direction is locked.
 - **"Cold added" recurring expenses**: The user repeated that recurring expenses are added cold (manually, not auto-created). This is already enforced in v1 (FR-034 in 001). The plan reuses that behaviour and only adds the explicit confirmation step on withdraw (US-3).

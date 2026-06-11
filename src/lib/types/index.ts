@@ -19,13 +19,8 @@ export interface Setting {
 export interface Household {
   id: string;
   name: string;
-  // 002: member census metadata
-  memberCount: number;
-  memberNames: string[];
   createdAt: Timestamp;
   createdBy: string;
-  updatedAt: Timestamp | null;
-  updatedBy: string | null;
 }
 
 export interface Family {
@@ -38,6 +33,11 @@ export interface Family {
   active: boolean;
   deletedAt: Timestamp | null;
   deletedBy: string | null;
+  // Per-family member census metadata. memberCount MUST equal memberNames.length.
+  memberCount: number;
+  memberNames: string[];
+  updatedAt: Timestamp | null;
+  updatedBy: string | null;
 }
 
 export interface Payment {
@@ -144,12 +144,14 @@ export interface RecurringTemplateWithStatus extends RecurringTemplate {
 }
 
 // ============================================================================
-// 002: Append-only member-change history (FR-005).
+// Append-only per-family member-change history.
+// Hierarchy: household -> family -> members. History is stored on the family.
 // ============================================================================
 
-export interface HouseholdMemberHistory {
+export interface FamilyMemberHistory {
   id: string;
   householdId: string;
+  familyId: string;
   previousCount: number;
   previousNames: string[];
   newCount: number;

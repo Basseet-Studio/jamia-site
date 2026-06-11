@@ -11,36 +11,98 @@ rules_version = '2';
 // the v1 rules. The deploy pipeline concatenates the v1 rules with this
 // delta to produce the final firestore.rules at the repo root.
 //
+// Hierarchy: household -> family -> members. Members live on the family.
+//
 // Concretely, the v1 rules file stays unchanged. The deploy step applies
 // these changes:
-//   1. household rule (match /households/{householdId}): replace
-//      `allow update: if false;` with the 002 allow-update block below.
-//   2. add new match for /households/{householdId}/memberHistory/{historyId}.
-//   3. expense rule (match /expenses/{expenseId}): extend the create and
+//   1. household rule (match /households/{householdId}): KEEP
+//      `allow update: if false;` (the household doc is identity-only).
+//   2. family rule (match /households/{householdId}/families/{familyId}):
+//      extend the update guard to also allow the per-family member edit
+//      (memberCount + memberNames may change, name + target + flags
+//      unchanged), and enforce `memberCount == 0 && memberNames.size() == 0`
+//      on create.
+//   3. add new match for
+//      /households/{householdId}/families/{familyId}/memberHistory/{historyId}.
+//   4. expense rule (match /expenses/{expenseId}): extend the create and
 //      update guards to enforce the new type/householdId/familyId/
 //      mosqueSubCategory cross-field rules.
-//   4. recurringExpenses rule (match /recurringExpenses/{templateId}):
+//   5. recurringExpenses rule (match /recurringExpenses/{templateId}):
 //      relax the update rule to permit the new optional fields.
 // ----------------------------------------------------------------------------
 
-// ---- 1. Household update (replaces v1 `allow update: if false;`) ----
+// ---- 1. Household update (UNCHANGED from v1: `allow update: if false;`) ----
+
+// The household document carries only identity metadata. All member data
+// lives on the family. No update is allowed (matches v1).
+
+// ---- 2. Family update (extended with member-edit branch) ----
+
+// The v1 family update rule only allowed the soft-delete transition
+// (active true -> false). We add a second branch for the member edit:
+// memberCount + memberNames may change; name, contributionTarget, created*,
+// deleted*, active must equal the existing values.
+// The third branch (name/contributionTarget edit) is unchanged from 002.
 
 // allow update: if isAdmin()
-//   && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-//     'memberCount', 'memberNames', 'updatedAt', 'updatedBy'
-//   ])
-//   && request.resource.data.memberCount is number
-//   && request.resource.data.memberCount >= 0
-//   && request.resource.data.memberNames is list
-//   && request.resource.data.memberNames.size() == request.resource.data.memberCount;
+//   && (
+//     (
+//       // 1) soft-delete (unchanged from v1)
+//       resource.data.active == true
+//       && request.resource.data.active == false
+//       && request.resource.data.deletedAt == request.time
+//       && request.resource.data.deletedBy == request.auth.uid
+//       && request.resource.data.name == resource.data.name
+//       && request.resource.data.contributionTarget == resource.data.contributionTarget
+//       && request.resource.data.createdAt == resource.data.createdAt
+//       && request.resource.data.createdBy == resource.data.createdBy
+//     )
+//     ||
+//     (
+//       // 2) name/target edit
+//       resource.data.active == true
+//       && request.resource.data.active == true
+//       && request.resource.data.deletedAt == resource.data.deletedAt
+//       && request.resource.data.deletedBy == resource.data.deletedBy
+//       && request.resource.data.createdAt == resource.data.createdAt
+//       && request.resource.data.createdBy == resource.data.createdBy
+//       && request.resource.data.contributionTarget is number
+//       && request.resource.data.contributionTarget >= 0
+//     )
+//     ||
+//     (
+//       // 3) member edit (NEW)
+//       resource.data.active == true
+//       && request.resource.data.active == true
+//       && request.resource.data.deletedAt == resource.data.deletedAt
+//       && request.resource.data.deletedBy == resource.data.deletedBy
+//       && request.resource.data.name == resource.data.name
+//       && request.resource.data.contributionTarget == resource.data.contributionTarget
+//       && request.resource.data.createdAt == resource.data.createdAt
+//       && request.resource.data.createdBy == resource.data.createdBy
+//       && request.resource.data.memberCount is number
+//       && request.resource.data.memberCount >= 0
+//       && request.resource.data.memberNames is list
+//       && request.resource.data.memberNames.size() == request.resource.data.memberCount
+//     )
+//   );
 
-// ---- 2. Member history sub-collection (append-only) ----
+// The v1 family create rule is augmented to require that new families are
+// created with no members — the first members are added via updateMembers.
 
-// match /households/{householdId}/memberHistory/{historyId} {
+// (final create guard adds:)
+//   && request.resource.data.memberCount == 0
+//   && request.resource.data.memberNames.size() == 0
+
+// ---- 3. Member history sub-collection (append-only, per family) ----
+
+// match /households/{householdId}/families/{familyId}/memberHistory/{historyId} {
 //   allow read: if isAdmin();
 //   allow create: if isAdmin()
 //     && request.resource.data.changedBy == request.auth.uid
 //     && request.resource.data.changedAt == request.time
+//     && request.resource.data.householdId == householdId
+//     && request.resource.data.familyId == familyId
 //     && request.resource.data.previousCount is number
 //     && request.resource.data.previousCount >= 0
 //     && request.resource.data.previousNames is list
@@ -51,7 +113,7 @@ rules_version = '2';
 //   allow update, delete: if false;
 // }
 
-// ---- 3. Expense (extended guards) ----
+// ---- 4. Expense (extended guards) ----
 
 // The v1 create rule is augmented with the new type/required-fields
 // branch. The final create rule (replaces v1) is:
@@ -87,7 +149,7 @@ rules_version = '2';
 //   type, householdId, familyId, mosqueSubCategory
 // Each must match `resource.data.*`.
 
-// ---- 4. Recurring templates (relaxed update) ----
+// ---- 5. Recurring templates (relaxed update) ----
 
 // The v1 update rule for templates required createdAt/createdBy to be
 // unchanged. We keep that, and also enforce that the new fields (type,

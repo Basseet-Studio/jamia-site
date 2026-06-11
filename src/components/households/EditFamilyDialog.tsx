@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -69,6 +70,7 @@ export function EditFamilyDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("families.editTitle")}</DialogTitle>
+          <DialogDescription>{t("families.editDescription")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">

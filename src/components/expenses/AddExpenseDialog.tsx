@@ -16,6 +16,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -130,6 +131,7 @@ export function AddExpenseDialog() {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("expenses.addTitle")}</DialogTitle>
+          <DialogDescription>{t("expenses.addDescription")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">

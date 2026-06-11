@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -80,6 +81,9 @@ export function RecordPaymentDialog({
           <DialogTitle>
             {t("payments.recordTitle", { name: familyName })}
           </DialogTitle>
+          <DialogDescription>
+            {t("payments.recordDescription", { name: familyName })}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">

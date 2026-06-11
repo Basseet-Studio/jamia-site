@@ -16,6 +16,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -120,6 +121,7 @@ export function AddTemplateDialog() {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("recurring.addTitle")}</DialogTitle>
+          <DialogDescription>{t("recurring.addDescription")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
