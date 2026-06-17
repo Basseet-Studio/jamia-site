@@ -2,14 +2,18 @@
   "version": "0.9.6.dev0",
   "integration_state_schema": 1,
   "installed_integrations": [
-    "copilot"
+    "generic"
   ],
   "integration_settings": {
-    "copilot": {
+    "generic": {
       "script": "sh",
+      "raw_options": "--commands-dir .github/commands",
+      "parsed_options": {
+        "commands_dir": ".github/commands"
+      },
       "invoke_separator": "."
     }
   },
-  "integration": "copilot",
-  "default_integration": "copilot"
+  "integration": "generic",
+  "default_integration": "generic"
 }

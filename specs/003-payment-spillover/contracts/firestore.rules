@@ -1,0 +1,70 @@
+// Veeramangalam Juma Masjid Household Finance Dashboard
+// 003 delta: Payment Contribution Spillover
+//
+// This file documents the SECURITY-RULE DELTA only. The full rules live in
+// `firestore.rules` at the repo root — apply this patch atomically.
+//
+// Apply by replacing the `match /payments/{paymentId}` block (currently
+// `firestore.rules` L148-161) with the version below.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ... unchanged helpers, admins, settings, households, families ...
+
+    match /families/{familyId} {
+
+      // ... unchanged member fields ...
+
+      // ---- payments (sub-sub-collection) ----
+      // 003 delta: `coverageGroupId` is an optional additive field. The v1
+      // create rule did not gate it; we keep that here. When present, it MUST
+      // be a UUID string. No length cap needed — UUID is fixed width.
+      //
+      // Updates are still disallowed (FR-015). The cascade submit creates N
+      // docs in a single runTransaction; there is no edit path.
+      //
+      // Deletes remain `if isAdmin()` and now apply to single docs OR to all
+      // members of a coverage group (group delete is handled client-side by
+      // issuing N deletes inside one transaction).
+      match /payments/{paymentId} {
+        allow read: if isAdmin();
+
+        allow create: if isAdmin()
+          && request.resource.data.recordedBy == request.auth.uid
+          && request.resource.data.recordedAt == request.time
+          && request.resource.data.amount is number
+          && request.resource.data.amount > 0
+          && request.resource.data.month is string
+          && request.resource.data.month.matches('^\\d{4}-(0[1-9]|1[0-2])$')
+          // 003 — coverageGroupId, when present, MUST be a UUID.
+          && (
+            !('coverageGroupId' in request.resource.data)
+            || (request.resource.data.coverageGroupId is string
+                && request.resource.data.coverageGroupId.matches(
+                     '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'))
+          );
+
+        allow update: if false;
+        allow delete: if isAdmin();
+      }
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// INDEXES (delta) — merge into firestore.indexes.json
+// ----------------------------------------------------------------------------
+//
+// Add this object to the top-level "indexes" array:
+//
+//   {
+//     "collectionGroup": "payments",
+//     "queryScope": "COLLECTION",
+//     "fields": [
+//       { "fieldPath": "coverageGroupId", "order": "ASCENDING" },
+//       { "fieldPath": "recordedAt", "order": "DESCENDING" }
+//     ]
+//   }
+//
+// Brings the project total from 7 to 8 composite indexes (Spark limit 200).

@@ -149,12 +149,19 @@ service cloud.firestore {
           allow read: if isAdmin();
 
           allow create: if isAdmin()
-            && request.resource.data.recordedBy == request.auth.uid
-            && request.resource.data.recordedAt == request.time
-            && request.resource.data.amount is number
-            && request.resource.data.amount > 0
-            && request.resource.data.month is string
-            && request.resource.data.month.matches('^\\d{4}-(0[1-9]|1[0-2])$');
+                      && request.resource.data.recordedBy == request.auth.uid
+                      && request.resource.data.recordedAt == request.time
+                      && request.resource.data.amount is number
+                      && request.resource.data.amount > 0
+                      && request.resource.data.month is string
+                      && request.resource.data.month.matches('^\\d{4}-(0[1-9]|1[0-2])$')
+                      // 003 — coverageGroupId, when present, MUST be a UUID.
+                      && (
+                        !('coverageGroupId' in request.resource.data)
+                        || (request.resource.data.coverageGroupId is string
+                            && request.resource.data.coverageGroupId.matches(
+                                 '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'))
+                      );
 
           allow update: if false;
           allow delete: if isAdmin();

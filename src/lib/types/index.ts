@@ -50,6 +50,8 @@ export interface Payment {
   note: string | null;
   recordedAt: Timestamp;
   recordedBy: string;
+  // 003 — null for legacy single payments; UUID v4 for cascaded docs.
+  coverageGroupId: string | null;
 }
 
 // 002: expense "household" (linked to a household) or "mosque".
