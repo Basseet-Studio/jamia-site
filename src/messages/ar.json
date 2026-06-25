@@ -50,7 +50,15 @@
     "paidInFull": "Paid in full",
     "collected": "Collected",
     "target": "Target",
-    "householdsSection": "Households"
+    "householdsSection": "Households",
+    "logPaymentTitle": "Log payment",
+    "logPaymentDescription": "Pick a household, then a family, and record a payment.",
+    "selectHousehold": "Select household",
+    "selectFamily": "Select family",
+    "logPaymentButton": "Log payment",
+    "noHouseholds": "No households yet.",
+    "noFamilies": "No active families in this household.",
+    "loadingFamilies": "Loading families…"
   },
   "households": {
     "heading": "Households",

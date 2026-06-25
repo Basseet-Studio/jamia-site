@@ -36,12 +36,30 @@ export function RecordPaymentDialog({
   householdId,
   familyId,
   familyName,
+  hideTrigger,
+  open: openProp,
+  onOpenChange: onOpenChangeProp,
 }: {
   householdId: string;
   familyId: string;
   familyName: string;
+  /**
+   * When true, the built-in "Record payment" button is omitted and the dialog
+   * is controlled by the parent via `open` + `onOpenChange`. The dashboard's
+   * "Log payment" card uses this so a single external button drives the
+   * dialog after the family is picked.
+   */
+  hideTrigger?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = hideTrigger === true;
+  const open = isControlled ? (openProp ?? false) : internalOpen;
+  const setOpen = (next: boolean) => {
+    if (!isControlled) setInternalOpen(next);
+    onOpenChangeProp?.(next);
+  };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [family, setFamily] = useState<Family | null>(null);
@@ -175,9 +193,11 @@ export function RecordPaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm">{t("payments.recordButton")}</Button>
-      </DialogTrigger>
+      {hideTrigger ? null : (
+        <DialogTrigger asChild>
+          <Button size="sm">{t("payments.recordButton")}</Button>
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>

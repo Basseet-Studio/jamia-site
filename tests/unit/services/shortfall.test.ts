@@ -14,14 +14,19 @@ import { describe, expect, it } from "vitest";
 import { computeShortfall } from "@/lib/services/shortfall";
 import * as svc from "@/lib/services/shortfall";
 import * as sub from "@/lib/services/shortfallSubscription";
-import { serverTimestamp } from "firebase/firestore";
+import { Timestamp } from "firebase/firestore";
 
 const baseInput = {
   month: "2026-06",
   moneyOnHandAtStartOfMonth: 1000,
   paymentsThisMonth: 0,
   withdrawnExpensesThisMonth: 0,
-  asOf: serverTimestamp(),
+  // `computeShortfall` expects a real `Timestamp` (it pass-throughs it onto
+  // the result). At runtime the shortfall subscription either reads a stored
+  // `updatedAt` Timestamp or falls back to `serverTimestamp()` cast as one.
+  // For pure-function tests we use a fixed `Timestamp.now()` so the assertion
+  // is deterministic.
+  asOf: Timestamp.now(),
 } as const;
 
 describe("computeShortfall — FR-032 cases", () => {

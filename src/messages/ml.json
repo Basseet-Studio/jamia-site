@@ -49,7 +49,15 @@
     "paidInFull": "മുഴുവൻ അടച്ചവർ",
     "collected": "ലഭിച്ചത്",
     "target": "ലക്ഷ്യം",
-    "householdsSection": "വീടുകൾ"
+    "householdsSection": "വീടുകൾ",
+    "logPaymentTitle": "Log payment",
+    "logPaymentDescription": "Pick a household, then a family, and record a payment.",
+    "selectHousehold": "Select household",
+    "selectFamily": "Select family",
+    "logPaymentButton": "Log payment",
+    "noHouseholds": "No households yet.",
+    "noFamilies": "No active families in this household.",
+    "loadingFamilies": "Loading families…"
   },
   "households": {
     "heading": "വീടുകൾ",

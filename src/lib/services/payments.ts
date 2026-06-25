@@ -240,7 +240,19 @@ export async function recordPaymentWithCoverage(
       : null;
 
   // All writes go inside ONE txn; MOH shifts by `totalAmount` exactly once.
+  //
+  // Firestore rule (strictly enforced by the local emulator, leniently by
+  // the production backend): all `tx.get()` reads must execute before any
+  // `tx.set()` / `tx.update()` write. `shiftMoneyOnHandInTx` does a `tx.get`
+  // on `settings/global`, so we must call it BEFORE we start writing payment
+  // docs — otherwise the txn aborts with
+  // "Firestore transactions require all reads to be executed before all
+  // writes" (visible on the emulator; silently misordered in prod).
   const refs = await runTransaction(db, async (tx) => {
+    const shift = writes.reduce((s, w) => s + w.amount, 0);
+    // 1. Reads first (shiftMoneyOnHandInTx does a `tx.get` on settings/global).
+    await shiftMoneyOnHandInTx(tx, +shift);
+    // 2. Writes only after all reads are queued.
     const slotRefs = writes.map(() => doc(paymentsCol));
     for (let i = 0; i < writes.length; i++) {
       const slot = writes[i];
@@ -254,8 +266,6 @@ export async function recordPaymentWithCoverage(
         ...(groupId ? { coverageGroupId: groupId } : {}),
       });
     }
-    const shift = writes.reduce((s, w) => s + w.amount, 0);
-    await shiftMoneyOnHandInTx(tx, +shift);
     return slotRefs.map((r) => r.id);
   });
   return refs;

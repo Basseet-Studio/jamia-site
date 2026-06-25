@@ -9,6 +9,7 @@ import { currentMonthKey } from "@/lib/utils/dates";
 import { MoneyOnHandCard } from "@/components/summary/MoneyOnHandCard";
 import { MonthSummaryBar } from "@/components/summary/MonthSummaryBar";
 import { HouseholdTable } from "@/components/households/HouseholdTable";
+import { LogPaymentCard } from "@/components/payments/LogPaymentCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useT } from "@/lib/i18n";
 
@@ -85,6 +86,9 @@ export default function DashboardPage() {
           {t("dashboard.householdsSection")}
         </h2>
         <HouseholdTable rows={rows} loading={loading} />
+      </section>
+      <section>
+        <LogPaymentCard />
       </section>
     </div>
   );
