@@ -98,11 +98,13 @@ export interface RecurringTemplate {
   active: boolean;
   createdAt: Timestamp;
   createdBy: string;
-  // 002 fields
+  // Mosque-only — household recurring templates are not allowed by product
+  // decision. `type` and `mosqueSubCategory` are always set; the household
+  // linkage fields are always null and retained only for legacy-row reads.
   type: ExpenseType;
-  householdId: string | null;
-  familyId: string | null;
-  mosqueSubCategory: MosqueSubCategory | null;
+  householdId: null;
+  familyId: null;
+  mosqueSubCategory: MosqueSubCategory;
 }
 
 export type FamilyMonthlyStatus = "Unpaid" | "Partial" | "Met" | "Over";

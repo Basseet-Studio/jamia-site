@@ -103,7 +103,7 @@ export function WithdrawDialog({
         <DialogHeader>
           <DialogTitle>
             {isRecurring
-              ? t("recurring.withdrawConfirmTitle")
+              ? t("expenses.recurring.withdrawConfirmTitle")
               : t("expenses.withdrawTitle", {
                   name: expenseName,
                   amount: amountFmt,
@@ -111,7 +111,7 @@ export function WithdrawDialog({
           </DialogTitle>
           <DialogDescription>
             {isRecurring
-              ? t("recurring.withdrawConfirmBody", {
+              ? t("expenses.recurring.withdrawConfirmBody", {
                   name: expenseName,
                   amount: amountFmt,
                 })

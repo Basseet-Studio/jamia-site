@@ -27,7 +27,6 @@
     "dashboard": "Dashboard",
     "households": "Households",
     "expenses": "Expenses",
-    "recurring": "Recurring",
     "calendar": "Calendar",
     "settings": "Settings",
     "debug": "Debug"
@@ -206,7 +205,32 @@
     "fieldType": "Type",
     "fieldHousehold": "Household",
     "fieldFamilyOptional": "Family (optional)",
-    "fieldSubCategory": "Sub-category"
+    "fieldSubCategory": "Sub-category",
+    "recurring": {
+      "sectionTitle": "மீண்டும் மீண்டும் வரும் செலவு வார்ப்புருக்கள்",
+      "sectionDescription": "ஒவ்வொரு மாதமும் மீண்டும் வரும் வார்ப்புருக்கள். இந்தப் பட்டியலில் இருந்து ஒவ்வொரு மாதமும் கையால் தூண்டலாம்.",
+      "addButton": "வார்ப்புருவைச் சேர்",
+      "addTitle": "மீண்டும் மீண்டும் வரும் வார்ப்புருவைச் சேர்",
+      "addDescription": "மசூதிக்கான மாதாந்திர மீண்டும் வரும் செலவு வார்ப்புருவை உருவாக்கவும் (சம்பளம், பராமரிப்பு, பிற).",
+      "saveTemplate": "வார்ப்புருவைச் சேமி",
+      "fieldName": "பெயர்",
+      "fieldAmount": "தொகை",
+      "fieldDescription": "விவரம் (விருப்பம்)",
+      "fieldSubCategory": "துணை வகை",
+      "empty": "மீண்டும் மீண்டும் வரும் வார்ப்புருக்கள் எதுவும் இல்லை.",
+      "monthStatus": "தேர்ந்தெடுத்த மாதத்தின் நிலை",
+      "statusNotAdded": "சேர்க்கப்படவில்லை",
+      "statusPendingWithdrawal": "திரும்பப் பெறுவதற்காக காத்திருக்கிறது",
+      "statusWithdrawn": "திரும்பப் பெறப்பட்டது",
+      "addForMonth": "இந்த மாதத்திற்குச் சேர்",
+      "adding": "சேர்க்கிறது…",
+      "archive": "காப்பகப்படுத்து",
+      "archived": "காப்பகப்படுத்தப்பட்டது",
+      "withdrawConfirmTitle": "மீண்டும் மீண்டும் வரும் செலவைத் திரும்பப் பெறவா?",
+      "withdrawConfirmBody": "{name} ({amount}) திரும்பப் பெற உள்ளீர். இது பணத்தை அந்தத் தொகைக்குக் குறைக்கும், திரும்பப் பெற இயலாது.",
+      "warningOverBudget": "இந்த மாதத்திற்கான மீண்டும் மீண்டும் வரும் செலவுகள் ({total}) எதிர்பார்க்கப்படும் பங்களிப்புகளை ({expected}) விட அதிகம்.",
+      "dismiss": "மறை"
+    }
   },
   "recurring": {
     "heading": "Recurring expenses",

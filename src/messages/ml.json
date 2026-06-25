@@ -26,7 +26,6 @@
     "dashboard": "ഡാഷ്‌ബോർഡ്",
     "households": "വീടുകൾ",
     "expenses": "ചെലവുകൾ",
-    "recurring": "സ്ഥിരം ചെലവുകൾ",
     "calendar": "കലണ്ടർ",
     "settings": "ക്രമീകരണങ്ങൾ",
     "debug": "Debug"
@@ -205,7 +204,32 @@
     "fieldType": "Type",
     "fieldHousehold": "Household",
     "fieldFamilyOptional": "Family (optional)",
-    "fieldSubCategory": "Sub-category"
+    "fieldSubCategory": "Sub-category",
+    "recurring": {
+      "sectionTitle": "സ്ഥിരം ചെലവ് ടെംപ്ലേറ്റുകൾ",
+      "sectionDescription": "ഓരോ മാസവും ആവർത്തിക്കുന്ന ടെംപ്ലേറ്റുകൾ. ഈ പട്ടികയിൽ നിന്ന് ഓരോ മാസത്തേയും ട്രിഗർ ചെയ്യാം.",
+      "addButton": "ടെംപ്ലേറ്റ് ചേർക്കുക",
+      "addTitle": "സ്ഥിരം ടെംപ്ലേറ്റ് ചേർക്കുക",
+      "addDescription": "മസ്ജിദിന്റെ മാസിക സ്ഥിരം ചെലവ് ടെംപ്ലേറ്റ് സൃഷ്ടിക്കുക (ശമ്പളം, അറ്റകുറ്റപ്പണി, മറ്റുള്ളവ).",
+      "saveTemplate": "ടെംപ്ലേറ്റ് സംരക്ഷിക്കുക",
+      "fieldName": "പേര്",
+      "fieldAmount": "തുക",
+      "fieldDescription": "വിവരണം (ഐച്ഛികം)",
+      "fieldSubCategory": "ഉപവിഭാഗം",
+      "empty": "സ്ഥിരം ടെംപ്ലേറ്റുകളൊന്നുമില്ല.",
+      "monthStatus": "തിരഞ്ഞെടുത്ത മാസത്തിന്റെ നില",
+      "statusNotAdded": "ചേർത്തിട്ടില്ല",
+      "statusPendingWithdrawal": "പിൻവലിക്കാനുണ്ട്",
+      "statusWithdrawn": "പിൻവലിച്ചു",
+      "addForMonth": "ഈ മാസത്തേക്ക് ചേർക്കുക",
+      "adding": "ചേർക്കുന്നു…",
+      "archive": "ആർക്കൈവ് ചെയ്യുക",
+      "archived": "ആർക്കൈവ് ചെയ്തു",
+      "withdrawConfirmTitle": "സ്ഥിരം ചെലവ് പിൻവലിക്കണോ?",
+      "withdrawConfirmBody": "{name} ({amount}) പിൻവലിക്കാൻ പോകുന്നു. ഇത് പണത്തിന്റെ ലഭ്യത ആ തുകക്ക് കുറയ്ക്കും, പിൻവലിക്കാൻ കഴിയില്ല.",
+      "warningOverBudget": "ഈ മാസത്തെ സ്ഥിരം ചെലവുകൾ ({total}) പ്രതീക്ഷിക്കുന്ന സംഭാവനകളേക്കാൾ ({expected}) കൂടുതലാണ്.",
+      "dismiss": "ഒഴിവാക്കുക"
+    }
   },
   "recurring": {
     "heading": "സ്ഥിരം ചെലവുകൾ",

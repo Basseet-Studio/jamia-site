@@ -371,3 +371,26 @@ export function subscribeAllTimeExpenseSummary(
     callback({ totalAdded, totalWithdrawn });
   });
 }
+
+/**
+ * Live total of active (non-withdrawn) recurring expenses scheduled for a
+ * given month. Used by the Expenses page warning chip to compare against
+ * expected family contributions for a future month.
+ */
+export function subscribeRecurringTotalForMonth(
+  month: string,
+  callback: (total: number) => void,
+): Unsubscribe {
+  return onSnapshot(
+    query(collection(getDb(), "expenses"), where("month", "==", month)),
+    (snap) => {
+      const total = snap.docs.reduce((s, d) => {
+        const data = d.data();
+        if (data.isRecurring !== true) return s;
+        if (data.withdrawn === true) return s;
+        return s + (typeof data.amount === "number" ? (data.amount as number) : 0);
+      }, 0);
+      callback(total);
+    },
+  );
+}

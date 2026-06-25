@@ -1,6 +1,6 @@
 "use client";
 /**
- * AppShell — global nav: Dashboard / Households / Expenses / Recurring / Settings,
+ * AppShell — global nav: Dashboard / Households / Expenses / Settings,
  * admin identity, sign-out.
  */
 import Link from "next/link";
@@ -21,7 +21,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/households", labelKey: "nav.households" },
     { href: "/contributions", labelKey: "Contributions" },
     { href: "/expenses", labelKey: "nav.expenses" },
-    { href: "/recurring", labelKey: "nav.recurring" },
     { href: "/calendar", labelKey: "nav.calendar" },
     { href: "/settings", labelKey: "nav.settings" },
     { href: "/debug", labelKey: "nav.debug" },

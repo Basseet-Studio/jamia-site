@@ -93,32 +93,30 @@ export function subscribeCalendarView(
   const u1 = onSnapshot(
     query(collection(db, "recurringExpenses"), where("active", "==", true)),
     (snap) => {
-      templates = snap.docs.map((d) => ({
-        id: d.id,
-        name: String(d.data().name ?? ""),
-        amount:
-          typeof d.data().amount === "number" ? (d.data().amount as number) : 0,
-        description: (d.data().description as string | null) ?? null,
-        active: d.data().active !== false,
-        createdAt: d.data().createdAt as RecurringTemplate["createdAt"],
-        createdBy: String(d.data().createdBy ?? ""),
-        type:
-          (d.data().type as RecurringTemplate["type"]) === "household"
-            ? "household"
-            : "mosque",
-        householdId:
-          (d.data().type as string) === "household"
-            ? (d.data().householdId as string | null) ?? null
-            : null,
-        familyId:
-          (d.data().type as string) === "household"
-            ? ((d.data().familyId as string | null) ?? null)
-            : null,
-        mosqueSubCategory:
-          (d.data().type as string) === "mosque"
-            ? ((d.data().mosqueSubCategory as RecurringTemplate["mosqueSubCategory"]) ?? null)
-            : null,
-      }));
+      templates = snap.docs.map((d) => {
+        const data = d.data();
+        const rawSub = data.mosqueSubCategory as
+          | RecurringTemplate["mosqueSubCategory"]
+          | undefined;
+        const mosqueSubCategory: RecurringTemplate["mosqueSubCategory"] =
+          rawSub === "maintenance" || rawSub === "salary" || rawSub === "other"
+            ? rawSub
+            : "other";
+        return {
+          id: d.id,
+          name: String(data.name ?? ""),
+          amount:
+            typeof data.amount === "number" ? (data.amount as number) : 0,
+          description: (data.description as string | null) ?? null,
+          active: data.active !== false,
+          createdAt: data.createdAt as RecurringTemplate["createdAt"],
+          createdBy: String(data.createdBy ?? ""),
+          type: "mosque" as const,
+          householdId: null,
+          familyId: null,
+          mosqueSubCategory,
+        };
+      });
       emit();
     },
   );

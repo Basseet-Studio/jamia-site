@@ -26,7 +26,6 @@
     "dashboard": "Dashboard",
     "households": "Households",
     "expenses": "Expenses",
-    "recurring": "Recurring",
     "calendar": "Calendar",
     "settings": "Settings",
     "debug": "Debug"
@@ -205,7 +204,32 @@
     "fieldType": "Type",
     "fieldHousehold": "Household",
     "fieldFamilyOptional": "Family (optional)",
-    "fieldSubCategory": "Sub-category"
+    "fieldSubCategory": "Sub-category",
+    "recurring": {
+      "sectionTitle": "Recurring expense templates",
+      "sectionDescription": "Templates that repeat each month. Trigger them per month from this list.",
+      "addButton": "Add template",
+      "addTitle": "Add recurring template",
+      "addDescription": "Create a monthly-recurring mosque expense template (salary, maintenance, or other).",
+      "saveTemplate": "Save template",
+      "fieldName": "Name",
+      "fieldAmount": "Amount",
+      "fieldDescription": "Description (optional)",
+      "fieldSubCategory": "Sub-category",
+      "empty": "No recurring templates yet.",
+      "monthStatus": "Status for the selected month",
+      "statusNotAdded": "Not added",
+      "statusPendingWithdrawal": "Pending withdrawal",
+      "statusWithdrawn": "Withdrawn",
+      "addForMonth": "Add for this month",
+      "adding": "Adding…",
+      "archive": "Archive",
+      "archived": "Archived",
+      "withdrawConfirmTitle": "Withdraw recurring expense?",
+      "withdrawConfirmBody": "You are about to withdraw {name} ({amount}). This will reduce money on hand by that amount and cannot be undone.",
+      "warningOverBudget": "Recurring expenses for this month ({total}) exceed expected contributions ({expected}).",
+      "dismiss": "Dismiss"
+    }
   },
   "recurring": {
     "heading": "Recurring expenses",

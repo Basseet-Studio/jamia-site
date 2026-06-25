@@ -81,7 +81,7 @@ export function RecurringExpensesGroup({
                     disabled={busyId === tpl.id}
                   >
                     {busyId === tpl.id
-                      ? t("recurring.adding")
+                      ? t("expenses.recurring.adding")
                       : t("calendar.action.addForMonth")}
                   </Button>
                 ) : null}

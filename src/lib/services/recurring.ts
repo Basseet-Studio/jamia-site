@@ -1,10 +1,12 @@
 /**
  * Recurring expense templates service: `recurringExpenses`.
  *
- * 002 delta: every template carries a `type` (default "mosque" on create)
- * with conditional linkage. addRecurringForMonth copies the type + linkage
- * fields from the template onto the new expense. Legacy templates (no
- * `type` field) are normalised to "mosque" on read.
+ * Mosque-only: per product decision, household-type recurring templates are
+ * not allowed. The schema forces `type: "mosque"` on create, and this
+ * service forces mosque-only fields on write. `toTemplate` still reads
+ * legacy rows defensively but normalises `type` to "mosque" if missing or
+ * anything other than "mosque" (legacy household rows are surfaced as
+ * mosque-shaped templates so existing data isn't orphaned).
  */
 import {
   addDoc,
@@ -27,19 +29,27 @@ import {
 } from "@/lib/schemas/recurringTemplate";
 import { toMonthKey } from "@/lib/utils/dates";
 import type {
-  ExpenseType,
   MosqueSubCategory,
   RecurringTemplate,
   RecurringTemplateWithStatus,
 } from "@/lib/types";
 
+const MOSQUE_SUBS: readonly MosqueSubCategory[] = [
+  "maintenance",
+  "salary",
+  "other",
+];
+
+function normaliseSubCategory(raw: unknown): MosqueSubCategory {
+  return MOSQUE_SUBS.includes(raw as MosqueSubCategory)
+    ? (raw as MosqueSubCategory)
+    : "other";
+}
+
 function toTemplate(
   id: string,
   data: Record<string, unknown>,
 ): RecurringTemplate {
-  // 002: legacy templates have no `type` — default to "mosque" (mirrors expense.ts).
-  const rawType = data.type as ExpenseType | undefined;
-  const type: ExpenseType = rawType === "household" ? "household" : "mosque";
   return {
     id,
     name: String(data.name ?? ""),
@@ -48,19 +58,10 @@ function toTemplate(
     active: data.active !== false,
     createdAt: data.createdAt as RecurringTemplate["createdAt"],
     createdBy: String(data.createdBy ?? ""),
-    type,
-    householdId:
-      type === "household"
-        ? ((data.householdId as string | undefined) ?? null)
-        : null,
-    familyId:
-      type === "household"
-        ? ((data.familyId as string | undefined) ?? null)
-        : null,
-    mosqueSubCategory:
-      type === "mosque"
-        ? ((data.mosqueSubCategory as MosqueSubCategory | undefined) ?? null)
-        : null,
+    type: "mosque",
+    householdId: null,
+    familyId: null,
+    mosqueSubCategory: normaliseSubCategory(data.mosqueSubCategory),
   };
 }
 
@@ -104,11 +105,10 @@ export async function createRecurringTemplate(
     active: true,
     createdAt: serverTimestamp(),
     createdBy: uid,
-    type: parsed.type,
-    householdId: parsed.type === "household" ? parsed.householdId : null,
-    familyId: parsed.type === "household" ? (parsed.familyId ?? null) : null,
-    mosqueSubCategory:
-      parsed.type === "mosque" ? parsed.mosqueSubCategory : null,
+    type: "mosque",
+    householdId: null,
+    familyId: null,
+    mosqueSubCategory: parsed.mosqueSubCategory,
   });
   return ref.id;
 }
@@ -141,16 +141,16 @@ export async function archiveRecurringTemplate(
 
 /**
  * Add a template for a specific month. Creates an expense with isRecurring=true,
- * recurringId=templateId, withdrawn=false. Copies the template's type + linkage
- * onto the new expense. Refuses if a matching expense already exists for
- * (templateId, month).
+ * recurringId=templateId, withdrawn=false. Copies the template's mosque
+ * sub-category onto the new expense. Refuses if a matching expense already
+ * exists for (templateId, month).
  */
 export async function addRecurringForMonth(
   uid: string,
   templateId: string,
   month: string,
 ): Promise<string> {
-  // Look up the template to capture name + amount + type + linkage.
+  // Look up the template to capture name + amount + sub-category.
   const tplSnap = await getDocs(
     query(
       collection(getDb(), "recurringExpenses"),
@@ -194,9 +194,9 @@ export async function addRecurringForMonth(
     withdrawnBy: null,
     addedAt: serverTimestamp(),
     addedBy: uid,
-    type: tpl.type,
-    householdId: tpl.householdId,
-    familyId: tpl.familyId,
+    type: "mosque",
+    householdId: null,
+    familyId: null,
     mosqueSubCategory: tpl.mosqueSubCategory,
   });
   void toMonthKey;
