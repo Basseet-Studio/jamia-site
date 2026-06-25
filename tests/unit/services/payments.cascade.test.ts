@@ -17,6 +17,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  Timestamp,
   terminate,
   where,
 } from "firebase/firestore";
@@ -70,7 +71,7 @@ async function seedFamily(): Promise<{ hh: string; fam: string }> {
       name: "Test Family",
       contributionTarget: 500,
       active: true,
-      createdAt: serverTimestamp(),
+      createdAt: Timestamp.fromDate(new Date("2026-01-15")),
       createdBy: "test",
     },
   );
@@ -111,7 +112,7 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)(
           householdId: hh,
           familyId: fam,
           coverageGroupId: "11111111-1111-4111-8111-111111111111",
-          applyToFutureMonths: false,
+          selectedCoverageMonths: ["2026-01", "2026-02"],
           amount: 1500,
           date: new Date("2026-06-17"),
           note: null,
@@ -129,23 +130,22 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)(
         // Months: 2026-06 (current), 2026-01 + 2026-02 (back cascade, oldest first).
         const months = docs.map((d) => d.month).sort();
         expect(months).toEqual(["2026-01", "2026-02", "2026-06"]);
-        // Per-doc amount is target (500), even though admin entered 1500.
-        for (const d of docs) {
-          expect(d.amount).toBe(500);
-        }
-        // MOH shift: 1000 + 1500 = 2500.
+        expect(docs.find((d) => d.month === "2026-06")?.amount).toBe(1500);
+        expect(docs.find((d) => d.month === "2026-01")?.amount).toBe(500);
+        expect(docs.find((d) => d.month === "2026-02")?.amount).toBe(500);
+        // MOH shift: 1000 + 2500 = 3500.
         const settingsSnap = await getDocs(
           query(collection(db, "settings"), where("__name__", "==", "global")),
         );
         expect(
           (settingsSnap.docs[0]?.data()?.moneyOnHand as number) ?? null,
-        ).toBe(2500);
+        ).toBe(3500);
       } finally {
         (client as { getDb: typeof realGetDb }).getDb = realGetDb;
       }
     });
 
-    it("partial cascade writes current-month doc at target, not over-limit amount (group total < entered)", async () => {
+    it("partial cascade writes current-month doc at the entered amount", async () => {
       const { hh, fam } = await seedFamily();
       const realGetDb = client.getDb;
       (client as { getDb: typeof realGetDb }).getDb = () =>
@@ -158,20 +158,21 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)(
           householdId: hh,
           familyId: fam,
           coverageGroupId: "22222222-2222-4222-8222-222222222222",
-          applyToFutureMonths: false,
+          selectedCoverageMonths: ["2026-01", "2026-02"],
           amount: 1700,
           date: new Date("2026-06-17"),
           note: null,
         });
         const docs = await listPayments(hh, fam);
-        // 3 docs, each at 500.
         expect(docs).toHaveLength(3);
-        for (const d of docs) expect(d.amount).toBe(500);
-        // MOH shift = group total = 1500, NOT 1700.
+        expect(docs.find((d) => d.month === "2026-06")?.amount).toBe(1700);
+        expect(docs.find((d) => d.month === "2026-01")?.amount).toBe(500);
+        expect(docs.find((d) => d.month === "2026-02")?.amount).toBe(500);
+        // MOH shift = entered primary + selected spillover docs.
         const settingsSnap = await getDocs(
           query(collection(db, "settings"), where("__name__", "==", "global")),
         );
-        expect(settingsSnap.docs[0]?.data()?.moneyOnHand).toBe(2500);
+        expect(settingsSnap.docs[0]?.data()?.moneyOnHand).toBe(3700);
       } finally {
         (client as { getDb: typeof realGetDb }).getDb = realGetDb;
       }
@@ -222,7 +223,7 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)(
           householdId: hh,
           familyId: fam,
           coverageGroupId: "33333333-3333-4333-8333-333333333333",
-          applyToFutureMonths: false,
+          selectedCoverageMonths: ["2026-03"],
           amount: 1500,
           date: new Date("2026-06-17"),
           note: null,
@@ -265,7 +266,7 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)(
           householdId: hh,
           familyId: fam,
           coverageGroupId: "44444444-4444-4444-8444-444444444444",
-          applyToFutureMonths: false,
+          selectedCoverageMonths: ["2026-01", "2026-02"],
           amount: 1500,
           date: new Date("2026-06-17"),
           note: null,

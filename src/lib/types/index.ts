@@ -54,6 +54,16 @@ export interface Payment {
   coverageGroupId: string | null;
 }
 
+export interface Contribution {
+  id: string;
+  contributorName: string;
+  amount: number;
+  date: Timestamp;
+  note: string | null;
+  addedAt: Timestamp;
+  addedBy: string;
+}
+
 // 002: expense "household" (linked to a household) or "mosque".
 export type ExpenseType = "household" | "mosque";
 // 002: sub-category on mosque-scoped expenses and templates.

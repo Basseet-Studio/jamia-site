@@ -42,7 +42,42 @@ import type {
 const MOSQUE_SUBS: MosqueSubCategory[] = ["maintenance", "salary", "other"];
 const NONE = "__none__";
 
-export function AddExpenseDialog() {
+function defaultExpenseValues(
+  fixedHouseholdId: string | null,
+): CreateExpenseSchema {
+  if (fixedHouseholdId) {
+    return {
+      name: "",
+      amount: 0,
+      date: new Date(),
+      note: null,
+      isRecurring: false,
+      recurringId: null,
+      type: "household",
+      householdId: fixedHouseholdId,
+      familyId: null,
+      mosqueSubCategory: null,
+    };
+  }
+  return {
+    name: "",
+    amount: 0,
+    date: new Date(),
+    note: null,
+    isRecurring: false,
+    recurringId: null,
+    type: "mosque",
+    householdId: null,
+    familyId: null,
+    mosqueSubCategory: "maintenance",
+  };
+}
+
+export function AddExpenseDialog({
+  fixedHouseholdId = null,
+}: {
+  fixedHouseholdId?: string | null;
+}) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,18 +88,7 @@ export function AddExpenseDialog() {
 
   const form = useForm<CreateExpenseSchema>({
     resolver: zodResolver(createExpenseSchema),
-    defaultValues: {
-      name: "",
-      amount: 0,
-      date: new Date(),
-      note: null,
-      isRecurring: false,
-      recurringId: null,
-      type: "mosque",
-      householdId: null,
-      familyId: null,
-      mosqueSubCategory: "maintenance",
-    },
+    defaultValues: defaultExpenseValues(fixedHouseholdId),
   });
 
   const type = form.watch("type");
@@ -87,6 +111,12 @@ export function AddExpenseDialog() {
 
   // When the type changes, clear the other branch's fields (XOR enforced by the union).
   useEffect(() => {
+    if (fixedHouseholdId) {
+      form.setValue("type", "household");
+      form.setValue("householdId", fixedHouseholdId);
+      form.setValue("mosqueSubCategory", null);
+      return;
+    }
     if (type === "household") {
       form.setValue("mosqueSubCategory", null);
       // Don't clobber an already-picked householdId.
@@ -95,7 +125,7 @@ export function AddExpenseDialog() {
       form.setValue("familyId", null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type]);
+  }, [type, fixedHouseholdId]);
 
   async function onSubmit(values: CreateExpenseSchema) {
     if (!user) return;
@@ -103,18 +133,7 @@ export function AddExpenseDialog() {
     setError(null);
     try {
       await createExpense(user.uid, values);
-      form.reset({
-        name: "",
-        amount: 0,
-        date: new Date(),
-        note: null,
-        isRecurring: false,
-        recurringId: null,
-        type: "mosque",
-        householdId: null,
-        familyId: null,
-        mosqueSubCategory: "maintenance",
-      });
+      form.reset(defaultExpenseValues(fixedHouseholdId));
       setOpen(false);
     } catch (e) {
       setError((e as Error).message);
@@ -126,7 +145,12 @@ export function AddExpenseDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>{t("expenses.addButton")}</Button>
+        <Button>
+          {fixedHouseholdId
+            ? // TODO: localise this later
+              "Add Household Expense"
+            : t("expenses.addButton")}
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -134,6 +158,7 @@ export function AddExpenseDialog() {
           <DialogDescription>{t("expenses.addDescription")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          {!fixedHouseholdId ? (
           <div className="space-y-2">
             <Label htmlFor="ax-type">{t("expenses.fieldType")}</Label>
             <Select
@@ -157,8 +182,9 @@ export function AddExpenseDialog() {
               </SelectContent>
             </Select>
           </div>
+          ) : null}
 
-          {type === "household" ? (
+          {fixedHouseholdId ? null : type === "household" ? (
             <>
               <div className="space-y-2">
                 <Label htmlFor="ax-household">

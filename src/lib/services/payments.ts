@@ -217,22 +217,27 @@ export async function recordPaymentWithCoverage(
       createdAt: createdAt?.toDate?.() ?? null,
     },
     payments: existingPayments,
-    applyToFutureMonths: parsed.applyToFutureMonths,
+    applyToFutureMonths: true,
     coverageGroupId: parsed.coverageGroupId,
   });
 
-  // No slots at all means target=0 — fall back to a single current-month
-  // write at the entered amount. (Spec edge case: family has no target.)
-  const slots = [
-    plan.currentMonth,
-    ...plan.backMonths,
-    ...plan.futureMonths,
-  ].filter((s): s is { month: string; amount: number } => s !== null);
-
-  const writes =
-    slots.length === 0
-      ? [{ month: toMonthKey(parsed.date), amount: parsed.amount }]
-      : slots;
+  const selectedMonths = new Set(parsed.selectedCoverageMonths);
+  const eligibleSlots = [...plan.backMonths, ...plan.futureMonths];
+  const selectedSlots = eligibleSlots.filter((slot) =>
+    selectedMonths.has(slot.month),
+  );
+  const writes = [
+    { month: toMonthKey(parsed.date), amount: parsed.amount, primary: true },
+    ...selectedSlots.map((slot) => ({
+      month: slot.month,
+      amount: slot.amount,
+      primary: false,
+    })),
+  ];
+  const groupId =
+    selectedSlots.length > 0
+      ? parsed.coverageGroupId ?? cryptoRandomUUIDFallback()
+      : null;
 
   // All writes go inside ONE txn; MOH shifts by `totalAmount` exactly once.
   const refs = await runTransaction(db, async (tx) => {
@@ -246,7 +251,7 @@ export async function recordPaymentWithCoverage(
         note: parsed.note,
         recordedAt: serverTimestamp(),
         recordedBy: uid,
-        coverageGroupId: parsed.coverageGroupId,
+        ...(groupId ? { coverageGroupId: groupId } : {}),
       });
     }
     const shift = writes.reduce((s, w) => s + w.amount, 0);
@@ -394,4 +399,14 @@ export function subscribeFamilyPaymentsByMonth(
       snap.docs.map((d) => toPayment(householdId, familyId, d.id, d.data())),
     ),
   );
+}
+
+function cryptoRandomUUIDFallback(): string {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+  return "00000000-0000-4000-8000-000000000000";
 }

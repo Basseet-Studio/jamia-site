@@ -29,6 +29,10 @@ export interface MonthSlot {
   month: string;
   /** Always equal to `family.contributionTarget` in v1. */
   amount: number;
+  /** True for checkbox rows; false for the always-included current month. */
+  selectable: boolean;
+  /** Initial checked state for selectable rows. */
+  defaultSelected: boolean;
 }
 
 export interface CoveragePlan {
@@ -58,7 +62,7 @@ export interface PlanCoverageArgs {
   };
   /** Existing payments for the family (any months). */
   payments: Payment[];
-  /** Dialog checkbox state — only matters when back cascade is empty. */
+  /** Whether to enumerate future-month candidates when back months are clear. */
   applyToFutureMonths: boolean;
   /**
    * Optional injected UUID source — defaults to `crypto.randomUUID()`. Tests
@@ -125,20 +129,21 @@ export function planCoverage(args: PlanCoverageArgs): CoveragePlan {
 
   const coverageGroupId = providedId ?? uuid();
 
-  // The current-month slot always exists when target > 0. Its `amount` is the
-  // amount that actually gets written to the doc:
-  //   - over-limit (amount >= target): clamped to target, remainder cascades.
-  //   - under-limit (amount < target): whatever the admin entered.
+  // The current-month slot always exists when target > 0 and carries the full
+  // amount the admin typed. Spillover slots are additional opt-in documents.
   const currentMonth: MonthSlot = {
     month: currentMonthKey,
-    amount: Math.min(amount, target),
+    amount,
+    selectable: false,
+    defaultSelected: true,
   };
-  let excess = Math.max(0, amount - target);
+  const excess = Math.max(0, amount - target);
+  const slotCapacity = Math.floor(excess / target);
 
   // Back cascade: oldest unpaid month first, stop when excess < target.
   const backMonths: MonthSlot[] = [];
   const paidSet = new Set(payments.map((p) => p.month));
-  if (excess > 0) {
+  if (slotCapacity > 0) {
     const familyStart = family.createdAt ? toMonthKey(family.createdAt) : null;
     const oldestPayment = oldestPaymentMonth(payments);
     // Start from the LATER of the family creation month and the oldest known
@@ -147,10 +152,14 @@ export function planCoverage(args: PlanCoverageArgs): CoveragePlan {
     const start = maxMonth(familyStart, oldestPayment);
     if (start !== null) {
       let m = start;
-      while (m < currentMonthKey && excess >= target) {
+      while (m < currentMonthKey && backMonths.length < slotCapacity) {
         if (!paidSet.has(m)) {
-          backMonths.push({ month: m, amount: target });
-          excess -= target;
+          backMonths.push({
+            month: m,
+            amount: target,
+            selectable: true,
+            defaultSelected: false,
+          });
         }
         m = stepMonthKey(m, 1);
       }
@@ -160,13 +169,17 @@ export function planCoverage(args: PlanCoverageArgs): CoveragePlan {
   // Future cascade: only when back cascade had nothing to fill (so we know
   // back is fully paid) AND the admin opted in via the checkbox.
   const futureMonths: MonthSlot[] = [];
-  if (applyToFutureMonths && backMonths.length === 0 && excess > 0) {
+  if (applyToFutureMonths && backMonths.length === 0 && slotCapacity > 0) {
     const futurePaidSet = new Set(payments.map((p) => p.month));
     let m = stepMonthKey(currentMonthKey, 1);
-    while (excess >= target) {
+    while (futureMonths.length < slotCapacity) {
       if (!futurePaidSet.has(m)) {
-        futureMonths.push({ month: m, amount: target });
-        excess -= target;
+        futureMonths.push({
+          month: m,
+          amount: target,
+          selectable: true,
+          defaultSelected: futureMonths.length === 0,
+        });
       } else {
         // Already paid future month — skip it but keep looking. In practice
         // future payments are rare, but we stay safe.
@@ -181,9 +194,14 @@ export function planCoverage(args: PlanCoverageArgs): CoveragePlan {
 
   const totalAmount =
     currentMonth.amount +
-    backMonths.reduce((s, b) => s + b.amount, 0) +
-    futureMonths.reduce((s, f) => s + f.amount, 0);
-  const overLimitRemainder = Math.max(0, amount - totalAmount);
+    backMonths
+      .filter((b) => b.defaultSelected)
+      .reduce((s, b) => s + b.amount, 0) +
+    futureMonths
+      .filter((s) => s.defaultSelected)
+      .reduce((s, f) => s + f.amount, 0);
+  const selectedExtra = totalAmount - currentMonth.amount;
+  const overLimitRemainder = Math.max(0, excess - selectedExtra);
 
   return {
     coverageGroupId,

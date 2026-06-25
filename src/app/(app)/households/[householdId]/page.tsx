@@ -3,8 +3,10 @@ import { use, useEffect, useMemo, useState } from "react";
 import { subscribeFamilies } from "@/lib/services/families";
 import { subscribeFamilyMonthlyStatuses } from "@/lib/services/derived";
 import { subscribeHousehold } from "@/lib/services/households";
-import { subscribeHouseholdExpenses } from "@/lib/services/expenses";
+import { subscribeHouseholdPendingExpenses } from "@/lib/services/expenses";
 import { AddFamilyDialog } from "@/components/households/AddFamilyDialog";
+import { AddExpenseDialog } from "@/components/expenses/AddExpenseDialog";
+import { ExpenseTable } from "@/components/expenses/ExpenseTable";
 import { FamilyRow } from "@/components/households/FamilyRow";
 import { RecordPaymentDialog } from "@/components/payments/RecordPaymentDialog";
 import { MonthNavigator } from "@/components/nav/MonthNavigator";
@@ -18,16 +20,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import type {
   Expense,
   Family,
   FamilyMonthlySummary,
   Household,
 } from "@/lib/types";
-import { format } from "date-fns";
 import { formatCurrency } from "@/lib/utils/currency";
 import { useMoneyOnHand } from "@/lib/hooks/useMoneyOnHand";
+import { useHouseholdFinancialSummary } from "@/lib/hooks/useHouseholdFinancialSummary";
 
 export default function HouseholdDetailPage({
   params,
@@ -44,6 +45,7 @@ export default function HouseholdDetailPage({
   const [householdExpenses, setHouseholdExpenses] = useState<Expense[]>([]);
   const [month, setMonth] = useState<string>(currentMonthKey());
   const [loading, setLoading] = useState(true);
+  const financialSummary = useHouseholdFinancialSummary(householdId);
 
   useEffect(() => {
     const off = subscribeHousehold(householdId, (h) => {
@@ -64,13 +66,9 @@ export default function HouseholdDetailPage({
   }, [householdId, month]);
 
   useEffect(() => {
-    const off = subscribeHouseholdExpenses(
-      householdId,
-      month,
-      setHouseholdExpenses,
-    );
+    const off = subscribeHouseholdPendingExpenses(householdId, setHouseholdExpenses);
     return off;
-  }, [householdId, month]);
+  }, [householdId]);
 
   const statusById = useMemo(() => {
     const m = new Map<string, FamilyMonthlySummary>();
@@ -99,6 +97,36 @@ export default function HouseholdDetailPage({
           <MonthNavigator month={month} onChange={setMonth} />
           <AddFamilyDialog householdId={householdId} />
         </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <Card>
+          <CardHeader>
+            {/* TODO: localise this later */}
+            <CardTitle>Total Contributions</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold tabular-nums">
+            {formatCurrency(financialSummary.totalContributions, cur)}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            {/* TODO: localise this later */}
+            <CardTitle>Total Expenses</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold tabular-nums">
+            {formatCurrency(financialSummary.totalExpenses, cur)}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            {/* TODO: localise this later */}
+            <CardTitle>Net</CardTitle>
+          </CardHeader>
+          <CardContent className="text-2xl font-semibold tabular-nums">
+            {formatCurrency(financialSummary.net, cur)}
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -150,60 +178,25 @@ export default function HouseholdDetailPage({
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>
-            {t("householdDetail.householdExpenses", {
-              month: toMonthKey(new Date(month + "-01")),
-            })}
-          </CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
+          {/* TODO: localise this later */}
+          <CardTitle>Household Expenses</CardTitle>
+          <AddExpenseDialog fixedHouseholdId={householdId} />
         </CardHeader>
         <CardContent>
           {householdExpenses.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              {t("householdDetail.noHouseholdExpenses")}
+              {/* TODO: localise this later */}
+              No pending household expenses.
             </p>
           ) : (
-            <ul className="divide-y rounded-md border">
-              {householdExpenses
-                .slice()
-                .sort((a, b) => {
-                  const ad = a.date?.toDate ? a.date.toDate().getTime() : 0;
-                  const bd = b.date?.toDate ? b.date.toDate().getTime() : 0;
-                  return bd - ad;
-                })
-                .map((e) => {
-                  const date = e.date?.toDate ? e.date.toDate() : new Date();
-                  return (
-                    <li
-                      key={e.id}
-                      className="flex items-center justify-between gap-4 p-3"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <div className="font-medium">{e.name}</div>
-                          <Badge variant="secondary">
-                            {t("expenseType.household")}
-                          </Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {format(date, "yyyy-MM-dd")}
-                          {e.note ? ` · ${e.note}` : ""}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-medium tabular-nums">
-                          {formatCurrency(e.amount, cur)}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {e.withdrawn
-                            ? t("expenses.statusWithdrawn")
-                            : t("expenses.statusPending")}
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-            </ul>
+            <ExpenseTable
+              expenses={householdExpenses.slice().sort((a, b) => {
+                const ad = a.date?.toDate ? a.date.toDate().getTime() : 0;
+                const bd = b.date?.toDate ? b.date.toDate().getTime() : 0;
+                return bd - ad;
+              })}
+            />
           )}
         </CardContent>
       </Card>

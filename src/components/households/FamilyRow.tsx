@@ -1,8 +1,11 @@
 "use client";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import type { Family, FamilyMonthlySummary } from "@/lib/types";
+import type { Family, FamilyMonthlySummary, Payment } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils/currency";
 import { useMoneyOnHand } from "@/lib/hooks/useMoneyOnHand";
+import { subscribePayments } from "@/lib/services/payments";
+import { deriveFamilySummary } from "@/lib/services/derived";
 import { Button } from "@/components/ui/button";
 import { EditFamilyDialog } from "@/components/households/EditFamilyDialog";
 import { FamilyMembersDialog } from "@/components/households/FamilyMembersDialog";
@@ -22,6 +25,16 @@ export function FamilyRow({
   const { moh } = useMoneyOnHand();
   const t = useT();
   const cur = moh.currency || t("common.dash");
+  const [payments, setPayments] = useState<Payment[]>([]);
+  useEffect(
+    () => subscribePayments(householdId, family.id, setPayments),
+    [householdId, family.id],
+  );
+  const summary = useMemo(
+    () => deriveFamilySummary(family, payments, new Date()),
+    [family, payments],
+  );
+  const shortfall = Math.max(0, summary.totalExpected - summary.totalPaid);
   return (
     <tr className="border-b last:border-0">
       <td className="px-3 py-2 text-sm">
@@ -42,6 +55,16 @@ export function FamilyRow({
       </td>
       <td className="px-3 py-2 text-right text-sm tabular-nums">
         {status ? formatCurrency(status.totalPaid, cur) : t("common.dash")}
+        <div className="mt-1 text-xs text-muted-foreground">
+          {/* TODO: localise this later */}
+          {`Total ${formatCurrency(summary.totalPaid, cur)} / expected ${formatCurrency(summary.totalExpected, cur)}`}
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {/* TODO: localise this later */}
+          {shortfall === 0
+            ? "Current or ahead"
+            : `Behind by ${formatCurrency(shortfall, cur)}`}
+        </div>
       </td>
       <td className="px-3 py-2 text-center">
         {status ? (

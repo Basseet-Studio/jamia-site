@@ -7,6 +7,7 @@ export * from "@/lib/services/settings";
 export * from "@/lib/services/households";
 export * from "@/lib/services/families";
 export * from "@/lib/services/payments";
+export * from "@/lib/services/contributions";
 export * from "@/lib/services/expenses";
 export * from "@/lib/services/recurring";
 export * from "@/lib/services/moneyOnHand";

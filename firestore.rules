@@ -191,6 +191,24 @@ service cloud.firestore {
       }
     }
 
+    // ---- contributions ----
+
+    match /contributions/{contributionId} {
+      allow read: if isAdmin();
+
+      allow create: if isAdmin()
+        && request.resource.data.addedBy == request.auth.uid
+        && request.resource.data.addedAt == request.time
+        && request.resource.data.contributorName is string
+        && request.resource.data.contributorName.size() > 0
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.date is timestamp;
+
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
     // ---- expenses ----
 
     match /expenses/{expenseId} {

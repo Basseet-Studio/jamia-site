@@ -11,6 +11,7 @@ import {
 import { getDb } from "@/lib/firebase/client";
 import type {
   AllTimeExpenseSummary,
+  Expense,
   Family,
   FamilyMonthlyStatus,
   FamilyMonthlySummary,
@@ -18,6 +19,7 @@ import type {
   MonthlyExpenseSummary,
   Payment,
 } from "@/lib/types";
+import { stepMonthKey, toMonthKey } from "@/lib/utils/dates";
 
 export type {
   AllTimeExpenseSummary,
@@ -38,6 +40,43 @@ function sumPaidForFamilyInMonth(payments: Payment[], month: string): number {
   return payments
     .filter((p) => p.month === month)
     .reduce((s, p) => s + (p.amount ?? 0), 0);
+}
+
+export function deriveHouseholdFinancialSummary(
+  payments: Payment[],
+  expenses: Expense[],
+): { totalContributions: number; totalExpenses: number; net: number } {
+  const totalContributions = payments.reduce((sum, p) => sum + p.amount, 0);
+  const totalExpenses = expenses
+    .filter((expense) => !expense.withdrawn)
+    .reduce((sum, expense) => sum + expense.amount, 0);
+  return {
+    totalContributions,
+    totalExpenses,
+    net: totalContributions - totalExpenses,
+  };
+}
+
+export function deriveFamilySummary(
+  family: Family,
+  payments: Payment[],
+  asOfDate: Date,
+): { totalPaid: number; totalExpected: number } {
+  const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+  const start = family.createdAt?.toDate
+    ? toMonthKey(family.createdAt.toDate())
+    : toMonthKey(asOfDate);
+  const end = toMonthKey(asOfDate);
+  let months = 0;
+  let cursor = start > end ? end : start;
+  while (cursor <= end) {
+    months += 1;
+    cursor = stepMonthKey(cursor, 1);
+  }
+  return {
+    totalPaid,
+    totalExpected: family.contributionTarget * months,
+  };
 }
 
 /**
@@ -104,6 +143,10 @@ export function subscribeFamilyMonthlyStatuses(
                 note: (d.data().note as Payment["note"]) ?? null,
                 recordedAt: d.data().recordedAt as Payment["recordedAt"],
                 recordedBy: String(d.data().recordedBy ?? ""),
+                coverageGroupId:
+                  typeof d.data().coverageGroupId === "string"
+                    ? (d.data().coverageGroupId as string)
+                    : null,
               })),
             );
             emit();
@@ -260,6 +303,10 @@ export function subscribeHouseholdMonthlySummary(
           note: (d.data().note as Payment["note"]) ?? null,
           recordedAt: d.data().recordedAt as Payment["recordedAt"],
           recordedBy: String(d.data().recordedBy ?? ""),
+          coverageGroupId:
+            typeof d.data().coverageGroupId === "string"
+              ? (d.data().coverageGroupId as string)
+              : null,
         }));
       emit();
     },

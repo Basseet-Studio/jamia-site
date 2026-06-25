@@ -145,6 +145,21 @@ export function subscribeHouseholdExpenses(
   );
 }
 
+export function subscribeHouseholdPendingExpenses(
+  householdId: string,
+  callback: (e: Expense[]) => void,
+): Unsubscribe {
+  const ref = query(
+    collection(getDb(), "expenses"),
+    where("type", "==", "household"),
+    where("householdId", "==", householdId),
+    where("withdrawn", "==", false),
+  );
+  return onSnapshot(ref, (snap) =>
+    callback(snap.docs.map((d) => toExpense(d.id, d.data()))),
+  );
+}
+
 /** 002: mosque-scoped subscription with optional sub-category (US-2). */
 export function subscribeMosqueExpenses(
   month: string,

@@ -23,8 +23,10 @@ export type RecordPaymentSchema = z.infer<typeof recordPaymentSchema>;
 export const recordPaymentWithCoverageSchema = z.object({
   householdId: z.string().min(1),
   familyId: z.string().min(1),
-  coverageGroupId: z.string().uuid(),
-  applyToFutureMonths: z.boolean(),
+  coverageGroupId: z.string().uuid().optional(),
+  selectedCoverageMonths: z
+    .array(z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/))
+    .default([]),
   date: z.date(),
   note: z.string().max(280).nullable(),
   amount: z.number().positive("Amount must be greater than zero"),

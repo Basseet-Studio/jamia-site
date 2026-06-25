@@ -7,7 +7,7 @@
  * and future-months checkbox toggle at the right moments.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nProvider } from "@/lib/i18n";
 import type { Family, Payment } from "@/lib/types";
@@ -74,7 +74,7 @@ vi.mock("@/lib/services/payments", () => ({
       if (i >= 0) paymentListeners.splice(i, 1);
     };
   },
-  recordPayment: vi.fn(async () => "new-id"),
+  recordPaymentWithCoverage: vi.fn(async () => ["new-id"]),
 }));
 
 // --- Test helpers --------------------------------------------------------
@@ -194,7 +194,7 @@ describe("RecordPaymentDialog — US3 coverage preview", () => {
       expect(screen.getByTestId("rp-remainder")).toBeInTheDocument(),
     );
     expect(screen.getByTestId("rp-remainder").textContent).toMatch(
-      /Remaining over-limit.*AED 200\.00/,
+      /Remaining over-limit.*AED 1,200\.00/,
     );
   });
 });
@@ -208,10 +208,10 @@ describe("RecordPaymentDialog — US4 future-months checkbox", () => {
     await user.clear(amountInput);
     await user.type(amountInput, "1500");
     await new Promise((r) => setTimeout(r, 30));
-    expect(screen.queryByTestId("rp-future-toggle")).toBeNull();
+    expect(screen.queryByTestId("rp-slot-2026-07")).toBeNull();
   });
 
-  it("renders the checkbox when back is fully paid and amount is over target", async () => {
+  it("renders the nearest future month pre-ticked when back is fully paid", async () => {
     renderDialog();
     // Simulate: back months Jan–May are all paid by feeding the subscription.
     const backPaid: Payment[] = [
@@ -232,19 +232,23 @@ describe("RecordPaymentDialog — US4 future-months checkbox", () => {
       recordedBy: "u1",
       coverageGroupId: null,
     }));
-    paymentListeners.forEach((cb) => cb(backPaid));
+    await act(async () => {
+      paymentListeners.forEach((cb) => cb(backPaid));
+    });
 
     const user = userEvent.setup();
     await openDialog(user);
     const amountInput = await screen.findByLabelText(/amount/i);
     await user.clear(amountInput);
     await user.type(amountInput, "1500");
-    await waitFor(() =>
-      expect(screen.getByTestId("rp-future-toggle")).toBeInTheDocument(),
-    );
+    await waitFor(() => {
+      const futureSlot = screen.getByTestId("rp-slot-2026-07");
+      expect(futureSlot).toBeInTheDocument();
+      expect(futureSlot).toBeChecked();
+    });
   });
 
-  it("ticking the checkbox adds future-month slots to the preview", async () => {
+  it("unticking the default future month updates the remaining line", async () => {
     renderDialog();
     const backPaid: Payment[] = [
       "2026-01",
@@ -264,7 +268,9 @@ describe("RecordPaymentDialog — US4 future-months checkbox", () => {
       recordedBy: "u1",
       coverageGroupId: null,
     }));
-    paymentListeners.forEach((cb) => cb(backPaid));
+    await act(async () => {
+      paymentListeners.forEach((cb) => cb(backPaid));
+    });
 
     const user = userEvent.setup();
     await openDialog(user);
@@ -272,13 +278,21 @@ describe("RecordPaymentDialog — US4 future-months checkbox", () => {
     await user.clear(amountInput);
     await user.type(amountInput, "1500");
     await waitFor(() =>
-      expect(screen.getByTestId("rp-future-toggle")).toBeInTheDocument(),
+      expect(screen.getByTestId("rp-slot-2026-07")).toBeInTheDocument(),
     );
-    await user.click(screen.getByTestId("rp-future-toggle"));
     await waitFor(() => {
       const preview = screen.getByTestId("rp-preview");
       expect(preview.textContent).toMatch(/2026-07/);
       expect(preview.textContent).toMatch(/2026-08/);
     });
+    expect(screen.getByTestId("rp-remainder").textContent).toMatch(
+      /AED 500\.00/,
+    );
+    await user.click(screen.getByTestId("rp-slot-2026-07"));
+    await waitFor(() =>
+      expect(screen.getByTestId("rp-remainder").textContent).toMatch(
+        /AED 1,000\.00/,
+      ),
+    );
   });
 });

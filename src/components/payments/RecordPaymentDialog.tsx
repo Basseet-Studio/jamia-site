@@ -46,9 +46,9 @@ export function RecordPaymentDialog({
   const [error, setError] = useState<string | null>(null);
   const [family, setFamily] = useState<Family | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
-  // US4 — opt-in checkbox for future-month cascade. Only relevant when back
-  // cascade had nothing to fill. Default off.
-  const [applyToFutureMonths, setApplyToFutureMonths] = useState(false);
+  const [selectedMonths, setSelectedMonths] = useState<Record<string, boolean>>(
+    {},
+  );
   const { user } = useAuth();
   const { moh } = useMoneyOnHand();
   const t = useT();
@@ -102,24 +102,42 @@ export function RecordPaymentDialog({
         createdAt: family.createdAt?.toDate?.() ?? null,
       },
       payments,
-      applyToFutureMonths,
+      applyToFutureMonths: true,
     });
-  }, [family, payments, applyToFutureMonths, amount, date]);
+  }, [family, payments, amount, date]);
 
-  const showOverLimit = plan.overLimitRemainder > 0;
-  const showPreview =
-    !!plan.currentMonth &&
-    (plan.backMonths.length > 0 || plan.futureMonths.length > 0);
-  const showFutureCheckbox =
-    !!plan.currentMonth &&
-    plan.backMonths.length === 0 &&
-    plan.overLimitRemainder > 0;
+  const selectableSlots = useMemo(
+    () => [...plan.backMonths, ...plan.futureMonths],
+    [plan.backMonths, plan.futureMonths],
+  );
+  const selectedExtra = selectableSlots
+    .filter((slot) => selectedMonths[slot.month])
+    .reduce((sum, slot) => sum + slot.amount, 0);
+  const target = family?.contributionTarget ?? 0;
+  const overLimit = Math.max(0, (Number(amount) || 0) - target);
+  const remainingOverLimit = Math.max(0, overLimit - selectedExtra);
+  const previewTotal = (Number(amount) || 0) + selectedExtra;
+  const showOverLimit = overLimit > 0;
+  const showPreview = !!plan.currentMonth && showOverLimit;
+
+  useEffect(() => {
+    setSelectedMonths((previous) => {
+      const next: Record<string, boolean> = {};
+      for (const slot of selectableSlots) {
+        next[slot.month] = previous[slot.month] ?? slot.defaultSelected;
+      }
+      return next;
+    });
+  }, [selectableSlots]);
 
   async function onSubmit(values: RecordPaymentSchema) {
     if (!user) return;
     setBusy(true);
     setError(null);
     try {
+      const selectedCoverageMonths = selectableSlots
+        .filter((slot) => selectedMonths[slot.month])
+        .map((slot) => slot.month);
       // 003 — use the cascade-aware path so a single submit can write N
       // sibling docs sharing a coverageGroupId (when over-limit). The
       // service internally re-reads the family + payments inside its txn
@@ -128,8 +146,13 @@ export function RecordPaymentDialog({
       await recordPaymentWithCoverage(user.uid, {
         householdId,
         familyId,
-        coverageGroupId: plan.coverageGroupId || cryptoRandomUUIDFallback(),
-        applyToFutureMonths,
+        ...(selectedCoverageMonths.length > 0
+          ? {
+              coverageGroupId:
+                plan.coverageGroupId || cryptoRandomUUIDFallback(),
+            }
+          : {}),
+        selectedCoverageMonths,
         amount: values.amount,
         date: values.date,
         note: values.note,
@@ -141,7 +164,7 @@ export function RecordPaymentDialog({
         date: new Date(),
         note: null,
       });
-      setApplyToFutureMonths(false);
+      setSelectedMonths({});
       setOpen(false);
     } catch (e) {
       setError((e as Error).message);
@@ -188,7 +211,7 @@ export function RecordPaymentDialog({
               data-testid="rp-over-limit"
             >
               {/* TODO: localise this later */}
-              {`Over limit by ${formatCurrency(plan.overLimitRemainder, cur)}`}
+              {`Over limit by ${formatCurrency(overLimit, cur)}`}
             </p>
           ) : null}
 
@@ -204,22 +227,6 @@ export function RecordPaymentDialog({
               }}
             />
           </div>
-
-          {/* 003 — US4: opt-in future-month cascade checkbox. Only visible when
-              the back cascade has nothing to fill (so we know back is paid)
-              AND the entered amount is over the target. */}
-          {showFutureCheckbox ? (
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                data-testid="rp-future-toggle"
-                checked={applyToFutureMonths}
-                onChange={(e) => setApplyToFutureMonths(e.target.checked)}
-              />
-              {/* TODO: localise this later */}
-              <span>Apply excess to future months</span>
-            </label>
-          ) : null}
 
           <div className="space-y-2">
             <Label htmlFor="rp-note">{t("common.noteOptional")}</Label>
@@ -256,9 +263,22 @@ export function RecordPaymentDialog({
                 {plan.backMonths.map((s) => (
                   <li
                     key={`b-${s.month}`}
-                    className="flex justify-between gap-3"
+                    className="flex items-center justify-between gap-3"
                   >
-                    <span>{s.month}</span>
+                    <label className="flex min-w-0 items-center gap-2">
+                      <input
+                        type="checkbox"
+                        data-testid={`rp-slot-${s.month}`}
+                        checked={!!selectedMonths[s.month]}
+                        onChange={(e) =>
+                          setSelectedMonths((current) => ({
+                            ...current,
+                            [s.month]: e.target.checked,
+                          }))
+                        }
+                      />
+                      <span>{s.month}</span>
+                    </label>
                     <span className="tabular-nums">
                       {formatCurrency(s.amount, cur)}
                     </span>
@@ -267,10 +287,23 @@ export function RecordPaymentDialog({
                 {plan.futureMonths.map((s) => (
                   <li
                     key={`f-${s.month}`}
-                    className="flex justify-between gap-3"
+                    className="flex items-center justify-between gap-3"
                   >
-                    {/* TODO: localise this later */}
-                    <span>{`${s.month} (future)`}</span>
+                    <label className="flex min-w-0 items-center gap-2">
+                      <input
+                        type="checkbox"
+                        data-testid={`rp-slot-${s.month}`}
+                        checked={!!selectedMonths[s.month]}
+                        onChange={(e) =>
+                          setSelectedMonths((current) => ({
+                            ...current,
+                            [s.month]: e.target.checked,
+                          }))
+                        }
+                      />
+                      {/* TODO: localise this later */}
+                      <span>{`${s.month} (future)`}</span>
+                    </label>
                     <span className="tabular-nums">
                       {formatCurrency(s.amount, cur)}
                     </span>
@@ -281,16 +314,16 @@ export function RecordPaymentDialog({
                 {/* TODO: localise this later */}
                 <span>Total</span>
                 <span className="tabular-nums font-medium">
-                  {formatCurrency(plan.totalAmount, cur)}
+                  {formatCurrency(previewTotal, cur)}
                 </span>
               </div>
-              {plan.overLimitRemainder > 0 && plan.currentMonth ? (
+              {remainingOverLimit > 0 && plan.currentMonth ? (
                 <p
                   className="text-amber-600 dark:text-amber-500"
                   data-testid="rp-remainder"
                 >
                   {/* TODO: localise this later */}
-                  {`Remaining over-limit on ${plan.currentMonth.month}: ${formatCurrency(plan.overLimitRemainder, cur)}`}
+                  {`Remaining over-limit on ${plan.currentMonth.month}: ${formatCurrency(remainingOverLimit, cur)}`}
                 </p>
               ) : null}
             </div>

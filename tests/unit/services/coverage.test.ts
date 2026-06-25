@@ -51,14 +51,29 @@ describe("planCoverage — back cascade", () => {
       applyToFutureMonths: false,
       randomUUID: deterministicUuid(),
     });
-    expect(plan.currentMonth).toEqual({ month: "2026-06", amount: 500 });
+    expect(plan.currentMonth).toMatchObject({
+      month: "2026-06",
+      amount: 1500,
+      selectable: false,
+      defaultSelected: true,
+    });
     expect(plan.backMonths).toEqual([
-      { month: "2026-01", amount: 500 },
-      { month: "2026-02", amount: 500 },
+      {
+        month: "2026-01",
+        amount: 500,
+        selectable: true,
+        defaultSelected: false,
+      },
+      {
+        month: "2026-02",
+        amount: 500,
+        selectable: true,
+        defaultSelected: false,
+      },
     ]);
     expect(plan.futureMonths).toEqual([]);
     expect(plan.totalAmount).toBe(1500);
-    expect(plan.overLimitRemainder).toBe(0);
+    expect(plan.overLimitRemainder).toBe(1000);
   });
 
   it("partial back cascade: 1700 fills Jun + Jan + Feb (whole-month rule), remainder 200", () => {
@@ -70,10 +85,11 @@ describe("planCoverage — back cascade", () => {
       applyToFutureMonths: false,
       randomUUID: deterministicUuid(),
     });
-    expect(plan.currentMonth?.amount).toBe(500);
+    expect(plan.currentMonth?.amount).toBe(1700);
     expect(plan.backMonths).toHaveLength(2);
-    expect(plan.totalAmount).toBe(1500);
-    expect(plan.overLimitRemainder).toBe(200);
+    expect(plan.totalAmount).toBe(1700);
+    expect(plan.overLimitRemainder).toBe(1200);
+    expect(plan.backMonths.every((s) => !s.defaultSelected)).toBe(true);
   });
 
   it("no back cascade when all back months already paid", () => {
@@ -92,7 +108,7 @@ describe("planCoverage — back cascade", () => {
       randomUUID: deterministicUuid(),
     });
     expect(plan.backMonths).toEqual([]);
-    expect(plan.currentMonth?.amount).toBe(500);
+    expect(plan.currentMonth?.amount).toBe(1500);
     expect(plan.overLimitRemainder).toBe(1000);
   });
 
@@ -131,8 +147,10 @@ describe("planCoverage — future cascade", () => {
       "2026-07",
       "2026-08",
     ]);
-    expect(plan.totalAmount).toBe(1500);
-    expect(plan.overLimitRemainder).toBe(0);
+    expect(plan.futureMonths[0]?.defaultSelected).toBe(true);
+    expect(plan.futureMonths[1]?.defaultSelected).toBe(false);
+    expect(plan.totalAmount).toBe(2000);
+    expect(plan.overLimitRemainder).toBe(500);
   });
 
   it("future cascade WITHOUT tick leaves the over-limit as remainder, no future docs", () => {
@@ -151,7 +169,7 @@ describe("planCoverage — future cascade", () => {
       randomUUID: deterministicUuid(),
     });
     expect(plan.futureMonths).toEqual([]);
-    expect(plan.totalAmount).toBe(500);
+    expect(plan.totalAmount).toBe(1500);
     expect(plan.overLimitRemainder).toBe(1000);
   });
 });
@@ -213,7 +231,7 @@ describe("planCoverage — edge cases", () => {
     });
     expect(plan.overLimitRemainder).toBe(100);
     expect(plan.backMonths).toEqual([]);
-    expect(plan.totalAmount).toBe(500);
+    expect(plan.totalAmount).toBe(600);
   });
 
   it("under-limit (amount=300): currentMonth still written, no overLimit signal", () => {

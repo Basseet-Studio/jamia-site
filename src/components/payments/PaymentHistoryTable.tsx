@@ -99,6 +99,7 @@ export function PaymentHistoryTable({
                   paymentId={p.id}
                   paymentAmount={p.amount}
                   familyName={family?.name ?? ""}
+                  coverageGroupId={p.coverageGroupId}
                 />
               </TableCell>
             </TableRow>

@@ -18,8 +18,8 @@
 
 **Purpose**: Apply additive infrastructure changes (rules + index) that are version-controlled artefacts and have no code dependencies.
 
-- [ ] T001 Add composite index `coverageGroupId + recordedAt DESC` to `firestore.indexes.json`
-- [ ] T002 Apply Firestore rules delta from `specs/003-payment-spillover/contracts/firestore.rules` to repo-root `firestore.rules` (UUID format check on `coverageGroupId`)
+- [x] T001 Add composite index `coverageGroupId + recordedAt DESC` to `firestore.indexes.json`
+- [x] T002 Apply Firestore rules delta from `specs/003-payment-spillover/contracts/firestore.rules` to repo-root `firestore.rules` (UUID format check on `coverageGroupId`)
 
 ---
 
@@ -29,11 +29,11 @@
 
 **⚠️ CRITICAL**: No user story work begins until this phase is complete.
 
-- [ ] T003 Extend `Payment` interface in `src/lib/types/index.ts` with `coverageGroupId: string | null`
-- [ ] T004 Extend `recordPaymentSchema` and add `recordPaymentWithCoverageSchema` in `src/lib/schemas/payment.ts` (UUID format when present; `applyToFutureMonths: boolean` for the cascade variant)
-- [ ] T005 Update `toPayment` type adapter in `src/lib/services/payments.ts` to map `coverageGroupId` (default null for legacy docs)
-- [ ] T006 Create pure `planCoverage()` module in `src/lib/services/coverage.ts` exporting `planCoverage()`, `CoveragePlan`, `MonthSlot` types; implements algorithm from `data-model.md` §2 (target=0 guard, `family.createdAt` start, oldest-first back cascade, opt-in future cascade, whole-month rule, race-safe `paidSet` filter)
-- [ ] T007 [P] Pure-function tests for `planCoverage()` in `tests/unit/services/coverage.test.ts` — full back cascade, partial back cascade (no fill), no back cascade (already paid), future cascade with tick, future cascade without tick, target=0, legacy family (no `createdAt`), race scenario (input payments include a would-be cascade month)
+- [x] T003 Extend `Payment` interface in `src/lib/types/index.ts` with `coverageGroupId: string | null`
+- [x] T004 Extend `recordPaymentSchema` and add `recordPaymentWithCoverageSchema` in `src/lib/schemas/payment.ts` (UUID format when present; `applyToFutureMonths: boolean` for the cascade variant)
+- [x] T005 Update `toPayment` type adapter in `src/lib/services/payments.ts` to map `coverageGroupId` (default null for legacy docs)
+- [x] T006 Create pure `planCoverage()` module in `src/lib/services/coverage.ts` exporting `planCoverage()`, `CoveragePlan`, `MonthSlot` types; implements algorithm from `data-model.md` §2 (target=0 guard, `family.createdAt` start, oldest-first back cascade, opt-in future cascade, whole-month rule, race-safe `paidSet` filter)
+- [x] T007 [P] Pure-function tests for `planCoverage()` in `tests/unit/services/coverage.test.ts` — full back cascade, partial back cascade (no fill), no back cascade (already paid), future cascade with tick, future cascade without tick, target=0, legacy family (no `createdAt`), race scenario (input payments include a would-be cascade month)
 
 **Checkpoint**: Foundation ready — `planCoverage()` is pure + tested; type and schema carry `coverageGroupId`; rules + index deployed. User story UI and submit work can begin.
 
@@ -47,8 +47,8 @@
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Add over-limit indicator to `src/components/payments/RecordPaymentDialog.tsx` — derive `{ overLimit, plan }` via `useMemo(() => planCoverage({...}), [amount, date, family, payments, applyToFutureMonths])`; render `t("payments.overLimitBy", { amount })` when `overLimit > 0`, hidden otherwise (FR-002, FR-003, FR-004); add `// TODO: localise this later` marker on the string literal fallback
-- [ ] T009 [P] [US1] UI test in `tests/unit/ui/RecordPaymentDialog.test.tsx` — over-limit indicator appears/hides on amount change; renders correct currency-formatted delta
+- [x] T008 [US1] Add over-limit indicator to `src/components/payments/RecordPaymentDialog.tsx` — derive `{ overLimit, plan }` via `useMemo(() => planCoverage({...}), [amount, date, family, payments, applyToFutureMonths])`; render `t("payments.overLimitBy", { amount })` when `overLimit > 0`, hidden otherwise (FR-002, FR-003, FR-004); add `// TODO: localise this later` marker on the string literal fallback
+- [x] T009 [P] [US1] UI test in `tests/unit/ui/RecordPaymentDialog.test.tsx` — over-limit indicator appears/hides on amount change; renders correct currency-formatted delta
 
 **Checkpoint**: US1 fully functional. MVP demo ready — admin sees the over-limit signal. Cascade submit + preview + group delete still pending.
 
@@ -64,13 +64,13 @@
 
 > NOTE: Write emulator-backed tests FIRST; ensure they fail before implementation.
 
-- [ ] T010 [P] [US2] Emulator-backed cascade test in `tests/unit/services/payments.cascade.test.ts` — submit creates N docs in one txn, all share `coverageGroupId`, MOH shifts by group total, partial-cascade writes `amount = target` on current-month doc (not the over-limit entered amount)
-- [ ] T011 [P] [US2] In-txn race-safety test in `tests/unit/services/payments.cascade.test.ts` — second cascade re-reads payments inside txn, skips months paid by parallel commit (FR-023, SC-007)
+- [x] T010 [P] [US2] Emulator-backed cascade test in `tests/unit/services/payments.cascade.test.ts` — submit creates N docs in one txn, all share `coverageGroupId`, MOH shifts by group total, partial-cascade writes `amount = target` on current-month doc (not the over-limit entered amount)
+- [x] T011 [P] [US2] In-txn race-safety test in `tests/unit/services/payments.cascade.test.ts` — second cascade re-reads payments inside txn, skips months paid by parallel commit (FR-023, SC-007)
 
 ### Implementation for User Story 2
 
-- [ ] T012 [US2] Implement `recordPaymentWithCoverage(uid, args)` in `src/lib/services/payments.ts` — wraps one `runTransaction`, calls `planCoverage()` inside the txn, re-reads family's payments sub-collection to filter out newly-paid months (FR-023), pre-creates all `doc(collection(...))` refs, `tx.set()` for each slot with shared `coverageGroupId` + admin-entered `date` + `recordedBy`, calls `shiftMoneyOnHandInTx(tx, +totalAmount)` once at end (FR-021, FR-022, FR-024; SC-009)
-- [ ] T013 [US2] Re-export `recordPaymentWithCoverage` from `src/lib/services/index.ts`
+- [x] T012 [US2] Implement `recordPaymentWithCoverage(uid, args)` in `src/lib/services/payments.ts` — wraps one `runTransaction`, calls `planCoverage()` inside the txn, re-reads family's payments sub-collection to filter out newly-paid months (FR-023), pre-creates all `doc(collection(...))` refs, `tx.set()` for each slot with shared `coverageGroupId` + admin-entered `date` + `recordedBy`, calls `shiftMoneyOnHandInTx(tx, +totalAmount)` once at end (FR-021, FR-022, FR-024; SC-009)
+- [x] T013 [US2] Re-export `recordPaymentWithCoverage` from `src/lib/services/index.ts`
 
 **Checkpoint**: US1 + US2 both work. Over-limit indicator visible, cascade submit writes N docs atomically. Preview + future-months + group delete still pending.
 
@@ -84,8 +84,8 @@
 
 ### Implementation for User Story 3
 
-- [ ] T014 [US3] Add preview block to `src/components/payments/RecordPaymentDialog.tsx` — renders current-month slot first, then backMonths oldest→newest, then futureMonths oldest→newest when applicable; shows per-slot `amount` formatted in household currency, total at bottom, and "Remaining over-limit on [month]: X" line when `overLimitRemainder > 0`; hidden when no slots exist (FR-017, FR-018, FR-020); `useMemo` re-computes on amount/date change (FR-019); add `// TODO: localise this later` markers on new strings
-- [ ] T015 [P] [US3] UI test in `tests/unit/ui/RecordPaymentDialog.test.tsx` — preview block lists cascade order; re-computes on amount change; renders "Remaining over-limit" line; hides when no cascade triggered
+- [x] T014 [US3] Add preview block to `src/components/payments/RecordPaymentDialog.tsx` — renders current-month slot first, then backMonths oldest→newest, then futureMonths oldest→newest when applicable; shows per-slot `amount` formatted in household currency, total at bottom, and "Remaining over-limit on [month]: X" line when `overLimitRemainder > 0`; hidden when no slots exist (FR-017, FR-018, FR-020); `useMemo` re-computes on amount/date change (FR-019); add `// TODO: localise this later` markers on new strings
+- [x] T015 [P] [US3] UI test in `tests/unit/ui/RecordPaymentDialog.test.tsx` — preview block lists cascade order; re-computes on amount change; renders "Remaining over-limit" line; hides when no cascade triggered
 
 **Checkpoint**: US1, US2, US3 complete. Admin sees indicator → sees preview → submits cascade that matches preview exactly (SC-006).
 
@@ -99,9 +99,9 @@
 
 ### Implementation for User Story 4
 
-- [ ] T016 [US4] Wire future-months checkbox in `src/components/payments/RecordPaymentDialog.tsx` — visibility derived from `planCoverage()`: shown only when `backMonths.length === 0 && currentMonth !== null` (FR-013, research §7); checkbox state plumbs into `planCoverage({ applyToFutureMonths })` for live preview; add `// TODO: localise this later` marker
-- [ ] T017 [US4] Pass `applyToFutureMonths` through to `recordPaymentWithCoverage` call site in `src/components/payments/RecordPaymentDialog.tsx` — the txn's `planCoverage()` call receives the same flag, so future cascade commits atomically with current-month doc (FR-010–FR-012)
-- [ ] T018 [P] [US4] UI test in `tests/unit/ui/RecordPaymentDialog.test.tsx` — checkbox hidden when back cascade applies; visible + unchecked when back is clear; ticking adds future slots to preview and to submit
+- [x] T016 [US4] Wire future-months checkbox in `src/components/payments/RecordPaymentDialog.tsx` — visibility derived from `planCoverage()`: shown only when `backMonths.length === 0 && currentMonth !== null` (FR-013, research §7); checkbox state plumbs into `planCoverage({ applyToFutureMonths })` for live preview; add `// TODO: localise this later` marker
+- [x] T017 [US4] Pass `applyToFutureMonths` through to `recordPaymentWithCoverage` call site in `src/components/payments/RecordPaymentDialog.tsx` — the txn's `planCoverage()` call receives the same flag, so future cascade commits atomically with current-month doc (FR-010–FR-012)
+- [x] T018 [P] [US4] UI test in `tests/unit/ui/RecordPaymentDialog.test.tsx` — checkbox hidden when back cascade applies; visible + unchecked when back is clear; ticking adds future slots to preview and to submit
 
 **Checkpoint**: US1–US4 complete. Both back-month (auto) and future-month (opt-in) cascades work end-to-end.
 
@@ -115,13 +115,13 @@
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T019 [P] [US5] Emulator-backed group-delete test in `tests/unit/services/payments.cascade.test.ts` — group delete removes N docs and decrements MOH by group total in one txn; legacy doc (no `coverageGroupId`) takes single-doc path unchanged (FR-028, SC-004, FR-029)
+- [x] T019 [P] [US5] Emulator-backed group-delete test in `tests/unit/services/payments.cascade.test.ts` — group delete removes N docs and decrements MOH by group total in one txn; legacy doc (no `coverageGroupId`) takes single-doc path unchanged (FR-028, SC-004, FR-029)
 
 ### Implementation for User Story 5
 
-- [ ] T020 [US5] Add `listPaymentsByCoverageGroup(householdId, familyId, coverageGroupId)` to `src/lib/services/payments.ts` — collection-group query `where("coverageGroupId", "==", id)` using the new composite index; returns `Payment[]`
-- [ ] T021 [US5] Modify `deletePayment()` in `src/lib/services/payments.ts` to detect `coverageGroupId`: if null → existing single-doc path (unchanged); if present → single `runTransaction` that re-reads siblings via `tx.get()`, `tx.delete()` each, and `shiftMoneyOnHandInTx(tx, -sumAmounts)` once (FR-026, SC-004, SC-009, research §8)
-- [ ] T022 [US5] Update `src/components/payments/DeletePaymentDialog.tsx` — fetch sibling count + months via `listPaymentsByCoverageGroup` before opening; show group prompt "This will also remove N cascaded payment(s): [months]. Continue?" when `coverageGroupId` is present; fall back to legacy single-doc prompt otherwise (FR-025, FR-027, FR-028); add `// TODO: localise this later` marker on the group-prompt string
+- [x] T020 [US5] Add `listPaymentsByCoverageGroup(householdId, familyId, coverageGroupId)` to `src/lib/services/payments.ts` — collection-group query `where("coverageGroupId", "==", id)` using the new composite index; returns `Payment[]`
+- [x] T021 [US5] Modify `deletePayment()` in `src/lib/services/payments.ts` to detect `coverageGroupId`: if null → existing single-doc path (unchanged); if present → single `runTransaction` that re-reads siblings via `tx.get()`, `tx.delete()` each, and `shiftMoneyOnHandInTx(tx, -sumAmounts)` once (FR-026, SC-004, SC-009, research §8)
+- [x] T022 [US5] Update `src/components/payments/DeletePaymentDialog.tsx` — fetch sibling count + months via `listPaymentsByCoverageGroup` before opening; show group prompt "This will also remove N cascaded payment(s): [months]. Continue?" when `coverageGroupId` is present; fall back to legacy single-doc prompt otherwise (FR-025, FR-027, FR-028); add `// TODO: localise this later` marker on the group-prompt string
 
 **Checkpoint**: All 5 user stories independently testable. Full feature shippable.
 
@@ -131,8 +131,8 @@
 
 **Purpose**: Regression safety, type/lint hygiene, e2e smoke.
 
-- [ ] T023 Run existing `tests/unit/services/payments.test.ts` and `tests/unit/services/payments.atomicity.test.ts` suites — confirm zero changes needed (SC-008)
-- [ ] T024 Run `pnpm typecheck` and `pnpm lint` — no new `any` leaks; passes clean
+- [x] T023 Run existing `tests/unit/services/payments.test.ts` and `tests/unit/services/payments.atomicity.test.ts` suites — confirm zero changes needed (SC-008)
+- [x] T024 Run `pnpm typecheck` and `pnpm lint` — no new `any` leaks; passes clean
 - [ ] T025 Walk through all 9 scenarios in `specs/003-payment-spillover/quickstart.md` against the running dev server + Firestore emulator; verify SC-001 through SC-008
 
 ---
