@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { subscribeExpenses } from "@/lib/services/expenses";
+import { subscribeRecurringTemplates } from "@/lib/services/recurring";
 import { subscribeRecurringTotalForMonth } from "@/lib/services/derived";
 import { subscribeSettings } from "@/lib/services/settings";
 import { subscribeHouseholds } from "@/lib/services/households";
@@ -20,12 +21,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useT } from "@/lib/i18n";
+import { FullReportButton } from "@/components/excel/FullReportButton";
+import { PerScreenExportButton } from "@/components/excel/PerScreenExportButton";
 import type {
   Expense,
   ExpenseFilter,
   Family,
   Household,
   MosqueSubCategory,
+  RecurringTemplate,
   Setting,
 } from "@/lib/types";
 
@@ -46,6 +50,9 @@ export default function ExpensesPage() {
   const [activeFamilyCount, setActiveFamilyCount] = useState(0);
   const [recurringTotal, setRecurringTotal] = useState(0);
   const [recurringRefreshKey, setRecurringRefreshKey] = useState(0);
+  const [recurringTemplates, setRecurringTemplates] = useState<
+    RecurringTemplate[]
+  >([]);
 
   useEffect(() => {
     return subscribeSettings(setSettings);
@@ -90,6 +97,11 @@ export default function ExpensesPage() {
     return subscribeRecurringTotalForMonth(filter, setRecurringTotal);
   }, [filter]);
 
+  // Subscribe to recurring templates for the export (active-only).
+  useEffect(() => {
+    return subscribeRecurringTemplates(true, setRecurringTemplates);
+  }, []);
+
   useEffect(() => {
     setLoading(true);
     const expenseFilter: ExpenseFilter = { type: "mosque" };
@@ -131,7 +143,10 @@ export default function ExpensesPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{t("expenses.heading")}</h1>
-        <AddExpenseDialog />
+        <div className="flex items-center gap-2">
+          <FullReportButton />
+          <AddExpenseDialog />
+        </div>
       </div>
       <div className="flex flex-wrap items-center gap-3">
         {!isAllTime ? (
@@ -179,6 +194,23 @@ export default function ExpensesPage() {
             ))}
           </SelectContent>
         </Select>
+        <PerScreenExportButton
+          buildFilter={() => ({
+            kind: "expenses",
+            month: filter,
+            subCategory: subFilter,
+            expenseType: "mosque",
+          })}
+          buildData={() => ({
+            households: [],
+            families: [],
+            payments: [],
+            expenses,
+            recurringTemplates: [],
+          })}
+          // TODO: localise this later
+          label="Export expenses"
+        />
         {showWarning ? (
           <RecurringWarningChip
             recurringTotal={recurringTotal}

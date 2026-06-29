@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useT } from "@/lib/i18n";
 import { format } from "date-fns";
 import type { Household } from "@/lib/types";
+import { FullReportButton } from "@/components/excel/FullReportButton";
+import { PerScreenExportButton } from "@/components/excel/PerScreenExportButton";
 
 export default function HouseholdsPage() {
   const t = useT();
@@ -23,9 +25,24 @@ export default function HouseholdsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{t("households.heading")}</h1>
-        <AddHouseholdDialog />
+        <div className="flex items-center gap-2">
+          <PerScreenExportButton
+            buildFilter={() => ({ kind: "households" })}
+            buildData={() => ({
+              households: list,
+              families: [],
+              payments: [],
+              expenses: [],
+              recurringTemplates: [],
+            })}
+            // TODO: localise this later
+            label="Export to Excel"
+          />
+          <FullReportButton />
+          <AddHouseholdDialog />
+        </div>
       </div>
       {loading ? (
         <p className="text-sm text-muted-foreground">{t("common.loading")}</p>

@@ -241,6 +241,7 @@ index.ts               # barrel export
 | 001 | Household Finance Dashboard | Core domain — implemented (admin/role rules, soft-delete, money-on-hand, transactions) |
 | 002 | Members, Expenses, Calendar | Members, expense type/linkage, calendar — partially implemented (`familyMember*` schemas, `expenses.ts` XOR, `calendarView.ts`) |
 | 003 | Payment Spillover | `coverageGroupId` (UUID) on payments, `coverage.ts` service — referenced in `firestore.rules` line 158 |
+| 004 | Excel Export | Implemented. Pure builder at `src/lib/services/excelExport.ts`, browser client at `excelExportClient.ts`, hook `useExcelExport`, shared `ExportButton` / `FullReportButton` / `PerScreenExportButton` in `src/components/excel/`. Per-screen "Export to Excel" + "Export families" / "Export payments" / "Export expenses" / "Export recurring" buttons across the data screens. New "Show soft-deleted" toggle on the household detail page mirrors FR-010. No new Firestore collections / rules / indexes. UI strings carry inline `// TODO: localise this later` per project rule. |
 
 ---
 

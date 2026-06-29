@@ -32,8 +32,12 @@ import {
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useT } from "@/lib/i18n";
 import { formatCurrency } from "@/lib/utils/currency";
+import { PerScreenExportButton } from "@/components/excel/PerScreenExportButton";
+import { subscribeExpenses } from "@/lib/services/expenses";
 import type {
+  Expense,
   MosqueSubCategory,
+  RecurringTemplate,
   RecurringTemplateWithStatus,
 } from "@/lib/types";
 
@@ -78,6 +82,15 @@ export function RecurringTemplatesSection({
   const [templates, setTemplates] = useState<RecurringTemplateWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [monthExpenses, setMonthExpenses] = useState<Expense[]>([]);
+
+  // Subscribe to the month's mosque expenses for the export's
+  // Current-month-status column (mirrors listRecurringTemplatesWithStatus).
+  useEffect(() => {
+    return subscribeExpenses(month, (rows) => setMonthExpenses(rows), {
+      type: "mosque",
+    });
+  }, [month]);
 
   // Live subscription to templates (active + archived). The status field
   // is overwritten by the per-month refresh below.
@@ -144,10 +157,7 @@ export function RecurringTemplatesSection({
         await archiveRecurringTemplate(user.uid, templateId);
       } catch (e) {
         // eslint-disable-next-line no-console
-        console.error(
-          "archiveRecurringTemplate failed:",
-          (e as Error).message,
-        );
+        console.error("archiveRecurringTemplate failed:", (e as Error).message);
       } finally {
         setBusyId(null);
       }
@@ -167,7 +177,28 @@ export function RecurringTemplatesSection({
             {t("expenses.recurring.sectionDescription")}
           </CardDescription>
         </div>
-        <AddMosqueTemplateDialog />
+        <div className="flex items-center gap-2">
+          <PerScreenExportButton
+            buildFilter={() => ({
+              kind: "recurring",
+              month,
+              activeOnly: true,
+            })}
+            buildData={() => ({
+              households: [],
+              families: [],
+              payments: [],
+              expenses: monthExpenses,
+              recurringTemplates: templates.filter(
+                (t): t is RecurringTemplate & RecurringTemplateWithStatus =>
+                  t.active,
+              ),
+            })}
+            // TODO: localise this later
+            label="Export"
+          />
+          <AddMosqueTemplateDialog />
+        </div>
       </CardHeader>
       <CardContent>
         {loading ? (

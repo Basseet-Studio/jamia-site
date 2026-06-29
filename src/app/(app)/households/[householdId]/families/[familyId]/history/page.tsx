@@ -14,6 +14,7 @@ import { formatCurrency } from "@/lib/utils/currency";
 import { useT } from "@/lib/i18n";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { PerScreenExportButton } from "@/components/excel/PerScreenExportButton";
 import type { Family, Payment } from "@/lib/types";
 
 type Filter = "all" | { month: string };
@@ -141,6 +142,23 @@ export default function FamilyHistoryPage({
                 period: filter === "all" ? allTimePeriod : period,
               })}
             </div>
+            <PerScreenExportButton
+              buildFilter={() => ({
+                kind: "payments",
+                householdId,
+                familyId,
+                filter,
+              })}
+              buildData={() => ({
+                households: [],
+                families: family ? [family] : [],
+                payments: displayed,
+                expenses: [],
+                recurringTemplates: [],
+              })}
+              // TODO: localise this later
+              label="Export to Excel"
+            />
           </div>
         </CardContent>
       </Card>

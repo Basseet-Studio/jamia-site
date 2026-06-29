@@ -13,6 +13,10 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${PORT}`,
     trace: "on-first-retry",
   },
+  // Per-test downloads land here. Tests read the .xlsx after the browser
+  // triggers a download, then open it with `exceljs` for round-trip checks
+  // (see tests/e2e/excel-export.spec.ts).
+  outputDir: "./tests/e2e/.artifacts",
   projects: [
     {
       name: "chromium",

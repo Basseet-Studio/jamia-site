@@ -20,6 +20,7 @@ import {
   deleteContribution,
 } from "@/lib/services/contributions";
 import { formatCurrency } from "@/lib/utils/currency";
+import { FullReportButton } from "@/components/excel/FullReportButton";
 
 export default function ContributionsPage() {
   const { user } = useAuth();
@@ -72,10 +73,13 @@ export default function ContributionsPage() {
           {/* TODO: localise this later */}
           Contributions
         </h1>
-        <Button onClick={() => setShowForm((value) => !value)}>
-          {/* TODO: localise this later */}
-          Add Contribution
-        </Button>
+        <div className="flex items-center gap-2">
+          <FullReportButton />
+          <Button onClick={() => setShowForm((value) => !value)}>
+            {/* TODO: localise this later */}
+            Add Contribution
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
@@ -113,7 +117,10 @@ export default function ContributionsPage() {
                     {/* TODO: localise this later */}
                     Contributor name
                   </Label>
-                  <Input id="contributorName" {...form.register("contributorName")} />
+                  <Input
+                    id="contributorName"
+                    {...form.register("contributorName")}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="amount">
@@ -149,7 +156,11 @@ export default function ContributionsPage() {
                     {/* TODO: localise this later */}
                     Note
                   </Label>
-                  <Textarea id="note" {...form.register("note")} maxLength={280} />
+                  <Textarea
+                    id="note"
+                    {...form.register("note")}
+                    maxLength={280}
+                  />
                 </div>
               </div>
               <div className="flex justify-end gap-2">

@@ -29,6 +29,8 @@ import type {
 import { formatCurrency } from "@/lib/utils/currency";
 import { useMoneyOnHand } from "@/lib/hooks/useMoneyOnHand";
 import { useHouseholdFinancialSummary } from "@/lib/hooks/useHouseholdFinancialSummary";
+import { FullReportButton } from "@/components/excel/FullReportButton";
+import { PerScreenExportButton } from "@/components/excel/PerScreenExportButton";
 
 export default function HouseholdDetailPage({
   params,
@@ -44,6 +46,7 @@ export default function HouseholdDetailPage({
   const [statuses, setStatuses] = useState<FamilyMonthlySummary[]>([]);
   const [householdExpenses, setHouseholdExpenses] = useState<Expense[]>([]);
   const [month, setMonth] = useState<string>(currentMonthKey());
+  const [showSoftDeleted, setShowSoftDeleted] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const financialSummary = useHouseholdFinancialSummary(householdId);
 
@@ -66,7 +69,10 @@ export default function HouseholdDetailPage({
   }, [householdId, month]);
 
   useEffect(() => {
-    const off = subscribeHouseholdPendingExpenses(householdId, setHouseholdExpenses);
+    const off = subscribeHouseholdPendingExpenses(
+      householdId,
+      setHouseholdExpenses,
+    );
     return off;
   }, [householdId]);
 
@@ -96,6 +102,7 @@ export default function HouseholdDetailPage({
         <div className="flex items-center gap-3">
           <MonthNavigator month={month} onChange={setMonth} />
           <AddFamilyDialog householdId={householdId} />
+          <FullReportButton />
         </div>
       </div>
 
@@ -130,8 +137,38 @@ export default function HouseholdDetailPage({
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
           <CardTitle>{t("householdDetail.families")}</CardTitle>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={showSoftDeleted}
+                onChange={(e) => setShowSoftDeleted(e.target.checked)}
+                className="size-3.5 rounded border-border"
+                data-testid="show-soft-deleted-toggle"
+              />
+              {/* TODO: localise this later */}
+              Show soft-deleted
+            </label>
+            <PerScreenExportButton
+              buildFilter={() => ({
+                kind: "families",
+                householdId,
+                showSoftDeleted,
+                month,
+              })}
+              buildData={() => ({
+                households: household ? [household] : [],
+                families,
+                payments: [],
+                expenses: [],
+                recurringTemplates: [],
+              })}
+              // TODO: localise this later
+              label="Export families"
+            />
+          </div>
         </CardHeader>
         <CardContent>
           {families.length === 0 ? (
@@ -163,14 +200,16 @@ export default function HouseholdDetailPage({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {families.map((f) => (
-                  <FamilyRow
-                    key={f.id}
-                    householdId={householdId}
-                    family={f}
-                    status={statusById.get(f.id) ?? null}
-                  />
-                ))}
+                {families
+                  .filter((f) => showSoftDeleted || f.active)
+                  .map((f) => (
+                    <FamilyRow
+                      key={f.id}
+                      householdId={householdId}
+                      family={f}
+                      status={statusById.get(f.id) ?? null}
+                    />
+                  ))}
               </TableBody>
             </Table>
           )}

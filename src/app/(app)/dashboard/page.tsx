@@ -12,6 +12,7 @@ import { HouseholdTable } from "@/components/households/HouseholdTable";
 import { LogPaymentCard } from "@/components/payments/LogPaymentCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useT } from "@/lib/i18n";
+import { FullReportButton } from "@/components/excel/FullReportButton";
 
 export default function DashboardPage() {
   const { moh } = useMoneyOnHand();
@@ -47,7 +48,10 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{t("dashboard.heading")}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">{t("dashboard.heading")}</h1>
+        <FullReportButton />
+      </div>
       <div className="grid gap-4 md:grid-cols-3">
         <MoneyOnHandCard />
         <MonthSummaryBar month={month} />
