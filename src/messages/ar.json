@@ -27,6 +27,7 @@
     "dashboard": "Dashboard",
     "households": "Households",
     "expenses": "Expenses",
+    "recurring": "Recurring",
     "calendar": "Calendar",
     "settings": "Settings",
     "debug": "Debug"

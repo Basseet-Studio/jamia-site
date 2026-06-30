@@ -14,7 +14,7 @@
  *     The page passes its already-subscribed live data; the export reads the
  *     same snapshot the screen renders.
  */
-import { collectionGroup, getDocs, query, where } from "firebase/firestore";
+import { collectionGroup, getDocs, query } from "firebase/firestore";
 import writeXlsxFile from "write-excel-file/browser";
 
 import { getDb } from "@/lib/firebase/client";
@@ -35,13 +35,7 @@ import { listExpenses } from "@/lib/services/expenses";
 import { listHouseholds } from "@/lib/services/households";
 import { listFamilies } from "@/lib/services/families";
 import { listRecurringTemplates } from "@/lib/services/recurring";
-import type {
-  Expense,
-  Family,
-  Household,
-  Payment,
-  RecurringTemplate,
-} from "@/lib/types";
+import type { Family, Payment } from "@/lib/types";
 
 // ============================================================================
 // Pure → write-excel-file row mapping
@@ -213,13 +207,6 @@ async function fetchAllData(): Promise<ExportData> {
     } satisfies Payment;
   });
 
-  // Re-shape expenses for the export (the service already shapes them, but
-  // we typed it loosely above; re-narrow here).
-  void where; // imported for symmetry; future filter hooks may use it.
-  const typedExpenses: Expense[] = expenses;
-  const typedRecurring: RecurringTemplate[] = recurringTemplates;
-  void typedExpenses;
-  void typedRecurring;
   return { households, families, payments, expenses, recurringTemplates };
 }
 

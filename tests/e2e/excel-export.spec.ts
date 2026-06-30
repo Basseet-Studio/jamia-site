@@ -35,6 +35,13 @@ test("expenses page redirects to /sign-in when unauthenticated", async ({
   await expect(page).toHaveURL(/\/sign-in$/);
 });
 
+test("recurring page redirects to /sign-in when unauthenticated", async ({
+  page,
+}) => {
+  await page.goto("/recurring");
+  await expect(page).toHaveURL(/\/sign-in$/);
+});
+
 test("contributions page redirects to /sign-in when unauthenticated", async ({
   page,
 }) => {

@@ -5,11 +5,8 @@
  * button. The page passes its already-subscribed live data, so no extra
  * Firestore reads happen at click time.
  *
- * Two flavours:
- *   - `triggerWithData(filter, ctx, data)` for screens with a single list.
- *   - `triggerData(filter, ctx, dataFn)` — dataFn is called at click time
- *     so the snapshot reflects current state (research.md §6: "snapshot at
- *     click time", not at mount).
+ * Feedback (error / success) renders below the button so it does not break
+ * horizontal toolbars. The button itself shows a spinner while exporting.
  *
  * Per project rules: no new i18n keys; strings carry
  * `// TODO: localise this later` at the call site.
@@ -24,7 +21,6 @@ import { useEffect, useState } from "react";
 import type { ExportContext, ExportData, FilterSnapshot } from "@/lib/services/excelExport";
 import type { Setting } from "@/lib/types";
 import { ExportButton } from "@/components/excel/ExportButton";
-import { ExportProgress } from "@/components/excel/ExportProgress";
 import { ExportError } from "@/components/excel/ExportError";
 
 export interface PerScreenExportButtonProps {
@@ -79,25 +75,24 @@ export function PerScreenExportButton({
   if (!user) return null;
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="inline-flex flex-col items-start gap-1">
       <ExportButton
         label={label}
         busyLabel={busyLabel ?? label}
         supported={supported}
-        disabled={disabled || isExporting || ctx === null}
+        disabled={disabled || ctx === null}
+        isExporting={isExporting}
         onExport={handleExport}
       />
-      <ExportProgress visible={isExporting} />
       <ExportError message={error} />
       {success ? (
         <p
           role="status"
           aria-live="polite"
-          className="text-xs text-muted-foreground"
+          className="max-w-xs text-xs text-muted-foreground"
         >
           {/* TODO: localise this later */}
           {`Downloaded ${success.fileName} (${(success.byteSize / 1024).toFixed(1)} KB)`}
-          {/* Auto-dismiss after a few seconds so the UI doesn't accumulate. */}
           <button
             type="button"
             onClick={clearSuccess}

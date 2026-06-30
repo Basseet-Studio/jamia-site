@@ -18,7 +18,6 @@ import { useEffect, useState } from "react";
 import type { ExportContext } from "@/lib/services/excelExport";
 import type { Setting } from "@/lib/types";
 import { ExportButton } from "@/components/excel/ExportButton";
-import { ExportProgress } from "@/components/excel/ExportProgress";
 import { ExportError } from "@/components/excel/ExportError";
 
 export interface FullReportButtonProps {
@@ -56,20 +55,20 @@ export function FullReportButton({ ctxOverride }: FullReportButtonProps) {
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="inline-flex flex-col items-start gap-1">
       <ExportButton
         // TODO: localise this later
         label="Download full report (Excel)"
         // TODO: localise this later
         busyLabel="Preparing…"
         supported={supported}
-        disabled={isExporting || ctx === null}
+        disabled={ctx === null}
+        isExporting={isExporting}
         onExport={async () => {
           if (!ctx) return;
           await trigger({ kind: "full" }, ctx);
         }}
       />
-      <ExportProgress visible={isExporting} />
       <ExportError message={error} />
     </div>
   );

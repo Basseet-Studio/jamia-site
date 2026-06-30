@@ -8,6 +8,7 @@
  *   - busyLabel:       string — text while exporting.
  *   - supported:       boolean — hide button on unsupported browsers.
  *   - disabled:        boolean — extra gate (e.g. when there's no data to export).
+ *   - isExporting:     boolean — shows spinner while an export is in flight.
  *
  * Wraps the standard Button with a spinner + disabled state. Per project
  * rules, no new i18n keys are added — strings carry the TODO marker at the
@@ -22,6 +23,7 @@ export interface ExportButtonProps {
   busyLabel?: string;
   supported?: boolean;
   disabled?: boolean;
+  isExporting?: boolean;
   variant?: "default" | "outline" | "secondary" | "ghost";
   size?: "default" | "sm" | "lg" | "icon";
 }
@@ -32,6 +34,7 @@ export function ExportButton({
   busyLabel,
   supported = true,
   disabled = false,
+  isExporting = false,
   variant = "outline",
   size = "sm",
 }: ExportButtonProps) {
@@ -40,6 +43,7 @@ export function ExportButton({
     // client-side. The parent page may render its own fallback copy.
     return null;
   }
+  const busy = isExporting;
   return (
     <Button
       type="button"
@@ -47,10 +51,10 @@ export function ExportButton({
       size={size}
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       onClick={onExport}
-      disabled={disabled}
-      aria-busy={disabled}
+      disabled={disabled || busy}
+      aria-busy={busy}
     >
-      {disabled ? (
+      {busy ? (
         <>
           <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
           {busyLabel ?? label}
