@@ -12,6 +12,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DeletePaymentDialog } from "@/components/payments/DeletePaymentDialog";
+import { ReceiptDownloadButton } from "@/components/receipts/ReceiptDownloadButton";
+import { AttachmentLink } from "@/components/receipts/AttachmentLink";
 import { useT } from "@/lib/i18n";
 import { format } from "date-fns";
 
@@ -19,11 +21,13 @@ export function PaymentHistoryTable({
   payments,
   householdId,
   family,
+  householdName = "",
   showFamily = false,
 }: {
   payments: Payment[];
   householdId: string;
   family: Family | null;
+  householdName?: string;
   showFamily?: boolean;
 }) {
   const { moh } = useMoneyOnHand();
@@ -62,6 +66,10 @@ export function PaymentHistoryTable({
           <TableHead>{t("payments.tableRecordedBy")}</TableHead>
           <TableHead>{t("payments.tableRecordedAt")}</TableHead>
           <TableHead className="text-right">
+            {/* TODO: localise this later */}
+            Receipt
+          </TableHead>
+          <TableHead className="text-right">
             {t("payments.tableAction")}
           </TableHead>
         </TableRow>
@@ -91,6 +99,24 @@ export function PaymentHistoryTable({
               </TableCell>
               <TableCell className="text-xs text-muted-foreground tabular-nums">
                 {format(recordedAt, "yyyy-MM-dd HH:mm")}
+              </TableCell>
+              <TableCell className="text-right">
+                <div className="flex flex-col items-end gap-1">
+                  <ReceiptDownloadButton
+                    ctx={{
+                      kind: "payment",
+                      payment: p,
+                      householdName: householdName || householdId,
+                      familyName: family?.name ?? p.familyId,
+                      currency: cur,
+                    }}
+                    label="PDF"
+                  />
+                  <AttachmentLink
+                    path={p.attachmentPath}
+                    fileName={p.attachmentFileName}
+                  />
+                </div>
               </TableCell>
               <TableCell className="text-right">
                 <DeletePaymentDialog

@@ -26,6 +26,7 @@ import type {
   Payment,
   RecurringTemplate,
 } from "@/lib/types";
+import { deriveHouseholdFinancialSummary } from "@/lib/services/derived";
 
 // ============================================================================
 // Types (mirrors contracts/export-service.ts verbatim)
@@ -174,6 +175,19 @@ export const HOUSEHOLDS_COLUMNS: ReadonlyArray<Column> = [
     type: "number",
     format: "#,##0",
   },
+  {
+    header: "Total contributions",
+    width: 16,
+    type: "number",
+    format: "#,##0.00",
+  },
+  {
+    header: "Total expenses",
+    width: 16,
+    type: "number",
+    format: "#,##0.00",
+  },
+  { header: "Net", width: 14, type: "number", format: "#,##0.00" },
 ];
 
 /** Families sheet (workbook-format §3). */
@@ -442,17 +456,27 @@ function subCategoryLabel(s: MosqueSubCategory | null | undefined): string {
 function householdRow(
   h: Household,
   families: Family[],
+  payments: Payment[],
+  expenses: Expense[],
   columns: ReadonlyArray<Column>,
 ): Row {
   const inHousehold = families.filter((f) => f.householdId === h.id);
   const active = inHousehold.filter((f) => f.active).length;
   const softDeleted = inHousehold.length - active;
+  const hhPayments = payments.filter((p) => p.householdId === h.id);
+  const hhExpenses = expenses.filter(
+    (e) => e.type === "household" && e.householdId === h.id,
+  );
+  const financial = deriveHouseholdFinancialSummary(hhPayments, hhExpenses);
   return [
     coerceCell(h.name, columns[0]),
     coerceCell(h.createdAt, columns[1]),
     coerceCell(inHousehold.length, columns[2]),
     coerceCell(active, columns[3]),
     coerceCell(softDeleted, columns[4]),
+    coerceCell(financial.totalContributions, columns[5]),
+    coerceCell(financial.totalExpenses, columns[6]),
+    coerceCell(financial.net, columns[7]),
   ];
 }
 
@@ -594,10 +618,14 @@ function buildInfoSheet(filter: FilterSnapshot, ctx: ExportContext): Sheet {
 function buildHouseholdsSheet(
   households: Household[],
   families: Family[],
+  payments: Payment[],
+  expenses: Expense[],
   ctx: ExportContext,
 ): Sheet {
   const sorted = [...households].sort((a, b) => a.name.localeCompare(b.name));
-  const rows = sorted.map((h) => householdRow(h, families, HOUSEHOLDS_COLUMNS));
+  const rows = sorted.map((h) =>
+    householdRow(h, families, payments, expenses, HOUSEHOLDS_COLUMNS),
+  );
   return makeSheet("Households", HOUSEHOLDS_COLUMNS, rows, ctx);
 }
 
@@ -730,7 +758,15 @@ export function buildWorkbook(
   switch (filter.kind) {
     case "full": {
       sheets.push(buildInfoSheet(filter, ctx));
-      sheets.push(buildHouseholdsSheet(data.households, data.families, ctx));
+      sheets.push(
+        buildHouseholdsSheet(
+          data.households,
+          data.families,
+          data.payments,
+          data.expenses,
+          ctx,
+        ),
+      );
       sheets.push(
         buildFamiliesSheet(data.families, data.households, ctx, {
           showSoftDeleted: true,
@@ -757,7 +793,15 @@ export function buildWorkbook(
       break;
     }
     case "households": {
-      sheets.push(buildHouseholdsSheet(data.households, data.families, ctx));
+      sheets.push(
+        buildHouseholdsSheet(
+          data.households,
+          data.families,
+          data.payments,
+          data.expenses,
+          ctx,
+        ),
+      );
       break;
     }
     case "families": {

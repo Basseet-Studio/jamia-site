@@ -18,6 +18,17 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    function validOptionalAttachment() {
+      return !('attachmentPath' in request.resource.data)
+        || request.resource.data.attachmentPath == null
+        || (
+          request.resource.data.attachmentPath is string
+          && request.resource.data.attachmentPath.matches('^receipts/')
+          && request.resource.data.attachmentFileName is string
+          && request.resource.data.attachmentMimeType is string
+        );
+    }
+
     // ---- admins ----
 
     match /admins/{uid} {
@@ -141,7 +152,7 @@ service cloud.firestore {
             )
           );
 
-        allow delete: if false;
+        allow delete: if isAdmin();
 
         // ---- payments (sub-sub-collection) ----
 
@@ -161,7 +172,8 @@ service cloud.firestore {
                         || (request.resource.data.coverageGroupId is string
                             && request.resource.data.coverageGroupId.matches(
                                  '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'))
-                      );
+                      )
+                      && validOptionalAttachment();
 
           allow update: if false;
           allow delete: if isAdmin();
@@ -185,8 +197,9 @@ service cloud.firestore {
             && request.resource.data.newCount >= 0
             && request.resource.data.newNames is list;
 
-          // Append-only: no update, no delete.
-          allow update, delete: if false;
+          // Append-only: no update. Admin delete allowed for household cascade.
+          allow update: if false;
+          allow delete: if isAdmin();
         }
       }
     }
@@ -203,7 +216,8 @@ service cloud.firestore {
         && request.resource.data.contributorName.size() > 0
         && request.resource.data.amount is number
         && request.resource.data.amount > 0
-        && request.resource.data.date is timestamp;
+        && request.resource.data.date is timestamp
+        && validOptionalAttachment();
 
       allow update: if false;
       allow delete: if isAdmin();
@@ -239,7 +253,8 @@ service cloud.firestore {
             && (request.resource.data.mosqueSubCategory == 'maintenance'
               || request.resource.data.mosqueSubCategory == 'salary'
               || request.resource.data.mosqueSubCategory == 'other'))
-        );
+        )
+        && validOptionalAttachment();
 
       // Update (withdraw) requires the new fields to be unchanged.
       allow update: if isAdmin()
@@ -259,7 +274,16 @@ service cloud.firestore {
         && request.resource.data.type == resource.data.type
         && request.resource.data.householdId == resource.data.householdId
         && request.resource.data.familyId == resource.data.familyId
-        && request.resource.data.mosqueSubCategory == resource.data.mosqueSubCategory;
+        && request.resource.data.mosqueSubCategory == resource.data.mosqueSubCategory
+        && (
+          request.resource.data.attachmentPath == resource.data.get('attachmentPath', null)
+          && request.resource.data.attachmentFileName == resource.data.get('attachmentFileName', null)
+          && request.resource.data.attachmentMimeType == resource.data.get('attachmentMimeType', null)
+          || (
+            resource.data.get('attachmentPath', null) == null
+            && validOptionalAttachment()
+          )
+        );
 
       allow delete: if isAdmin();
     }

@@ -5,6 +5,7 @@ import { getDb } from "@/lib/firebase/client";
 import { subscribeFamilies } from "@/lib/services/families";
 import { subscribePayments } from "@/lib/services/payments";
 import { deriveHouseholdFinancialSummary } from "@/lib/services/derived";
+import { parseAttachmentFields } from "@/lib/services/attachments";
 import type { Expense, Family, Payment } from "@/lib/types";
 
 function toExpense(id: string, data: Record<string, unknown>): Expense {
@@ -26,6 +27,7 @@ function toExpense(id: string, data: Record<string, unknown>): Expense {
     householdId: (data.householdId as string | undefined) ?? null,
     familyId: (data.familyId as string | undefined) ?? null,
     mosqueSubCategory: null,
+    ...parseAttachmentFields(data),
   };
 }
 

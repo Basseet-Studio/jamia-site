@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import type { Household } from "@/lib/types";
 import { FullReportButton } from "@/components/excel/FullReportButton";
 import { PerScreenExportButton } from "@/components/excel/PerScreenExportButton";
+import { fetchHouseholdExportData } from "@/lib/services/excelExportClient";
 
 export default function HouseholdsPage() {
   const t = useT();
@@ -37,6 +38,7 @@ export default function HouseholdsPage() {
               expenses: [],
               recurringTemplates: [],
             })}
+            fetchDataAsync={() => fetchHouseholdExportData(list)}
             // TODO: localise this later
             label="Export to Excel"
           />

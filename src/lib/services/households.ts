@@ -100,11 +100,23 @@ export async function deleteHousehold(
   );
   const familyIds = familiesSnap.docs.map((d) => d.id);
   const paymentRefs: { ref: ReturnType<typeof doc> }[] = [];
+  const memberHistoryRefs: { ref: ReturnType<typeof doc> }[] = [];
   for (const fid of familyIds) {
     const paySnap = await getDocs(
       collection(db, "households", householdId, "families", fid, "payments"),
     );
     paySnap.docs.forEach((p) => paymentRefs.push({ ref: p.ref }));
+    const histSnap = await getDocs(
+      collection(
+        db,
+        "households",
+        householdId,
+        "families",
+        fid,
+        "memberHistory",
+      ),
+    );
+    histSnap.docs.forEach((h) => memberHistoryRefs.push({ ref: h.ref }));
   }
   // Collect expense refs (collection-group query).
   const expensesSnap = await getDocs(
@@ -119,6 +131,7 @@ export async function deleteHousehold(
     { ref: doc(db, "households", householdId) },
     ...familiesSnap.docs.map((d) => ({ ref: d.ref })),
     ...paymentRefs,
+    ...memberHistoryRefs,
     ...expensesSnap.docs.map((d) => ({ ref: d.ref })),
   ];
 

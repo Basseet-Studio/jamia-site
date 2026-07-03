@@ -5,6 +5,7 @@ import {
   subscribeFamilyPaymentsByMonth,
 } from "@/lib/services/payments";
 import { subscribeFamily } from "@/lib/services/families";
+import { subscribeHousehold } from "@/lib/services/households";
 import { PaymentHistoryTable } from "@/components/payments/PaymentHistoryTable";
 import { MonthNavigator } from "@/components/nav/MonthNavigator";
 import { RecordPaymentDialog } from "@/components/payments/RecordPaymentDialog";
@@ -27,6 +28,7 @@ export default function FamilyHistoryPage({
   const { householdId, familyId } = use(params);
   const t = useT();
   const [family, setFamily] = useState<Family | null>(null);
+  const [householdName, setHouseholdName] = useState("");
   const [allPayments, setAllPayments] = useState<Payment[]>([]);
   const [monthPayments, setMonthPayments] = useState<Payment[]>([]);
   const [filter, setFilter] = useState<Filter>({ month: currentMonthKey() });
@@ -41,6 +43,12 @@ export default function FamilyHistoryPage({
     });
     return off;
   }, [householdId, familyId]);
+
+  useEffect(() => {
+    return subscribeHousehold(householdId, (h) => {
+      setHouseholdName(h?.name ?? "");
+    });
+  }, [householdId]);
 
   useEffect(() => {
     const off = subscribePayments(householdId, familyId, setAllPayments);
@@ -166,6 +174,7 @@ export default function FamilyHistoryPage({
       <PaymentHistoryTable
         payments={displayed}
         householdId={householdId}
+        householdName={householdName}
         family={family}
       />
     </div>

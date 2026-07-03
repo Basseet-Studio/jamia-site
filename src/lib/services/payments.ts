@@ -38,6 +38,12 @@ import {
 } from "@/lib/schemas/payment";
 import { toMonthKey } from "@/lib/utils/dates";
 import { shiftMoneyOnHandInTx } from "@/lib/services/moneyOnHand";
+import {
+  attachmentFieldsFromInput,
+  deleteReceiptAttachment,
+  parseAttachmentFields,
+  uploadReceiptAttachment,
+} from "@/lib/services/attachments";
 import { planCoverage } from "@/lib/services/coverage";
 import type { Family, Payment } from "@/lib/types";
 
@@ -62,6 +68,7 @@ function toPayment(
       typeof data.coverageGroupId === "string"
         ? (data.coverageGroupId as string)
         : null,
+    ...parseAttachmentFields(data),
   };
 }
 
@@ -106,6 +113,7 @@ export function subscribePayments(
 export async function recordPayment(
   uid: string,
   input: RecordPaymentSchema,
+  attachmentFile?: File | null,
 ): Promise<string> {
   const parsed = recordPaymentSchema.parse(input);
   const db = getDb();
@@ -121,7 +129,13 @@ export async function recordPayment(
       "payments",
     ),
   );
+  const attachment = attachmentFile
+    ? await uploadReceiptAttachment("payments", newRef.id, attachmentFile)
+    : null;
   await runTransaction(db, async (tx) => {
+    // SC-009: the payment doc and the MOH bump commit together. All tx.get()
+    // reads (including settings/global) must run before writes.
+    await shiftMoneyOnHandInTx(tx, +parsed.amount);
     tx.set(newRef, {
       amount: parsed.amount,
       date: parsed.date,
@@ -132,10 +146,8 @@ export async function recordPayment(
       ...(parsed.coverageGroupId
         ? { coverageGroupId: parsed.coverageGroupId }
         : {}),
+      ...attachmentFieldsFromInput(attachment),
     });
-    // SC-009: the payment doc and the MOH bump commit together, so a
-    // network failure between the two cannot desync the running total.
-    await shiftMoneyOnHandInTx(tx, +parsed.amount);
   });
   return newRef.id;
 }
@@ -164,6 +176,7 @@ export async function recordPayment(
 export async function recordPaymentWithCoverage(
   uid: string,
   input: RecordPaymentWithCoverageSchema,
+  attachmentFile?: File | null,
 ): Promise<string[]> {
   const parsed = recordPaymentWithCoverageSchema.parse(input);
   const db = getDb();
@@ -248,12 +261,17 @@ export async function recordPaymentWithCoverage(
   // docs — otherwise the txn aborts with
   // "Firestore transactions require all reads to be executed before all
   // writes" (visible on the emulator; silently misordered in prod).
+  const slotRefs = writes.map(() => doc(paymentsCol));
+  const attachment = attachmentFile
+    ? await uploadReceiptAttachment("payments", slotRefs[0].id, attachmentFile)
+    : null;
+  const attachmentFields = attachmentFieldsFromInput(attachment);
+
   const refs = await runTransaction(db, async (tx) => {
     const shift = writes.reduce((s, w) => s + w.amount, 0);
     // 1. Reads first (shiftMoneyOnHandInTx does a `tx.get` on settings/global).
     await shiftMoneyOnHandInTx(tx, +shift);
     // 2. Writes only after all reads are queued.
-    const slotRefs = writes.map(() => doc(paymentsCol));
     for (let i = 0; i < writes.length; i++) {
       const slot = writes[i];
       tx.set(slotRefs[i], {
@@ -264,6 +282,7 @@ export async function recordPaymentWithCoverage(
         recordedAt: serverTimestamp(),
         recordedBy: uid,
         ...(groupId ? { coverageGroupId: groupId } : {}),
+        ...(i === 0 ? attachmentFields : attachmentFieldsFromInput(null)),
       });
     }
     return slotRefs.map((r) => r.id);
@@ -317,10 +336,19 @@ export async function deletePayment(
     // Legacy single-doc path — unchanged from v1.
     const amount =
       typeof data.amount === "number" ? (data.amount as number) : 0;
+    const attachmentPath =
+      typeof data.attachmentPath === "string" ? data.attachmentPath : null;
     await runTransaction(db, async (tx) => {
-      tx.delete(ref);
       await shiftMoneyOnHandInTx(tx, -amount);
+      tx.delete(ref);
     });
+    if (attachmentPath) {
+      try {
+        await deleteReceiptAttachment(attachmentPath);
+      } catch {
+        // best-effort storage cleanup
+      }
+    }
     return;
   }
 
@@ -336,6 +364,7 @@ export async function deletePayment(
   );
   const totalAmount = siblings.reduce((s, p) => s + p.amount, 0);
   await runTransaction(db, async (tx) => {
+    await shiftMoneyOnHandInTx(tx, -totalAmount);
     for (const s of siblings) {
       tx.delete(
         doc(
@@ -349,8 +378,16 @@ export async function deletePayment(
         ),
       );
     }
-    await shiftMoneyOnHandInTx(tx, -totalAmount);
   });
+  for (const s of siblings) {
+    if (s.attachmentPath) {
+      try {
+        await deleteReceiptAttachment(s.attachmentPath);
+      } catch {
+        // best-effort storage cleanup
+      }
+    }
+  }
 }
 
 /**

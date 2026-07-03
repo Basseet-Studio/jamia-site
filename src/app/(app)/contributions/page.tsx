@@ -21,6 +21,9 @@ import {
 } from "@/lib/services/contributions";
 import { formatCurrency } from "@/lib/utils/currency";
 import { FullReportButton } from "@/components/excel/FullReportButton";
+import { AttachmentUploadField } from "@/components/receipts/AttachmentUploadField";
+import { ReceiptDownloadButton } from "@/components/receipts/ReceiptDownloadButton";
+import { AttachmentLink } from "@/components/receipts/AttachmentLink";
 
 export default function ContributionsPage() {
   const { user } = useAuth();
@@ -28,6 +31,7 @@ export default function ContributionsPage() {
   const { contributions, loading, error } = useContributions();
   const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const cur = moh.currency || "AED";
   const total = useMemo(
     () => contributions.reduce((sum, item) => sum + item.amount, 0),
@@ -47,13 +51,14 @@ export default function ContributionsPage() {
     if (!user) return;
     setBusy(true);
     try {
-      await addContribution(user.uid, values);
+      await addContribution(user.uid, values, attachmentFile);
       form.reset({
         contributorName: "",
         amount: 0,
         date: new Date(),
         note: null,
       });
+      setAttachmentFile(null);
       setShowForm(false);
     } finally {
       setBusy(false);
@@ -163,6 +168,11 @@ export default function ContributionsPage() {
                   />
                 </div>
               </div>
+              <AttachmentUploadField
+                id="contribution-attachment"
+                file={attachmentFile}
+                onFileChange={setAttachmentFile}
+              />
               <div className="flex justify-end gap-2">
                 <Button
                   type="button"
@@ -210,7 +220,19 @@ export default function ContributionsPage() {
                     {item.note ? ` · ${item.note}` : ""}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <ReceiptDownloadButton
+                    ctx={{
+                      kind: "contribution",
+                      contribution: item,
+                      currency: cur,
+                    }}
+                    label="PDF"
+                  />
+                  <AttachmentLink
+                    path={item.attachmentPath}
+                    fileName={item.attachmentFileName}
+                  />
                   <div className="font-medium tabular-nums">
                     {formatCurrency(item.amount, cur)}
                   </div>

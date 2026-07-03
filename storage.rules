@@ -1,0 +1,22 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null
+        && firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+    }
+
+    match /receipts/{entityType}/{docId}/{fileName} {
+      allow read: if isAdmin();
+      allow write: if isAdmin()
+        && request.resource.size < 5 * 1024 * 1024
+        && (
+          request.resource.contentType.matches('application/pdf')
+          || request.resource.contentType.matches('image/jpeg')
+          || request.resource.contentType.matches('image/png')
+          || request.resource.contentType.matches('image/webp')
+        );
+      allow delete: if isAdmin();
+    }
+  }
+}

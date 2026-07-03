@@ -31,6 +31,7 @@ import { useT } from "@/lib/i18n";
 import { formatCurrency } from "@/lib/utils/currency";
 import { format } from "date-fns";
 import type { Family, Payment } from "@/lib/types";
+import { AttachmentUploadField } from "@/components/receipts/AttachmentUploadField";
 
 export function RecordPaymentDialog({
   householdId,
@@ -67,6 +68,7 @@ export function RecordPaymentDialog({
   const [selectedMonths, setSelectedMonths] = useState<Record<string, boolean>>(
     {},
   );
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const { user } = useAuth();
   const { moh } = useMoneyOnHand();
   const t = useT();
@@ -174,7 +176,7 @@ export function RecordPaymentDialog({
         amount: values.amount,
         date: values.date,
         note: values.note,
-      });
+      }, attachmentFile);
       form.reset({
         householdId,
         familyId,
@@ -183,6 +185,7 @@ export function RecordPaymentDialog({
         note: null,
       });
       setSelectedMonths({});
+      setAttachmentFile(null);
       setOpen(false);
     } catch (e) {
       setError((e as Error).message);
@@ -198,7 +201,7 @@ export function RecordPaymentDialog({
           <Button size="sm">{t("payments.recordButton")}</Button>
         </DialogTrigger>
       )}
-      <DialogContent>
+      <DialogContent scrollable className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
             {t("payments.recordTitle", { name: familyName })}
@@ -207,7 +210,11 @@ export function RecordPaymentDialog({
             {t("payments.recordDescription", { name: familyName })}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="flex min-h-0 flex-col gap-4 overflow-hidden"
+        >
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
           <div className="space-y-2">
             <Label htmlFor="rp-amount">{t("common.amount")}</Label>
             <Input
@@ -258,6 +265,12 @@ export function RecordPaymentDialog({
             />
           </div>
 
+          <AttachmentUploadField
+            id="rp-attachment"
+            file={attachmentFile}
+            onFileChange={setAttachmentFile}
+          />
+
           {/* 003 — US3: coverage preview block. Lists every slot the cascade
               will write, in commit order (current first, back oldest-first,
               future oldest-first), plus total + remainder. */}
@@ -270,7 +283,7 @@ export function RecordPaymentDialog({
                 {/* TODO: localise this later */}
                 {`Coverage preview`}
               </p>
-              <ul className="space-y-0.5">
+              <ul className="max-h-60 space-y-0.5 overflow-y-auto">
                 {plan.currentMonth ? (
                   <li className="flex justify-between gap-3">
                     {/* TODO: localise this later */}
@@ -350,7 +363,8 @@ export function RecordPaymentDialog({
           ) : null}
 
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          <DialogFooter>
+          </div>
+          <DialogFooter className="shrink-0">
             <Button
               type="button"
               variant="outline"

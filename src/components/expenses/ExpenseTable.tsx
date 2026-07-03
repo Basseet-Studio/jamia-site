@@ -18,6 +18,8 @@ import { Button } from "@/components/ui/button";
 import { deleteExpense } from "@/lib/services/expenses";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useT } from "@/lib/i18n";
+import { ReceiptDownloadButton } from "@/components/receipts/ReceiptDownloadButton";
+import { AttachmentLink } from "@/components/receipts/AttachmentLink";
 
 export function ExpenseTable({ expenses }: { expenses: Expense[] }) {
   const { moh } = useMoneyOnHand();
@@ -108,6 +110,18 @@ export function ExpenseTable({ expenses }: { expenses: Expense[] }) {
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
+                  <ReceiptDownloadButton
+                    ctx={{
+                      kind: "expense",
+                      expense: e,
+                      currency: cur,
+                    }}
+                    label="PDF"
+                  />
+                  <AttachmentLink
+                    path={e.attachmentPath}
+                    fileName={e.attachmentFileName}
+                  />
                   {!e.withdrawn ? (
                     <WithdrawDialog
                       expenseId={e.id}

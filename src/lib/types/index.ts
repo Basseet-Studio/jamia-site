@@ -40,7 +40,13 @@ export interface Family {
   updatedBy: string | null;
 }
 
-export interface Payment {
+export interface TransactionAttachment {
+  attachmentPath?: string | null;
+  attachmentFileName?: string | null;
+  attachmentMimeType?: string | null;
+}
+
+export interface Payment extends TransactionAttachment {
   id: string;
   householdId: string;
   familyId: string;
@@ -54,7 +60,7 @@ export interface Payment {
   coverageGroupId: string | null;
 }
 
-export interface Contribution {
+export interface Contribution extends TransactionAttachment {
   id: string;
   contributorName: string;
   amount: number;
@@ -69,7 +75,7 @@ export type ExpenseType = "household" | "mosque";
 // 002: sub-category on mosque-scoped expenses and templates.
 export type MosqueSubCategory = "maintenance" | "salary" | "other";
 
-export interface Expense {
+export interface Expense extends TransactionAttachment {
   id: string;
   name: string;
   amount: number;

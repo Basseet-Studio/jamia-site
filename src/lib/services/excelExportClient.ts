@@ -14,7 +14,7 @@
  *     The page passes its already-subscribed live data; the export reads the
  *     same snapshot the screen renders.
  */
-import { collectionGroup, getDocs, query } from "firebase/firestore";
+import { collection, collectionGroup, getDocs, query } from "firebase/firestore";
 import writeXlsxFile from "write-excel-file/browser";
 
 import { getDb } from "@/lib/firebase/client";
@@ -35,7 +35,8 @@ import { listExpenses } from "@/lib/services/expenses";
 import { listHouseholds } from "@/lib/services/households";
 import { listFamilies } from "@/lib/services/families";
 import { listRecurringTemplates } from "@/lib/services/recurring";
-import type { Family, Payment } from "@/lib/types";
+import { parseAttachmentFields } from "@/lib/services/attachments";
+import type { Family, Household, Payment } from "@/lib/types";
 
 // ============================================================================
 // Pure → write-excel-file row mapping
@@ -172,7 +173,7 @@ async function fetchAllData(): Promise<ExportData> {
   const [households, expenses, recurringTemplates, paymentsSnap] =
     await Promise.all([
       listHouseholds(),
-      listExpenses("all", { type: "mosque" }),
+      listExpenses("all"),
       listRecurringTemplates(false),
       // Payments are a collection-group query (sub-collection of family).
       getDocs(query(collectionGroup(db, "payments"))),
@@ -184,30 +185,62 @@ async function fetchAllData(): Promise<ExportData> {
   );
   const families: Family[] = familiesByHousehold.flat();
 
-  const payments: Payment[] = paymentsSnap.docs.map((d) => {
-    const data = d.data() as Record<string, unknown>;
-    // ref path: households/{hh}/families/{fam}/payments/{pid}
-    const ref = d.ref;
-    const familyRef = ref.parent;
-    const householdRef = familyRef?.parent;
-    return {
-      id: d.id,
-      householdId: householdRef?.id ?? "",
-      familyId: familyRef?.id ?? "",
-      amount: typeof data.amount === "number" ? data.amount : 0,
-      date: data.date as Payment["date"],
-      month: String(data.month ?? ""),
-      note: (data.note as Payment["note"]) ?? null,
-      recordedAt: data.recordedAt as Payment["recordedAt"],
-      recordedBy: String(data.recordedBy ?? ""),
-      coverageGroupId:
-        typeof data.coverageGroupId === "string"
-          ? (data.coverageGroupId as string)
-          : null,
-    } satisfies Payment;
-  });
+  const payments: Payment[] = paymentsSnap.docs.map((d) =>
+    paymentFromDoc(d.id, d.ref, d.data() as Record<string, unknown>),
+  );
 
   return { households, families, payments, expenses, recurringTemplates };
+}
+
+function paymentFromDoc(
+  id: string,
+  ref: { parent?: { id?: string; parent?: { id?: string } | null } | null },
+  data: Record<string, unknown>,
+): Payment {
+  const familyRef = ref.parent;
+  const householdRef = familyRef?.parent;
+  return {
+    id,
+    householdId: householdRef?.id ?? "",
+    familyId: familyRef?.id ?? "",
+    amount: typeof data.amount === "number" ? data.amount : 0,
+    date: data.date as Payment["date"],
+    month: String(data.month ?? ""),
+    note: (data.note as Payment["note"]) ?? null,
+    recordedAt: data.recordedAt as Payment["recordedAt"],
+    recordedBy: String(data.recordedBy ?? ""),
+    coverageGroupId:
+      typeof data.coverageGroupId === "string"
+        ? (data.coverageGroupId as string)
+        : null,
+    ...parseAttachmentFields(data),
+  };
+}
+
+/**
+ * One-shot fetch of families, payments, and household expenses for the
+ * households list export (family counts + all-time financial columns).
+ */
+export async function fetchHouseholdExportData(
+  households: Household[],
+): Promise<ExportData> {
+  const db = getDb();
+  const [familiesByHousehold, paymentsSnap, expenses] = await Promise.all([
+    Promise.all(households.map((h) => listFamilies(h.id))),
+    getDocs(query(collectionGroup(db, "payments"))),
+    listExpenses("all", { type: "household" }),
+  ]);
+  const families: Family[] = familiesByHousehold.flat();
+  const payments: Payment[] = paymentsSnap.docs.map((d) =>
+    paymentFromDoc(d.id, d.ref, d.data() as Record<string, unknown>),
+  );
+  return {
+    households,
+    families,
+    payments,
+    expenses,
+    recurringTemplates: [],
+  };
 }
 
 // ============================================================================

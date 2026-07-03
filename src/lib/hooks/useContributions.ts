@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { getDb } from "@/lib/firebase/client";
 import type { Contribution } from "@/lib/types";
+import { parseAttachmentFields } from "@/lib/services/attachments";
 
 function toContribution(
   id: string,
@@ -16,6 +17,7 @@ function toContribution(
     note: (data.note as Contribution["note"]) ?? null,
     addedAt: data.addedAt as Contribution["addedAt"],
     addedBy: String(data.addedBy ?? ""),
+    ...parseAttachmentFields(data),
   };
 }
 

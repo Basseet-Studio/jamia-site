@@ -18,6 +18,7 @@ import {
   query,
   runTransaction,
   serverTimestamp,
+  setDoc,
   where,
   type Unsubscribe,
 } from "firebase/firestore";
@@ -28,6 +29,12 @@ import {
 } from "@/lib/schemas/expense";
 import { toMonthKey } from "@/lib/utils/dates";
 import { shiftMoneyOnHandInTx } from "@/lib/services/moneyOnHand";
+import {
+  attachmentFieldsFromInput,
+  deleteReceiptAttachment,
+  parseAttachmentFields,
+  uploadReceiptAttachment,
+} from "@/lib/services/attachments";
 import type {
   Expense,
   ExpenseFilter,
@@ -69,6 +76,7 @@ function toExpense(id: string, data: Record<string, unknown>): Expense {
     householdId,
     familyId,
     mosqueSubCategory,
+    ...parseAttachmentFields(data),
   };
 }
 
@@ -188,9 +196,14 @@ export async function getExpense(expenseId: string): Promise<Expense | null> {
 export async function createExpense(
   uid: string,
   input: CreateExpenseSchema,
+  attachmentFile?: File | null,
 ): Promise<string> {
   const parsed = createExpenseSchema.parse(input);
-  const ref = await addDoc(collection(getDb(), "expenses"), {
+  const newRef = doc(collection(getDb(), "expenses"));
+  const attachment = attachmentFile
+    ? await uploadReceiptAttachment("expenses", newRef.id, attachmentFile)
+    : null;
+  await setDoc(newRef, {
     name: parsed.name,
     amount: parsed.amount,
     date: parsed.date,
@@ -208,15 +221,20 @@ export async function createExpense(
     familyId: parsed.type === "household" ? (parsed.familyId ?? null) : null,
     mosqueSubCategory:
       parsed.type === "mosque" ? parsed.mosqueSubCategory : null,
+    ...attachmentFieldsFromInput(attachment),
   });
   // Money on hand is NOT affected until withdrawn.
-  return ref.id;
+  return newRef.id;
 }
 
 export async function withdrawExpense(
   uid: string,
   expenseId: string,
+  attachmentFile?: File | null,
 ): Promise<void> {
+  const attachment = attachmentFile
+    ? await uploadReceiptAttachment("expenses", expenseId, attachmentFile)
+    : null;
   const ref = doc(getDb(), "expenses", expenseId);
   await runTransaction(getDb(), async (tx) => {
     const snap = await tx.get(ref);
@@ -227,16 +245,20 @@ export async function withdrawExpense(
     const amount =
       typeof data.amount === "number" ? (data.amount as number) : 0;
     const alreadyWithdrawn = data.withdrawn === true;
+    const existingAttachment = parseAttachmentFields(data);
+    const nextAttachment =
+      attachment != null
+        ? attachmentFieldsFromInput(attachment)
+        : existingAttachment;
+    if (!alreadyWithdrawn) {
+      await shiftMoneyOnHandInTx(tx, -amount);
+    }
     tx.update(ref, {
       withdrawn: true,
       withdrawnAt: serverTimestamp(),
       withdrawnBy: uid,
+      ...nextAttachment,
     });
-    // SC-009: the state flip and the MOH decrement commit together. Re-
-    // withdrawing an already-withdrawn expense is a no-op on the total.
-    if (!alreadyWithdrawn) {
-      await shiftMoneyOnHandInTx(tx, -amount);
-    }
   });
 }
 
@@ -245,6 +267,7 @@ export async function deleteExpense(
   expenseId: string,
 ): Promise<void> {
   const ref = doc(getDb(), "expenses", expenseId);
+  let attachmentPath: string | null = null;
   await runTransaction(getDb(), async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists()) return;
@@ -252,13 +275,20 @@ export async function deleteExpense(
     const amount =
       typeof data.amount === "number" ? (data.amount as number) : 0;
     const wasWithdrawn = data.withdrawn === true;
-    tx.delete(ref);
-    // SC-009: deleting a withdrawn expense puts the amount back, atomically
-    // with the row removal.
+    attachmentPath =
+      typeof data.attachmentPath === "string" ? data.attachmentPath : null;
     if (wasWithdrawn) {
       await shiftMoneyOnHandInTx(tx, +amount);
     }
+    tx.delete(ref);
   });
+  if (attachmentPath) {
+    try {
+      await deleteReceiptAttachment(attachmentPath);
+    } catch {
+      // best-effort storage cleanup
+    }
+  }
   void uid;
 }
 

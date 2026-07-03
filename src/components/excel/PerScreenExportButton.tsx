@@ -28,6 +28,8 @@ export interface PerScreenExportButtonProps {
   buildFilter: () => FilterSnapshot;
   /** Returns the page's currently-subscribed live data at click time. */
   buildData: () => ExportData;
+  /** Optional async fetch when live data is incomplete (e.g. households export). */
+  fetchDataAsync?: () => Promise<ExportData>;
   /** Button label. */
   label: string;
   /** Optional busy-state label override. */
@@ -39,6 +41,7 @@ export interface PerScreenExportButtonProps {
 export function PerScreenExportButton({
   buildFilter,
   buildData,
+  fetchDataAsync,
   label,
   busyLabel,
   disabled,
@@ -68,9 +71,9 @@ export function PerScreenExportButton({
   const handleExport = useCallback(async () => {
     if (!ctx) return;
     const filter = buildFilter();
-    const data = buildData();
+    const data = fetchDataAsync ? await fetchDataAsync() : buildData();
     await triggerWithData(filter, ctx, data);
-  }, [ctx, buildFilter, buildData, triggerWithData]);
+  }, [ctx, buildFilter, buildData, fetchDataAsync, triggerWithData]);
 
   if (!user) return null;
 
