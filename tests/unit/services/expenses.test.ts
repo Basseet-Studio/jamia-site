@@ -9,9 +9,10 @@ import { describe, expect, it } from "vitest";
 import * as svc from "@/lib/services/expenses";
 
 describe("expenses — module exports", () => {
-  it("exposes the four required functions", () => {
+  it("exposes the required functions", () => {
     expect(typeof svc.createExpense).toBe("function");
     expect(typeof svc.withdrawExpense).toBe("function");
+    expect(typeof svc.attachExpenseReceipt).toBe("function");
     expect(typeof svc.deleteExpense).toBe("function");
     expect(typeof svc.subscribeExpenses).toBe("function");
   });

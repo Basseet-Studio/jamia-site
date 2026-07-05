@@ -16,7 +16,6 @@ import { useMoneyOnHand } from "@/lib/hooks/useMoneyOnHand";
 import { formatCurrency } from "@/lib/utils/currency";
 import { useT } from "@/lib/i18n";
 import type { MonthlyExpenseTotals } from "@/lib/types";
-import { AttachmentUploadField } from "@/components/receipts/AttachmentUploadField";
 
 export interface WithdrawDialogProps {
   expenseId: string;
@@ -44,7 +43,6 @@ export function WithdrawDialog({
   const cur = moh.currency || t("common.dash");
   const [totals, setTotals] = useState<MonthlyExpenseTotals | null>(null);
   const [totalsError, setTotalsError] = useState(false);
-  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
 
   // 002: best-effort fetch of monthly totals for the recurring-expense flow
   // (FR-031). 3s timeout; on failure the dialog shows a fallback message.
@@ -83,8 +81,7 @@ export function WithdrawDialog({
     setBusy(true);
     setError(null);
     try {
-      await withdrawExpense(user.uid, expenseId, attachmentFile);
-      setAttachmentFile(null);
+      await withdrawExpense(user.uid, expenseId);
       setOpen(false);
     } catch (e) {
       setError((e as Error).message);
@@ -157,12 +154,6 @@ export function WithdrawDialog({
             )}
           </div>
         ) : null}
-        <AttachmentUploadField
-          id={`withdraw-attachment-${expenseId}`}
-          label="Signed receipt scan (optional)"
-          file={attachmentFile}
-          onFileChange={setAttachmentFile}
-        />
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <DialogFooter>
           <Button

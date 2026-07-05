@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { WithdrawDialog } from "@/components/expenses/WithdrawDialog";
+import { AttachSignedReceiptDialog } from "@/components/expenses/AttachSignedReceiptDialog";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { deleteExpense } from "@/lib/services/expenses";
@@ -110,18 +111,26 @@ export function ExpenseTable({ expenses }: { expenses: Expense[] }) {
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
-                  <ReceiptDownloadButton
-                    ctx={{
-                      kind: "expense",
-                      expense: e,
-                      currency: cur,
-                    }}
-                    label="PDF"
-                  />
+                  {e.withdrawn ? (
+                    <ReceiptDownloadButton
+                      ctx={{
+                        kind: "expense",
+                        expense: e,
+                        currency: cur,
+                      }}
+                      label="PDF"
+                    />
+                  ) : null}
                   <AttachmentLink
                     path={e.attachmentPath}
                     fileName={e.attachmentFileName}
                   />
+                  {e.withdrawn && !e.attachmentPath ? (
+                    <AttachSignedReceiptDialog
+                      expenseId={e.id}
+                      expenseName={e.name}
+                    />
+                  ) : null}
                   {!e.withdrawn ? (
                     <WithdrawDialog
                       expenseId={e.id}

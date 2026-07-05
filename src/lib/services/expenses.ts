@@ -18,6 +18,7 @@ import {
   runTransaction,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
   type Unsubscribe,
 } from "firebase/firestore";
@@ -195,13 +196,9 @@ export async function getExpense(expenseId: string): Promise<Expense | null> {
 export async function createExpense(
   uid: string,
   input: CreateExpenseSchema,
-  attachmentFile?: File | null,
 ): Promise<string> {
   const parsed = createExpenseSchema.parse(input);
   const newRef = doc(collection(getDb(), "expenses"));
-  const attachment = attachmentFile
-    ? await uploadReceiptAttachment("expenses", newRef.id, attachmentFile)
-    : null;
   await setDoc(newRef, {
     name: parsed.name,
     amount: parsed.amount,
@@ -220,7 +217,7 @@ export async function createExpense(
     familyId: parsed.type === "household" ? (parsed.familyId ?? null) : null,
     mosqueSubCategory:
       parsed.type === "mosque" ? parsed.mosqueSubCategory : null,
-    ...attachmentFieldsFromInput(attachment),
+    ...attachmentFieldsFromInput(null),
   });
   // Money on hand is NOT affected until withdrawn.
   return newRef.id;
@@ -229,11 +226,7 @@ export async function createExpense(
 export async function withdrawExpense(
   uid: string,
   expenseId: string,
-  attachmentFile?: File | null,
 ): Promise<void> {
-  const attachment = attachmentFile
-    ? await uploadReceiptAttachment("expenses", expenseId, attachmentFile)
-    : null;
   const ref = doc(getDb(), "expenses", expenseId);
   await runTransaction(getDb(), async (tx) => {
     const snap = await tx.get(ref);
@@ -244,11 +237,6 @@ export async function withdrawExpense(
     const amount =
       typeof data.amount === "number" ? (data.amount as number) : 0;
     const alreadyWithdrawn = data.withdrawn === true;
-    const existingAttachment = parseAttachmentFields(data);
-    const nextAttachment =
-      attachment != null
-        ? attachmentFieldsFromInput(attachment)
-        : existingAttachment;
     if (!alreadyWithdrawn) {
       await shiftMoneyOnHandInTx(tx, -amount);
     }
@@ -256,9 +244,35 @@ export async function withdrawExpense(
       withdrawn: true,
       withdrawnAt: serverTimestamp(),
       withdrawnBy: uid,
-      ...nextAttachment,
     });
   });
+}
+
+export async function attachExpenseReceipt(
+  uid: string,
+  expenseId: string,
+  attachmentFile: File,
+): Promise<void> {
+  const ref = doc(getDb(), "expenses", expenseId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    throw new Error(`expense ${expenseId} not found`);
+  }
+  const data = snap.data() as Record<string, unknown>;
+  if (data.withdrawn !== true) {
+    throw new Error("expense must be withdrawn before attaching a receipt");
+  }
+  const existing = parseAttachmentFields(data);
+  if (existing.attachmentPath != null) {
+    throw new Error("expense already has an attached receipt");
+  }
+  const attachment = await uploadReceiptAttachment(
+    "expenses",
+    expenseId,
+    attachmentFile,
+  );
+  await updateDoc(ref, attachmentFieldsFromInput(attachment));
+  void uid;
 }
 
 export async function deleteExpense(

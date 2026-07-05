@@ -272,6 +272,12 @@ export interface HouseholdFinanceService {
   createExpense(uid: string, input: CreateExpenseInput): Promise<string>;
   /** Withdraw. Sets withdrawn, withdrawnAt, withdrawnBy. Confirmation enforced in UI. */
   withdrawExpense(uid: string, expenseId: string): Promise<void>;
+  /** Attach signed receipt scan after withdrawal. */
+  attachExpenseReceipt(
+    uid: string,
+    expenseId: string,
+    attachmentFile: File,
+  ): Promise<void>;
   deleteExpense(uid: string, expenseId: string): Promise<void>;
 
   // ---- Recurring templates ----

@@ -29,7 +29,6 @@ import {
 import { createExpense } from "@/lib/services/expenses";
 import { subscribeHouseholds } from "@/lib/services/households";
 import { subscribeFamilies } from "@/lib/services/families";
-import { AttachmentUploadField } from "@/components/receipts/AttachmentUploadField";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useT } from "@/lib/i18n";
 import { format } from "date-fns";
@@ -84,7 +83,6 @@ export function AddExpenseDialog({
   const [error, setError] = useState<string | null>(null);
   const [households, setHouseholds] = useState<Household[]>([]);
   const [families, setFamilies] = useState<Family[]>([]);
-  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const { user } = useAuth();
   const t = useT();
 
@@ -134,9 +132,8 @@ export function AddExpenseDialog({
     setBusy(true);
     setError(null);
     try {
-      await createExpense(user.uid, values, attachmentFile);
+      await createExpense(user.uid, values);
       form.reset(defaultExpenseValues(fixedHouseholdId));
-      setAttachmentFile(null);
       setOpen(false);
     } catch (e) {
       setError((e as Error).message);
@@ -317,11 +314,6 @@ export function AddExpenseDialog({
             <Label htmlFor="ax-note">{t("common.noteOptional")}</Label>
             <Textarea id="ax-note" {...form.register("note")} maxLength={280} />
           </div>
-          <AttachmentUploadField
-            id="ax-attachment"
-            file={attachmentFile}
-            onFileChange={setAttachmentFile}
-          />
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <DialogFooter>
             <Button

@@ -263,9 +263,11 @@ service cloud.firestore {
               || request.resource.data.mosqueSubCategory == 'salary'
               || request.resource.data.mosqueSubCategory == 'other'))
         )
-        && validOptionalAttachment();
+        && request.resource.data.get('attachmentPath', null) == null
+        && request.resource.data.get('attachmentFileName', null) == null
+        && request.resource.data.get('attachmentMimeType', null) == null;
 
-      // Update (withdraw) requires the new fields to be unchanged.
+      // Withdraw: flip withdrawn flag only; attachment unchanged.
       allow update: if isAdmin()
         && resource.data.withdrawn == false
         && request.resource.data.withdrawn == true
@@ -284,15 +286,31 @@ service cloud.firestore {
         && request.resource.data.householdId == resource.data.householdId
         && request.resource.data.familyId == resource.data.familyId
         && request.resource.data.mosqueSubCategory == resource.data.mosqueSubCategory
-        && (
-          request.resource.data.attachmentPath == resource.data.get('attachmentPath', null)
-          && request.resource.data.attachmentFileName == resource.data.get('attachmentFileName', null)
-          && request.resource.data.attachmentMimeType == resource.data.get('attachmentMimeType', null)
-          || (
-            resource.data.get('attachmentPath', null) == null
-            && validOptionalAttachment()
-          )
-        );
+        && request.resource.data.attachmentPath == resource.data.get('attachmentPath', null)
+        && request.resource.data.attachmentFileName == resource.data.get('attachmentFileName', null)
+        && request.resource.data.attachmentMimeType == resource.data.get('attachmentMimeType', null);
+
+      // Attach signed receipt after withdrawal.
+      allow update: if isAdmin()
+        && resource.data.withdrawn == true
+        && request.resource.data.withdrawn == true
+        && request.resource.data.withdrawnAt == resource.data.withdrawnAt
+        && request.resource.data.withdrawnBy == resource.data.withdrawnBy
+        && request.resource.data.name == resource.data.name
+        && request.resource.data.amount == resource.data.amount
+        && request.resource.data.date == resource.data.date
+        && request.resource.data.month == resource.data.month
+        && request.resource.data.note == resource.data.note
+        && request.resource.data.isRecurring == resource.data.isRecurring
+        && request.resource.data.recurringId == resource.data.recurringId
+        && request.resource.data.addedAt == resource.data.addedAt
+        && request.resource.data.addedBy == resource.data.addedBy
+        && request.resource.data.type == resource.data.type
+        && request.resource.data.householdId == resource.data.householdId
+        && request.resource.data.familyId == resource.data.familyId
+        && request.resource.data.mosqueSubCategory == resource.data.mosqueSubCategory
+        && resource.data.get('attachmentPath', null) == null
+        && validOptionalAttachment();
 
       allow delete: if isAdmin();
     }

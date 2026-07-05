@@ -28,9 +28,10 @@ import * as expenses from "@/lib/services/expenses";
 import * as client from "@/lib/firebase/client";
 
 describe("expenses — module shape (regression: MOH drift bug)", () => {
-  it("exposes the four required functions", () => {
+  it("exposes the required functions", () => {
     expect(typeof expenses.createExpense).toBe("function");
     expect(typeof expenses.withdrawExpense).toBe("function");
+    expect(typeof expenses.attachExpenseReceipt).toBe("function");
     expect(typeof expenses.deleteExpense).toBe("function");
     expect(typeof expenses.subscribeExpenses).toBe("function");
   });
