@@ -51,3 +51,4 @@ firebase-debug.log
 firestore-debug.log
 ui-debug.log
 jamia-674ec-firebase-adminsdk-fbsvc-10d0282e47.json
+a.env copy.local
