@@ -244,6 +244,82 @@ export function subscribeHouseholdMonthlySummary(
     });
   };
 
+  // Per-family payment listeners scoped to this household (avoids collection-group
+  // rules that deny app-wide `payments` queries).
+  let perFamilyPaymentUnsubs: Unsubscribe[] = [];
+
+  const rewirePayments = (families: Family[]) => {
+    perFamilyPaymentUnsubs.forEach((u) => u());
+    perFamilyPaymentUnsubs = [];
+    lastPayments = [];
+    families.forEach((f) => {
+      perFamilyPaymentUnsubs.push(
+        onSnapshot(
+          query(
+            collection(
+              db,
+              "households",
+              householdId,
+              "families",
+              f.id,
+              "payments",
+            ),
+            where("month", "==", month),
+          ),
+          (snap) => {
+            const others = lastPayments.filter((p) => p.familyId !== f.id);
+            const familyPayments = snap.docs.map((d) => ({
+              id: d.id,
+              householdId,
+              familyId: f.id,
+              amount:
+                typeof d.data().amount === "number"
+                  ? (d.data().amount as number)
+                  : 0,
+              date: d.data().date as Payment["date"],
+              month: String(d.data().month ?? ""),
+              note: (d.data().note as Payment["note"]) ?? null,
+              recordedAt: d.data().recordedAt as Payment["recordedAt"],
+              recordedBy: String(d.data().recordedBy ?? ""),
+              coverageGroupId:
+                typeof d.data().coverageGroupId === "string"
+                  ? (d.data().coverageGroupId as string)
+                  : null,
+            }));
+            lastPayments = [...others, ...familyPayments];
+            emit();
+          },
+          (err) => {
+            // #region agent log
+            fetch("http://127.0.0.1:7841/ingest/d6064957-b3e4-44c8-9556-962aec9bf7da", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Debug-Session-Id": "24531e",
+              },
+              body: JSON.stringify({
+                sessionId: "24531e",
+                runId: "post-fix",
+                hypothesisId: "H3",
+                location: "derived.ts:subscribeHouseholdMonthlySummary:familyPayments",
+                message: "family payments listener error",
+                data: {
+                  householdId,
+                  familyId: f.id,
+                  month,
+                  code: (err as { code?: string }).code,
+                  message: err.message,
+                },
+                timestamp: Date.now(),
+              }),
+            }).catch(() => {});
+            // #endregion
+          },
+        ),
+      );
+    });
+  };
+
   const u1 = onSnapshot(
     collection(db, "households", householdId, "families"),
     (snap) => {
@@ -270,7 +346,32 @@ export function subscribeHouseholdMonthlySummary(
         updatedAt: (d.data().updatedAt as Family["updatedAt"]) ?? null,
         updatedBy: (d.data().updatedBy as Family["updatedBy"]) ?? null,
       }));
+      rewirePayments(lastFamilies);
       emit();
+    },
+    (err) => {
+      // #region agent log
+      fetch("http://127.0.0.1:7841/ingest/d6064957-b3e4-44c8-9556-962aec9bf7da", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "24531e",
+        },
+        body: JSON.stringify({
+          sessionId: "24531e",
+          runId: "post-fix",
+          hypothesisId: "H3",
+          location: "derived.ts:subscribeHouseholdMonthlySummary:families",
+          message: "families listener error",
+          data: {
+            householdId,
+            code: (err as { code?: string }).code,
+            message: err.message,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
     },
   );
 
@@ -279,48 +380,12 @@ export function subscribeHouseholdMonthlySummary(
     emit();
   });
 
-  // Collection-group query on payments filtered by month. All payments for the
-  // household (across families) show up; filter by family in lastFamilies.
-  const u3 = onSnapshot(
-    query(collectionGroup(db, "payments"), where("month", "==", month)),
-    (snap) => {
-      const familyIds = new Set(lastFamilies.map((f) => f.id));
-      lastPayments = snap.docs
-        .filter((d) => {
-          const fid = d.ref.parent.parent?.id;
-          return fid ? familyIds.has(fid) : false;
-        })
-        .map((d) => ({
-          id: d.id,
-          householdId,
-          familyId: d.ref.parent.parent?.id ?? "",
-          amount:
-            typeof d.data().amount === "number"
-              ? (d.data().amount as number)
-              : 0,
-          date: d.data().date as Payment["date"],
-          month: String(d.data().month ?? ""),
-          note: (d.data().note as Payment["note"]) ?? null,
-          recordedAt: d.data().recordedAt as Payment["recordedAt"],
-          recordedBy: String(d.data().recordedBy ?? ""),
-          coverageGroupId:
-            typeof d.data().coverageGroupId === "string"
-              ? (d.data().coverageGroupId as string)
-              : null,
-        }));
-      emit();
-    },
-  );
-
   return () => {
     u1();
     u2();
-    u3();
+    perFamilyPaymentUnsubs.forEach((u) => u());
   };
 }
-
-// Re-export collectionGroup from firestore.
-import { collectionGroup } from "firebase/firestore";
 
 /** Live monthly expense summary. */
 export function subscribeMonthlyExpenseSummary(

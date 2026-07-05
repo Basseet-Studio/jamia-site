@@ -20,6 +20,27 @@ export function subscribeHouseholds(
   const offHouseholds = onSnapshot(
     collection(getDb(), "households"),
     (snap) => {
+      // #region agent log
+      fetch("http://127.0.0.1:7841/ingest/d6064957-b3e4-44c8-9556-962aec9bf7da", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "24531e",
+        },
+        body: JSON.stringify({
+          sessionId: "24531e",
+          runId: "pre-fix",
+          hypothesisId: "H3",
+          location: "dashboardData.ts:subscribeHouseholds",
+          message: "dashboard households snapshot",
+          data: {
+            householdCount: snap.docs.length,
+            householdIds: snap.docs.map((d) => d.id),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       // Tear down old summary subscriptions.
       summaryUnsubs.forEach((u) => u());
       summaryUnsubs = [];

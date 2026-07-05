@@ -9,7 +9,6 @@
 import {
   addDoc,
   collection,
-  collectionGroup,
   doc,
   getDoc,
   getDocs,
@@ -292,13 +291,13 @@ export async function deleteExpense(
   void uid;
 }
 
-/** 002: list expenses scoped to a household (collection-group query). */
+/** 002: list expenses scoped to a household (top-level collection). */
 export async function listHouseholdExpenses(
   householdId: string,
 ): Promise<Expense[]> {
   const snap = await getDocs(
     query(
-      collectionGroup(getDb(), "expenses"),
+      collection(getDb(), "expenses"),
       where("type", "==", "household"),
       where("householdId", "==", householdId),
     ),
