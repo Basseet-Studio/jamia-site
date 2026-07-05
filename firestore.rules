@@ -82,9 +82,9 @@ service cloud.firestore {
         && request.resource.data.deletedBy == null;
 
       // Soft-delete only — sets active=false, deletedAt, deletedBy.
-      // Name edits and other field changes remain blocked.
+      // Legacy docs may omit `active`; treat missing as active (same as client).
       allow update: if isAdmin()
-        && resource.data.active == true
+        && (resource.data.active == true || !('active' in resource.data))
         && request.resource.data.active == false
         && request.resource.data.deletedBy == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
