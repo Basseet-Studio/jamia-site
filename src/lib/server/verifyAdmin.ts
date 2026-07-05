@@ -28,9 +28,16 @@ export async function verifyAdminRequest(
     throw new AuthError(401, "Invalid or expired token");
   }
 
-  const adminDoc = await getAdminDb().doc(`admins/${uid}`).get();
-  if (!adminDoc.exists) {
-    throw new AuthError(403, "Admin access required");
+  try {
+    const adminDoc = await getAdminDb().doc(`admins/${uid}`).get();
+    if (!adminDoc.exists) {
+      throw new AuthError(403, "Admin access required");
+    }
+  } catch (err) {
+    if (err instanceof AuthError) throw err;
+    const message =
+      err instanceof Error ? err.message : "Admin verification failed";
+    throw new AuthError(500, message);
   }
 
   return { uid };

@@ -1,4 +1,5 @@
 import { put } from "@vercel/blob";
+import { getReceiptBlobToken } from "@/lib/firebase/admin";
 import {
   ALLOWED_ATTACHMENT_MIME_TYPES,
   MAX_ATTACHMENT_BYTES,
@@ -13,6 +14,8 @@ import {
   verifyAdminRequest,
 } from "@/lib/server/verifyAdmin";
 
+export const runtime = "nodejs";
+
 export async function POST(request: Request) {
   try {
     await verifyAdminRequest(request);
@@ -20,7 +23,17 @@ export async function POST(request: Request) {
     if (err instanceof AuthError) {
       return jsonError(err.status, err.message);
     }
-    return jsonError(500, "Authorization failed");
+    const message =
+      err instanceof Error ? err.message : "Authorization failed";
+    return jsonError(500, message);
+  }
+
+  const blobToken = getReceiptBlobToken();
+  if (!blobToken) {
+    return jsonError(
+      500,
+      "Blob storage not configured (missing BLOB_READ_WRITE_TOKEN)",
+    );
   }
 
   let formData: FormData;
@@ -62,6 +75,7 @@ export async function POST(request: Request) {
       access: "private",
       contentType: file.type,
       addRandomSuffix: false,
+      token: blobToken,
     });
   } catch (err) {
     const message =

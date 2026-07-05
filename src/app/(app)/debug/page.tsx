@@ -245,6 +245,35 @@ export default function DebugPage() {
     }
   }
 
+  async function probeReceiptHealth() {
+    if (!user) return;
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/receipts/health", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const body = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        blobConfigured?: boolean;
+        firebaseAdminConfigured?: boolean;
+      };
+      if (!res.ok) {
+        addLog("err", `receipt health failed (${res.status}): ${body.error ?? "unknown"}`);
+        setProbeResult(JSON.stringify(body, null, 2));
+        return;
+      }
+      addLog(
+        "ok",
+        `receipt API ok · blob=${body.blobConfigured ? "yes" : "NO"} · firebaseAdmin=${body.firebaseAdminConfigured ? "yes" : "NO"}`,
+      );
+      setProbeResult(JSON.stringify(body, null, 2));
+    } catch (e) {
+      const err = e as Error;
+      addLog("err", `receipt health failed: ${err.message}`);
+    }
+  }
+
   if (loading) {
     return (
       <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
@@ -260,7 +289,7 @@ export default function DebugPage() {
         </p>
       </div>
 
-      <CardTitle> App version 1.0.0.7 </CardTitle>
+      <CardTitle> App version 1.0.0.8 </CardTitle>
       <Card>
         <CardHeader>
           <CardTitle>Auth</CardTitle>
@@ -340,6 +369,9 @@ export default function DebugPage() {
                 Bootstrap me as admin
               </Button>
             ) : null}
+            <Button size="sm" variant="outline" onClick={probeReceiptHealth}>
+              Check receipt API
+            </Button>
           </div>
           {probeResult ? (
             <pre className="overflow-x-auto rounded-md border bg-muted/30 p-3 text-xs">
