@@ -13,7 +13,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { deleteHousehold } from "@/lib/services/households";
-import { hhError, hhLog } from "@/lib/debug/householdLog";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useT } from "@/lib/i18n";
 
@@ -34,54 +33,22 @@ export function DeleteHouseholdDialog({
   const matches = confirmText.trim() === householdName;
 
   async function onConfirm() {
-    if (!user || !matches) {
-      hhLog("deleteDialog:confirm-blocked", {
-        hasUser: !!user,
-        matches,
-        householdId,
-        householdName,
-      });
-      return;
-    }
+    if (!user || !matches) return;
     setBusy(true);
     setError(null);
-    hhLog("deleteDialog:confirm-click", {
-      uid: user.uid,
-      householdId,
-      householdName,
-      confirmText: confirmText.trim(),
-    });
     try {
       await deleteHousehold(user.uid, householdId);
-      hhLog("deleteDialog:success", { householdId, householdName });
       setOpen(false);
       setConfirmText("");
     } catch (e) {
-      const err = e as Error & { code?: string };
-      hhError("deleteDialog:error", {
-        householdId,
-        householdName,
-        code: err.code,
-        message: err.message,
-      });
-      setError(err.message);
+      setError((e as Error).message);
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (next) {
-          hhLog("deleteDialog:open", { householdId, householdName });
-        } else {
-          hhLog("deleteDialog:close", { householdId, householdName });
-        }
-        setOpen(next);
-      }}
-    >
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="text-destructive">
           {t("households.deleteButton")}

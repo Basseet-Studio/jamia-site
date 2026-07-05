@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { subscribeHouseholds } from "@/lib/services/households";
-import { hhLog } from "@/lib/debug/householdLog";
 import { AddHouseholdDialog } from "@/components/households/AddHouseholdDialog";
 import { DeleteHouseholdDialog } from "@/components/households/DeleteHouseholdDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,28 +17,11 @@ export default function HouseholdsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    hhLog("householdsPage:mount", {
-      href: typeof window !== "undefined" ? window.location.href : "",
-      navType:
-        typeof performance !== "undefined"
-          ? performance.getEntriesByType("navigation")[0]
-            ? (performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming).type
-            : "unknown"
-          : "unknown",
-    });
     const off = subscribeHouseholds((rows) => {
-      hhLog("householdsPage:list-update", {
-        count: rows.length,
-        ids: rows.map((h) => h.id),
-        names: rows.map((h) => h.name),
-      });
       setList(rows);
       setLoading(false);
     });
-    return () => {
-      hhLog("householdsPage:unmount");
-      off();
-    };
+    return off;
   }, []);
 
   return (

@@ -4,7 +4,6 @@
  */
 import { collection, onSnapshot, type Unsubscribe } from "firebase/firestore";
 import { getDb } from "@/lib/firebase/client";
-import { hhError, hhLog } from "@/lib/debug/householdLog";
 import { subscribeHouseholdMonthlySummary } from "@/lib/services/derived";
 import type { Household, HouseholdMonthlySummary } from "@/lib/types";
 
@@ -21,12 +20,6 @@ export function subscribeHouseholds(
   const offHouseholds = onSnapshot(
     collection(getDb(), "households"),
     (snap) => {
-      const docs = snap.docs.map((d) => ({
-        id: d.id,
-        name: String(d.data().name ?? ""),
-        activeRaw: d.data().active,
-        activeParsed: d.data().active !== false,
-      }));
       // Tear down old summary subscriptions.
       summaryUnsubs.forEach((u) => u());
       summaryUnsubs = [];
@@ -45,13 +38,6 @@ export function subscribeHouseholds(
           },
           summary: null,
         }));
-      hhLog("dashboardData:snapshot", {
-        month,
-        totalDocs: snap.docs.length,
-        activeCount: list.length,
-        docs,
-        activeIds: list.map((r) => r.household.id),
-      });
       // Initial empty emit so consumers see the household list.
       callback([...list]);
 
@@ -62,13 +48,6 @@ export function subscribeHouseholds(
             callback([...list]);
           }),
         );
-      });
-    },
-    (err) => {
-      hhError("dashboardData:listener-error", {
-        month,
-        code: (err as { code?: string }).code,
-        message: err.message,
       });
     },
   );
