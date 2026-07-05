@@ -2,8 +2,8 @@
  * Firebase Web SDK init — used in browser and (when needed) in Server Actions
  * with the user's ID token.
  *
- * v1: no admin SDK. All writes go through the service layer; the Web SDK is
- * the only client.
+ * Receipt attachments are stored in Vercel Blob (see /api/receipts/*), not
+ * Firebase Storage. Auth + Firestore remain on Firebase.
  */
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, connectAuthEmulator, type Auth } from "firebase/auth";
@@ -12,11 +12,6 @@ import {
   connectFirestoreEmulator,
   type Firestore,
 } from "firebase/firestore";
-import {
-  getStorage,
-  connectStorageEmulator,
-  type FirebaseStorage,
-} from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -30,7 +25,6 @@ const firebaseConfig = {
 let _app: FirebaseApp | null = null;
 let _auth: Auth | null = null;
 let _db: Firestore | null = null;
-let _storage: FirebaseStorage | null = null;
 
 function getFirebaseApp(): FirebaseApp {
   if (_app) return _app;
@@ -72,25 +66,6 @@ export function getDb(): Firestore {
     }
   }
   return _db;
-}
-
-export function getFirebaseStorage(): FirebaseStorage {
-  if (_storage) return _storage;
-  const app = getFirebaseApp();
-  _storage = getStorage(app);
-
-  const useEmulator = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === "true";
-  const host =
-    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_EMULATOR_HOST ?? "127.0.0.1";
-  const port = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_EMULATOR_PORT ?? "9199";
-  if (useEmulator && typeof window !== "undefined") {
-    try {
-      connectStorageEmulator(_storage, host, Number(port));
-    } catch {
-      // already connected; ignore
-    }
-  }
-  return _storage;
 }
 
 export { getApp };
