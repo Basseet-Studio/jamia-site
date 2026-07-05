@@ -17,8 +17,8 @@ export async function GET(request: Request) {
       uid,
       blobConfigured: Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim()),
       firebaseAdminConfigured: Boolean(
-        process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim() ||
-          process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim(),
+        (process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim()?.length ?? 0) >
+          10 || process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim(),
       ),
     });
   } catch (err) {

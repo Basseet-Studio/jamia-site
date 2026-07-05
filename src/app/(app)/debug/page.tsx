@@ -252,7 +252,19 @@ export default function DebugPage() {
       const res = await fetch("/api/receipts/health", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const body = (await res.json()) as {
+      const contentType = res.headers.get("content-type") ?? "";
+      const raw = await res.text();
+      if (!contentType.includes("application/json")) {
+        addLog(
+          "err",
+          `receipt health failed (${res.status}): non-JSON response — route may not be deployed yet`,
+        );
+        setProbeResult(
+          `HTTP ${res.status}\nContent-Type: ${contentType || "(none)"}\n\n${raw.slice(0, 500)}`,
+        );
+        return;
+      }
+      const body = JSON.parse(raw) as {
         ok?: boolean;
         error?: string;
         blobConfigured?: boolean;
