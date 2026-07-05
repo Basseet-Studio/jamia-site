@@ -68,7 +68,7 @@
     "addDescription": "Create a new top-level household. Each household contains one or more families.",
     "deleteButton": "Delete",
     "deleteTitle": "Delete {name}?",
-    "deleteBody": "This permanently deletes the household, all families, and all payments. This cannot be undone. Type the household name to confirm.",
+    "deleteBody": "This removes the household from the list. Families, payments, and expenses are kept in the database but will no longer appear. Type the household name to confirm.",
     "deleteConfirmLabel": "Type the household name",
     "deleteConfirmAction": "Delete household",
     "deleting": "Deleting…",

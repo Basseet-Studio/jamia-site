@@ -20,40 +20,24 @@ export function subscribeHouseholds(
   const offHouseholds = onSnapshot(
     collection(getDb(), "households"),
     (snap) => {
-      // #region agent log
-      fetch("http://127.0.0.1:7841/ingest/d6064957-b3e4-44c8-9556-962aec9bf7da", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Debug-Session-Id": "24531e",
-        },
-        body: JSON.stringify({
-          sessionId: "24531e",
-          runId: "pre-fix",
-          hypothesisId: "H3",
-          location: "dashboardData.ts:subscribeHouseholds",
-          message: "dashboard households snapshot",
-          data: {
-            householdCount: snap.docs.length,
-            householdIds: snap.docs.map((d) => d.id),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       // Tear down old summary subscriptions.
       summaryUnsubs.forEach((u) => u());
       summaryUnsubs = [];
 
-      const list: HouseholdSummary[] = snap.docs.map((d) => ({
-        household: {
-          id: d.id,
-          name: String(d.data().name ?? ""),
-          createdAt: d.data().createdAt as Household["createdAt"],
-          createdBy: String(d.data().createdBy ?? ""),
-        },
-        summary: null,
-      }));
+      const list: HouseholdSummary[] = snap.docs
+        .filter((d) => d.data().active !== false)
+        .map((d) => ({
+          household: {
+            id: d.id,
+            name: String(d.data().name ?? ""),
+            createdAt: d.data().createdAt as Household["createdAt"],
+            createdBy: String(d.data().createdBy ?? ""),
+            active: d.data().active !== false,
+            deletedAt: (d.data().deletedAt as Household["deletedAt"]) ?? null,
+            deletedBy: (d.data().deletedBy as Household["deletedBy"]) ?? null,
+          },
+          summary: null,
+        }));
       // Initial empty emit so consumers see the household list.
       callback([...list]);
 

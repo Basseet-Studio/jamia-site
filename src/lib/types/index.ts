@@ -21,6 +21,9 @@ export interface Household {
   name: string;
   createdAt: Timestamp;
   createdBy: string;
+  active: boolean;
+  deletedAt: Timestamp | null;
+  deletedBy: string | null;
 }
 
 export interface Family {

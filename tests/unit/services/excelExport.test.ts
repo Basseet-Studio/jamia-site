@@ -70,6 +70,9 @@ const hh1: Household = {
   name: "North Ward",
   createdAt: ts(new Date("2026-01-01T00:00:00Z")),
   createdBy: "admin-uid",
+  active: true,
+  deletedAt: null,
+  deletedBy: null,
 };
 
 const hh2: Household = {
@@ -77,6 +80,9 @@ const hh2: Household = {
   name: "South Ward",
   createdAt: ts(new Date("2026-02-01T00:00:00Z")),
   createdBy: "admin-uid",
+  active: true,
+  deletedAt: null,
+  deletedBy: null,
 };
 
 const famActive: Family = {

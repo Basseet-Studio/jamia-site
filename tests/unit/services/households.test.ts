@@ -1,5 +1,5 @@
 /**
- * Household invariants (T086): cascade delete is atomic; uses chunked batches.
+ * Household invariants: soft delete sets active=false; data is preserved.
  */
 import { describe, expect, it } from "vitest";
 import * as svc from "@/lib/services/households";

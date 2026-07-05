@@ -59,6 +59,9 @@ const hh: Household = {
   name: "North Ward",
   createdAt: ts(new Date("2026-01-01T00:00:00Z")),
   createdBy: "admin-uid",
+  active: true,
+  deletedAt: null,
+  deletedBy: null,
 };
 
 const famActive: Family = {

@@ -289,32 +289,6 @@ export function subscribeHouseholdMonthlySummary(
             lastPayments = [...others, ...familyPayments];
             emit();
           },
-          (err) => {
-            // #region agent log
-            fetch("http://127.0.0.1:7841/ingest/d6064957-b3e4-44c8-9556-962aec9bf7da", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-Debug-Session-Id": "24531e",
-              },
-              body: JSON.stringify({
-                sessionId: "24531e",
-                runId: "post-fix",
-                hypothesisId: "H3",
-                location: "derived.ts:subscribeHouseholdMonthlySummary:familyPayments",
-                message: "family payments listener error",
-                data: {
-                  householdId,
-                  familyId: f.id,
-                  month,
-                  code: (err as { code?: string }).code,
-                  message: err.message,
-                },
-                timestamp: Date.now(),
-              }),
-            }).catch(() => {});
-            // #endregion
-          },
         ),
       );
     });
@@ -348,30 +322,6 @@ export function subscribeHouseholdMonthlySummary(
       }));
       rewirePayments(lastFamilies);
       emit();
-    },
-    (err) => {
-      // #region agent log
-      fetch("http://127.0.0.1:7841/ingest/d6064957-b3e4-44c8-9556-962aec9bf7da", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Debug-Session-Id": "24531e",
-        },
-        body: JSON.stringify({
-          sessionId: "24531e",
-          runId: "post-fix",
-          hypothesisId: "H3",
-          location: "derived.ts:subscribeHouseholdMonthlySummary:families",
-          message: "families listener error",
-          data: {
-            householdId,
-            code: (err as { code?: string }).code,
-            message: err.message,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
     },
   );
 

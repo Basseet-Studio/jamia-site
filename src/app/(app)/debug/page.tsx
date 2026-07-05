@@ -69,6 +69,9 @@ export default function DebugPage() {
           name: String(d.data().name ?? ""),
           createdAt: d.data().createdAt as Household["createdAt"],
           createdBy: String(d.data().createdBy ?? ""),
+          active: d.data().active !== false,
+          deletedAt: (d.data().deletedAt as Household["deletedAt"]) ?? null,
+          deletedBy: (d.data().deletedBy as Household["deletedBy"]) ?? null,
         }));
         setHouseholds(list);
         addLog("ok", `loaded ${list.length} household(s)`);
@@ -257,7 +260,7 @@ export default function DebugPage() {
         </p>
       </div>
 
-      <CardTitle> App version 1.0.0.1 </CardTitle>
+      <CardTitle> App version 1.0.0.2 </CardTitle>
       <Card>
         <CardHeader>
           <CardTitle>Auth</CardTitle>
@@ -297,7 +300,7 @@ export default function DebugPage() {
                 <option value="">— pick —</option>
                 {households.map((h) => (
                   <option key={h.id} value={h.id}>
-                    {h.name} ({h.id.slice(0, 6)})
+                    {h.name} {h.active ? "" : "(removed)"} ({h.id.slice(0, 6)})
                   </option>
                 ))}
               </select>

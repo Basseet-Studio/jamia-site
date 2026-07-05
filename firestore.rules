@@ -76,11 +76,20 @@ service cloud.firestore {
 
       allow create: if isAdmin()
         && request.resource.data.createdBy == request.auth.uid
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.active == true
+        && request.resource.data.deletedAt == null
+        && request.resource.data.deletedBy == null;
 
-      // The household doc carries identity only — no member fields. All other
-      // edits (e.g. name) are still blocked.
-      allow update: if false;
+      // Soft-delete only — sets active=false, deletedAt, deletedBy.
+      // Name edits and other field changes remain blocked.
+      allow update: if isAdmin()
+        && resource.data.active == true
+        && request.resource.data.active == false
+        && request.resource.data.deletedBy == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'active', 'deletedAt', 'deletedBy'
+        ]);
 
       allow delete: if isAdmin();
 

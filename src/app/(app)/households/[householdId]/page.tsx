@@ -87,7 +87,7 @@ export default function HouseholdDetailPage({
       <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
     );
   }
-  if (!household) {
+  if (!household || !household.active) {
     return (
       <p className="text-sm text-muted-foreground">
         {t("householdDetail.notFound")}

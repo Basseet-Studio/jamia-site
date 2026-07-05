@@ -38,47 +38,8 @@ export function DeleteHouseholdDialog({
     setError(null);
     try {
       await deleteHousehold(user.uid, householdId);
-      // #region agent log
-      fetch("http://127.0.0.1:7841/ingest/d6064957-b3e4-44c8-9556-962aec9bf7da", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Debug-Session-Id": "24531e",
-        },
-        body: JSON.stringify({
-          sessionId: "24531e",
-          runId: "pre-fix",
-          hypothesisId: "H2",
-          location: "DeleteHouseholdDialog.tsx:onConfirm",
-          message: "deleteHousehold UI success",
-          data: { householdId },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       setOpen(false);
     } catch (e) {
-      // #region agent log
-      fetch("http://127.0.0.1:7841/ingest/d6064957-b3e4-44c8-9556-962aec9bf7da", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Debug-Session-Id": "24531e",
-        },
-        body: JSON.stringify({
-          sessionId: "24531e",
-          runId: "pre-fix",
-          hypothesisId: "H2",
-          location: "DeleteHouseholdDialog.tsx:onConfirm",
-          message: "deleteHousehold UI error",
-          data: {
-            householdId,
-            error: (e as Error).message,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       setError((e as Error).message);
     } finally {
       setBusy(false);
