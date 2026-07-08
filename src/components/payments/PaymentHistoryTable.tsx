@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { DeletePaymentDialog } from "@/components/payments/DeletePaymentDialog";
 import { ReceiptDownloadButton } from "@/components/receipts/ReceiptDownloadButton";
+import { buildPaymentReceiptContext } from "@/lib/services/receiptPdfContext";
 import { AttachmentLink } from "@/components/receipts/AttachmentLink";
 import { useT } from "@/lib/i18n";
 import { format } from "date-fns";
@@ -103,13 +104,12 @@ export function PaymentHistoryTable({
               <TableCell className="text-right">
                 <div className="flex flex-col items-end gap-1">
                   <ReceiptDownloadButton
-                    ctx={{
-                      kind: "payment",
-                      payment: p,
-                      householdName: householdName || householdId,
-                      familyName: family?.name ?? p.familyId,
+                    ctx={buildPaymentReceiptContext(p, {
+                      householdName,
+                      householdId,
+                      family,
                       currency: cur,
-                    }}
+                    })}
                     label="PDF"
                   />
                   <AttachmentLink

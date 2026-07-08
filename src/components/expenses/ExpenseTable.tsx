@@ -20,6 +20,7 @@ import { deleteExpense } from "@/lib/services/expenses";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useT } from "@/lib/i18n";
 import { ReceiptDownloadButton } from "@/components/receipts/ReceiptDownloadButton";
+import { buildExpenseReceiptContext } from "@/lib/services/receiptPdfContext";
 import { AttachmentLink } from "@/components/receipts/AttachmentLink";
 
 export function ExpenseTable({ expenses }: { expenses: Expense[] }) {
@@ -113,11 +114,7 @@ export function ExpenseTable({ expenses }: { expenses: Expense[] }) {
                 <div className="flex justify-end gap-2">
                   {e.withdrawn ? (
                     <ReceiptDownloadButton
-                      ctx={{
-                        kind: "expense",
-                        expense: e,
-                        currency: cur,
-                      }}
+                      ctx={buildExpenseReceiptContext(e, { currency: cur })}
                       label="PDF"
                     />
                   ) : null}

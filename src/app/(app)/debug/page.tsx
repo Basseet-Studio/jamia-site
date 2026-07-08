@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useT } from "@/lib/i18n";
 import type { Family, Household } from "@/lib/types";
+import { PdfExportDebugPanel } from "@/components/debug/PdfExportDebugPanel";
 
 interface LogEntry {
   ts: string;
@@ -286,6 +287,10 @@ export default function DebugPage() {
     }
   }
 
+  const selectedFamily = families.find((f) => f.id === probe.familyId) ?? null;
+  const selectedHouseholdName =
+    households.find((h) => h.id === probe.householdId)?.name ?? "";
+
   if (loading) {
     return (
       <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
@@ -392,6 +397,14 @@ export default function DebugPage() {
           ) : null}
         </CardContent>
       </Card>
+
+      <PdfExportDebugPanel
+        householdId={probe.householdId}
+        familyId={probe.familyId}
+        householdName={selectedHouseholdName}
+        family={selectedFamily}
+        addLog={addLog}
+      />
 
       <Card>
         <CardHeader>

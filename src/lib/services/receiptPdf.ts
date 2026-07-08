@@ -1,5 +1,11 @@
 import { jsPDF } from "jspdf";
 import type { Contribution, Expense, Payment } from "@/lib/types";
+import {
+  describeTimestamp,
+  isReceiptPdfVerbose,
+  logReceiptPdf,
+  summarizeReceiptContext,
+} from "@/lib/services/receiptPdfDebug";
 
 export type ReceiptKind = "payment" | "contribution" | "expense";
 
@@ -79,7 +85,14 @@ function receiptFileName(ctx: ReceiptContext): string {
 }
 
 export function buildReceiptPdfDoc(ctx: ReceiptContext) {
+  const verbose = isReceiptPdfVerbose();
+  logReceiptPdf("build_start", "info", {
+    context: summarizeReceiptContext(ctx),
+  });
+
   const doc = new jsPDF({ unit: "mm", format: "a5" });
+  logReceiptPdf("jspdf_init_ok", "ok");
+
   const margin = 14;
   let y = margin;
 
@@ -97,6 +110,9 @@ export function buildReceiptPdfDoc(ctx: ReceiptContext) {
   doc.setTextColor(0);
 
   const line = (label: string, value: string) => {
+    if (verbose) {
+      logReceiptPdf("build_line", "info", { label, value });
+    }
     doc.setFontSize(9);
     doc.text(label, margin, y);
     doc.text(value, margin + 42, y);
@@ -109,6 +125,12 @@ export function buildReceiptPdfDoc(ctx: ReceiptContext) {
         ctx.relatedPayments && ctx.relatedPayments.length > 0
           ? ctx.relatedPayments
           : [ctx.payment];
+      if (verbose) {
+        logReceiptPdf("build_payment_fields", "info", {
+          date: describeTimestamp(ctx.payment.date, "payment.date"),
+          paymentsCount: payments.length,
+        });
+      }
       line("Household", ctx.householdName);
       line("Family", ctx.familyName);
       line("Date", formatDate(ctx.payment.date));
@@ -129,6 +151,11 @@ export function buildReceiptPdfDoc(ctx: ReceiptContext) {
       break;
     }
     case "contribution": {
+      if (verbose) {
+        logReceiptPdf("build_contribution_fields", "info", {
+          date: describeTimestamp(ctx.contribution.date, "contribution.date"),
+        });
+      }
       line("Contributor", ctx.contribution.contributorName);
       line("Date", formatDate(ctx.contribution.date));
       line("Amount", formatMoney(ctx.contribution.amount, ctx.currency));
@@ -136,6 +163,11 @@ export function buildReceiptPdfDoc(ctx: ReceiptContext) {
       break;
     }
     case "expense": {
+      if (verbose) {
+        logReceiptPdf("build_expense_fields", "info", {
+          date: describeTimestamp(ctx.expense.date, "expense.date"),
+        });
+      }
       line("Expense", ctx.expense.name);
       line("Date", formatDate(ctx.expense.date));
       line("Month", ctx.expense.month);
@@ -153,5 +185,8 @@ export function buildReceiptPdfDoc(ctx: ReceiptContext) {
   doc.setTextColor(120);
   doc.text("Thank you for your support.", margin, y);
 
-  return { doc, fileName: receiptFileName(ctx) };
+  const fileName = receiptFileName(ctx);
+  logReceiptPdf("build_done", "ok", { fileName, finalY: y });
+
+  return { doc, fileName };
 }
