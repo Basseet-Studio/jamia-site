@@ -14,10 +14,8 @@
  *     The page passes its already-subscribed live data; the export reads the
  *     same snapshot the screen renders.
  */
-import { collection, collectionGroup, getDocs, query } from "firebase/firestore";
 import writeXlsxFile from "write-excel-file/browser";
 
-import { getDb } from "@/lib/firebase/client";
 import {
   buildFileName,
   buildWorkbook,
@@ -34,8 +32,8 @@ import {
 import { listExpenses } from "@/lib/services/expenses";
 import { listHouseholds } from "@/lib/services/households";
 import { listFamilies } from "@/lib/services/families";
+import { listPayments } from "@/lib/services/payments";
 import { listRecurringTemplates } from "@/lib/services/recurring";
-import { parseAttachmentFields } from "@/lib/services/attachments";
 import type { Family, Household, Payment } from "@/lib/types";
 
 // ============================================================================
@@ -168,53 +166,29 @@ function triggerAnchorDownload(blob: Blob, fileName: string): void {
 // Full-report data fetch (research.md §5)
 // ============================================================================
 
-async function fetchAllData(): Promise<ExportData> {
-  const db = getDb();
-  const [households, expenses, recurringTemplates, paymentsSnap] =
-    await Promise.all([
-      listHouseholds(),
-      listExpenses("all"),
-      listRecurringTemplates(false),
-      // Payments are a collection-group query (sub-collection of family).
-      getDocs(query(collectionGroup(db, "payments"))),
-    ]);
+/** Read payments via per-family paths (allowed by nested Firestore rules). */
+async function listPaymentsForFamilies(families: Family[]): Promise<Payment[]> {
+  if (families.length === 0) return [];
+  const byFamily = await Promise.all(
+    families.map((f) => listPayments(f.householdId, f.id)),
+  );
+  return byFamily.flat();
+}
 
-  // Per-household family fetches in parallel.
+async function fetchAllData(): Promise<ExportData> {
+  const [households, expenses, recurringTemplates] = await Promise.all([
+    listHouseholds(),
+    listExpenses("all"),
+    listRecurringTemplates(false),
+  ]);
+
   const familiesByHousehold = await Promise.all(
     households.map((h) => listFamilies(h.id)),
   );
-  const families: Family[] = familiesByHousehold.flat();
-
-  const payments: Payment[] = paymentsSnap.docs.map((d) =>
-    paymentFromDoc(d.id, d.ref, d.data() as Record<string, unknown>),
-  );
+  const families = familiesByHousehold.flat();
+  const payments = await listPaymentsForFamilies(families);
 
   return { households, families, payments, expenses, recurringTemplates };
-}
-
-function paymentFromDoc(
-  id: string,
-  ref: { parent?: { id?: string; parent?: { id?: string } | null } | null },
-  data: Record<string, unknown>,
-): Payment {
-  const familyRef = ref.parent;
-  const householdRef = familyRef?.parent;
-  return {
-    id,
-    householdId: householdRef?.id ?? "",
-    familyId: familyRef?.id ?? "",
-    amount: typeof data.amount === "number" ? data.amount : 0,
-    date: data.date as Payment["date"],
-    month: String(data.month ?? ""),
-    note: (data.note as Payment["note"]) ?? null,
-    recordedAt: data.recordedAt as Payment["recordedAt"],
-    recordedBy: String(data.recordedBy ?? ""),
-    coverageGroupId:
-      typeof data.coverageGroupId === "string"
-        ? (data.coverageGroupId as string)
-        : null,
-    ...parseAttachmentFields(data),
-  };
 }
 
 /**
@@ -224,16 +198,12 @@ function paymentFromDoc(
 export async function fetchHouseholdExportData(
   households: Household[],
 ): Promise<ExportData> {
-  const db = getDb();
-  const [familiesByHousehold, paymentsSnap, expenses] = await Promise.all([
+  const [familiesByHousehold, expenses] = await Promise.all([
     Promise.all(households.map((h) => listFamilies(h.id))),
-    getDocs(query(collectionGroup(db, "payments"))),
     listExpenses("all", { type: "household" }),
   ]);
-  const families: Family[] = familiesByHousehold.flat();
-  const payments: Payment[] = paymentsSnap.docs.map((d) =>
-    paymentFromDoc(d.id, d.ref, d.data() as Record<string, unknown>),
-  );
+  const families = familiesByHousehold.flat();
+  const payments = await listPaymentsForFamilies(families);
   return {
     households,
     families,

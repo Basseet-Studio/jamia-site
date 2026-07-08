@@ -1,0 +1,8 @@
+{"sessionId":"818128","runId":"pre-fix","hypothesisId":"H2","location":"excelExportClient:triggerDownload","message":"start full export","data":{"filterKind":"full","adminUid":"9Ir81BQMdLelrHOyogF1FTzF3Dz1"},"timestamp":1783538369242}
+{"sessionId":"818128","runId":"pre-fix","hypothesisId":"H3","location":"excelExportClient:fetchAllData","message":"start","data":{},"timestamp":1783538369243}
+{"sessionId":"818128","runId":"pre-fix","hypothesisId":"H3","location":"excelExportClient:fetchAllData","message":"listExpenses ok","data":{"count":2},"timestamp":1783538371014}
+{"sessionId":"818128","runId":"pre-fix","hypothesisId":"H3","location":"excelExportClient:fetchAllData","message":"listHouseholds ok","data":{"count":1},"timestamp":1783538371015}
+{"sessionId":"818128","runId":"pre-fix","hypothesisId":"H3","location":"excelExportClient:fetchAllData","message":"listRecurringTemplates ok","data":{"count":0},"timestamp":1783538371054}
+{"sessionId":"818128","runId":"pre-fix","hypothesisId":"H3","location":"excelExportClient:fetchAllData","message":"listFamilies ok","data":{"count":1},"timestamp":1783538371055}
+{"sessionId":"818128","runId":"pre-fix","hypothesisId":"H1","location":"excelExportClient:fetchAllData","message":"listPayments per family ok","data":{"count":1},"timestamp":1783538371056}
+{"sessionId":"818128","runId":"pre-fix","hypothesisId":"H3","location":"excelExportClient:fetchAllData","message":"complete","data":{"households":1,"families":1,"payments":1,"expenses":2,"recurringTemplates":0},"timestamp":1783538371056}
