@@ -22,7 +22,7 @@ import {
 import { formatCurrency } from "@/lib/utils/currency";
 import { FullReportButton } from "@/components/excel/FullReportButton";
 import { AttachmentUploadField } from "@/components/receipts/AttachmentUploadField";
-import { ReceiptDownloadButton } from "@/components/receipts/ReceiptDownloadButton";
+import { ReceiptPrintButtons } from "@/components/receipts/ReceiptPrintButtons";
 import { buildContributionReceiptContext } from "@/lib/services/receiptPdfContext";
 import { AttachmentLink } from "@/components/receipts/AttachmentLink";
 
@@ -222,11 +222,10 @@ export default function ContributionsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <ReceiptDownloadButton
+                  <ReceiptPrintButtons
                     ctx={buildContributionReceiptContext(item, {
                       currency: cur,
                     })}
-                    label="PDF"
                   />
                   <AttachmentLink
                     path={item.attachmentPath}

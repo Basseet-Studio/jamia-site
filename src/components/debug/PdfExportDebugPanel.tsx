@@ -16,7 +16,7 @@ import {
   buildExpenseReceiptContext,
   buildPaymentReceiptContext,
 } from "@/lib/services/receiptPdfContext";
-import { downloadReceiptPdf } from "@/lib/services/receiptPdfClient";
+import { printReceiptPdf } from "@/lib/services/receiptPdfClient";
 import {
   describeTimestamp,
   isReceiptPdfVerbose,
@@ -25,6 +25,7 @@ import {
   summarizeReceiptContext,
 } from "@/lib/services/receiptPdfDebug";
 import type { Expense, Family, Payment } from "@/lib/types";
+import type { ReceiptPdfFormat } from "@/lib/services/receiptPdf";
 
 type AddLog = (level: "info" | "ok" | "err", msg: string) => void;
 
@@ -167,7 +168,7 @@ export function PdfExportDebugPanel({
     addLog("info", `verbose PDF logs ${next ? "enabled" : "disabled"}`);
   }
 
-  function testPaymentPdf() {
+  function testPaymentPrint(format: ReceiptPdfFormat) {
     if (!selectedPayment) {
       addLog("err", "no payment selected");
       return;
@@ -178,29 +179,31 @@ export function PdfExportDebugPanel({
       family,
       currency: cur,
     });
-    addLog("info", `testing payment PDF id=${selectedPayment.id}`);
+    addLog("info", `testing payment print ${format} id=${selectedPayment.id}`);
     logReceiptPdf("debug_test_payment", "info", {
       context: summarizeReceiptContext(ctx),
+      format,
     });
-    downloadReceiptPdf(ctx);
-    addLog("ok", `payment PDF triggered id=${selectedPayment.id}`);
+    printReceiptPdf(ctx, format);
+    addLog("ok", `payment print ${format} triggered id=${selectedPayment.id}`);
   }
 
-  function testExpensePdf() {
+  function testExpensePrint(format: ReceiptPdfFormat) {
     if (!selectedExpense) {
       addLog("err", "no withdrawn expense selected");
       return;
     }
     const ctx = buildExpenseReceiptContext(selectedExpense, { currency: cur });
-    addLog("info", `testing expense PDF id=${selectedExpense.id}`);
+    addLog("info", `testing expense print ${format} id=${selectedExpense.id}`);
     logReceiptPdf("debug_test_expense", "info", {
       context: summarizeReceiptContext(ctx),
+      format,
     });
-    downloadReceiptPdf(ctx);
-    addLog("ok", `expense PDF triggered id=${selectedExpense.id}`);
+    printReceiptPdf(ctx, format);
+    addLog("ok", `expense print ${format} triggered id=${selectedExpense.id}`);
   }
 
-  function testContributionPdf() {
+  function testContributionPrint(format: ReceiptPdfFormat) {
     if (!selectedContribution) {
       addLog("err", "no contribution selected");
       return;
@@ -208,18 +211,25 @@ export function PdfExportDebugPanel({
     const ctx = buildContributionReceiptContext(selectedContribution, {
       currency: cur,
     });
-    addLog("info", `testing contribution PDF id=${selectedContribution.id}`);
+    addLog(
+      "info",
+      `testing contribution print ${format} id=${selectedContribution.id}`,
+    );
     logReceiptPdf("debug_test_contribution", "info", {
       context: summarizeReceiptContext(ctx),
+      format,
     });
-    downloadReceiptPdf(ctx);
-    addLog("ok", `contribution PDF triggered id=${selectedContribution.id}`);
+    printReceiptPdf(ctx, format);
+    addLog(
+      "ok",
+      `contribution print ${format} triggered id=${selectedContribution.id}`,
+    );
   }
 
-  function testAll() {
-    if (selectedPayment) testPaymentPdf();
-    if (selectedExpense) testExpensePdf();
-    if (selectedContribution) testContributionPdf();
+  function testAll(format: ReceiptPdfFormat) {
+    if (selectedPayment) testPaymentPrint(format);
+    if (selectedExpense) testExpensePrint(format);
+    if (selectedContribution) testContributionPrint(format);
     if (!selectedPayment && !selectedExpense && !selectedContribution) {
       addLog("err", "no records available to test");
     }
@@ -257,12 +267,13 @@ export function PdfExportDebugPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>PDF export debug</CardTitle>
+        <CardTitle>Receipt print debug</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-xs text-muted-foreground">
           Uses the same receipt context builders as payments, expenses, and
-          contributions pages. Check browser console for{" "}
+          contributions pages. Opens the browser print dialog (Save as PDF
+          works via the browser printer list). Check console for{" "}
           <code>[jamia/receipt-pdf]</code> logs.
         </p>
 
@@ -347,17 +358,53 @@ export function PdfExportDebugPanel({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={testPaymentPdf}>
-            Test payment PDF
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => testPaymentPrint("a4")}
+          >
+            Print payment A4
           </Button>
-          <Button size="sm" variant="outline" onClick={testExpensePdf}>
-            Test expense PDF
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => testPaymentPrint("a5")}
+          >
+            Print payment A5
           </Button>
-          <Button size="sm" variant="outline" onClick={testContributionPdf}>
-            Test contribution PDF
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => testExpensePrint("a4")}
+          >
+            Print expense A4
           </Button>
-          <Button size="sm" onClick={testAll}>
-            Test all available
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => testExpensePrint("a5")}
+          >
+            Print expense A5
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => testContributionPrint("a4")}
+          >
+            Print contribution A4
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => testContributionPrint("a5")}
+          >
+            Print contribution A5
+          </Button>
+          <Button size="sm" onClick={() => testAll("a5")}>
+            Test all A5
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => testAll("a4")}>
+            Test all A4
           </Button>
         </div>
 

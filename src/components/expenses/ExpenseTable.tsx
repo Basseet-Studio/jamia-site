@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { deleteExpense } from "@/lib/services/expenses";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useT } from "@/lib/i18n";
-import { ReceiptDownloadButton } from "@/components/receipts/ReceiptDownloadButton";
+import { ReceiptPrintButtons } from "@/components/receipts/ReceiptPrintButtons";
 import { buildExpenseReceiptContext } from "@/lib/services/receiptPdfContext";
 import { AttachmentLink } from "@/components/receipts/AttachmentLink";
 
@@ -113,9 +113,8 @@ export function ExpenseTable({ expenses }: { expenses: Expense[] }) {
               <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
                   {e.withdrawn ? (
-                    <ReceiptDownloadButton
+                    <ReceiptPrintButtons
                       ctx={buildExpenseReceiptContext(e, { currency: cur })}
-                      label="PDF"
                     />
                   ) : null}
                   <AttachmentLink

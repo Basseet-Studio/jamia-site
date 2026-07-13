@@ -39,6 +39,8 @@ export type ReceiptContext =
   | ContributionReceiptContext
   | ExpenseReceiptContext;
 
+export type ReceiptPdfFormat = "a4" | "a5";
+
 function formatMoney(amount: number, currency: string): string {
   return (
     new Intl.NumberFormat("en-US", {
@@ -84,13 +86,17 @@ function receiptFileName(ctx: ReceiptContext): string {
   return `jamia-receipt-${receiptId(ctx).slice(0, 8)}-${date}.pdf`;
 }
 
-export function buildReceiptPdfDoc(ctx: ReceiptContext) {
+export function buildReceiptPdfDoc(
+  ctx: ReceiptContext,
+  format: ReceiptPdfFormat = "a5",
+) {
   const verbose = isReceiptPdfVerbose();
   logReceiptPdf("build_start", "info", {
     context: summarizeReceiptContext(ctx),
+    format,
   });
 
-  const doc = new jsPDF({ unit: "mm", format: "a5" });
+  const doc = new jsPDF({ unit: "mm", format });
   logReceiptPdf("jspdf_init_ok", "ok");
 
   const margin = 14;
