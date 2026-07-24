@@ -306,7 +306,7 @@ export default function DebugPage() {
         </p>
       </div>
 
-      <CardTitle> App version 1.0.1.1 </CardTitle>
+      <CardTitle> App version 1.0.1.2 </CardTitle>
       <Card>
         <CardHeader>
           <CardTitle>Auth</CardTitle>

@@ -25,8 +25,10 @@ import { AttachmentUploadField } from "@/components/receipts/AttachmentUploadFie
 import { ReceiptPrintButtons } from "@/components/receipts/ReceiptPrintButtons";
 import { buildContributionReceiptContext } from "@/lib/services/receiptPdfContext";
 import { AttachmentLink } from "@/components/receipts/AttachmentLink";
+import { useT } from "@/lib/i18n";
 
 export default function ContributionsPage() {
+  const t = useT();
   const { user } = useAuth();
   const { moh } = useMoneyOnHand();
   const { contributions, loading, error } = useContributions();
@@ -67,23 +69,18 @@ export default function ContributionsPage() {
   }
 
   async function onDelete(id: string) {
-    // TODO: localise this later
-    if (!confirm("Delete this contribution?")) return;
+    if (!confirm(t("contributions.confirmDelete"))) return;
     await deleteContribution(id);
   }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">
-          {/* TODO: localise this later */}
-          Contributions
-        </h1>
+        <h1 className="text-2xl font-semibold">{t("contributions.heading")}</h1>
         <div className="flex items-center gap-2">
           <FullReportButton />
           <Button onClick={() => setShowForm((value) => !value)}>
-            {/* TODO: localise this later */}
-            Add Contribution
+            {t("contributions.addButton")}
           </Button>
         </div>
       </div>
@@ -91,8 +88,7 @@ export default function ContributionsPage() {
       <div className="grid gap-3 md:grid-cols-2">
         <Card>
           <CardHeader>
-            {/* TODO: localise this later */}
-            <CardTitle>Total Contributed</CardTitle>
+            <CardTitle>{t("contributions.totalContributed")}</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold tabular-nums">
             {formatCurrency(total, cur)}
@@ -100,8 +96,7 @@ export default function ContributionsPage() {
         </Card>
         <Card>
           <CardHeader>
-            {/* TODO: localise this later */}
-            <CardTitle>Records</CardTitle>
+            <CardTitle>{t("contributions.records")}</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold tabular-nums">
             {contributions.length}
@@ -112,16 +107,14 @@ export default function ContributionsPage() {
       {showForm ? (
         <Card>
           <CardHeader>
-            {/* TODO: localise this later */}
-            <CardTitle>New Contribution</CardTitle>
+            <CardTitle>{t("contributions.addTitle")}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="contributorName">
-                    {/* TODO: localise this later */}
-                    Contributor name
+                    {t("contributions.contributorName")}
                   </Label>
                   <Input
                     id="contributorName"
@@ -129,10 +122,7 @@ export default function ContributionsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="amount">
-                    {/* TODO: localise this later */}
-                    Amount
-                  </Label>
+                  <Label htmlFor="amount">{t("contributions.amount")}</Label>
                   <Input
                     id="amount"
                     type="number"
@@ -142,10 +132,7 @@ export default function ContributionsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="date">
-                    {/* TODO: localise this later */}
-                    Date
-                  </Label>
+                  <Label htmlFor="date">{t("contributions.date")}</Label>
                   <Input
                     id="date"
                     type="date"
@@ -158,10 +145,7 @@ export default function ContributionsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="note">
-                    {/* TODO: localise this later */}
-                    Note
-                  </Label>
+                  <Label htmlFor="note">{t("contributions.note")}</Label>
                   <Textarea
                     id="note"
                     {...form.register("note")}
@@ -180,12 +164,10 @@ export default function ContributionsPage() {
                   variant="outline"
                   onClick={() => setShowForm(false)}
                 >
-                  {/* TODO: localise this later */}
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button type="submit" disabled={busy}>
-                  {/* TODO: localise this later */}
-                  {busy ? "Saving..." : "Save Contribution"}
+                  {busy ? t("contributions.saving") : t("contributions.save")}
                 </Button>
               </div>
             </form>
@@ -194,16 +176,12 @@ export default function ContributionsPage() {
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">
-          {/* TODO: localise this later */}
-          Loading...
-        </p>
+        <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
       ) : error ? (
         <p className="text-sm text-destructive">{error}</p>
       ) : contributions.length === 0 ? (
         <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
-          {/* TODO: localise this later */}
-          No contributions recorded yet.
+          {t("contributions.empty")}
         </div>
       ) : (
         <div className="divide-y rounded-md border">
@@ -240,8 +218,7 @@ export default function ContributionsPage() {
                     className="text-destructive"
                     onClick={() => onDelete(item.id)}
                   >
-                    {/* TODO: localise this later */}
-                    Delete
+                    {t("contributions.delete")}
                   </Button>
                 </div>
               </div>

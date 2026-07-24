@@ -147,8 +147,7 @@ export function AddExpenseDialog({
       <DialogTrigger asChild>
         <Button>
           {fixedHouseholdId
-            ? // TODO: localise this later
-              "Add Household Expense"
+            ? t("expenses.addHouseholdButton")
             : t("expenses.addButton")}
         </Button>
       </DialogTrigger>

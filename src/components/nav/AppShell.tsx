@@ -19,7 +19,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const navItems: { href: string; labelKey: string }[] = [
     { href: "/dashboard", labelKey: "nav.dashboard" },
     { href: "/households", labelKey: "nav.households" },
-    { href: "/contributions", labelKey: "Contributions" },
+    { href: "/contributions", labelKey: "nav.contributions" },
     { href: "/expenses", labelKey: "nav.expenses" },
     { href: "/recurring", labelKey: "nav.recurring" },
     { href: "/calendar", labelKey: "nav.calendar" },
@@ -50,10 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         : "text-muted-foreground hover:bg-muted",
                     )}
                   >
-                    {it.href === "/contributions"
-                      ? // TODO: localise this later
-                        it.labelKey
-                      : t(it.labelKey)}
+                    {t(it.labelKey)}
                   </Link>
                 );
               })}

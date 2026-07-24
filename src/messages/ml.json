@@ -29,7 +29,8 @@
     "recurring": "സ്ഥിരം ചെലവുകൾ",
     "calendar": "കലണ്ടർ",
     "settings": "ക്രമീകരണങ്ങൾ",
-    "debug": "Debug"
+    "debug": "Debug",
+    "contributions": "Sambawava"
   },
   "auth": {
     "signInTitle": "വീരമംഗലം ജുമാ മസ്ജിദ്",
@@ -86,7 +87,18 @@
     "tableActions": "പ്രവർത്തനങ്ങൾ",
     "quickActions": "പെട്ടെന്നുള്ള പ്രവർത്തനങ്ങൾ",
     "householdExpenses": "Household expenses ({month})",
-    "noHouseholdExpenses": "No household-scoped expenses recorded for this month."
+    "noHouseholdExpenses": "No household-scoped expenses recorded for this month.",
+    "noMatchingFamilies": "No families match the current filters.",
+    "sortByName": "Sort by name",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "filterByStatus": "Filter by status",
+    "statusAll": "All",
+    "totalContributions": "Total Sambawava",
+    "totalExpenses": "Total Chelavakal",
+    "net": "Net",
+    "householdExpensesHeading": "Household Chelavakal",
+    "noPendingHouseholdExpenses": "No pending household chelavakal."
   },
   "householdTable": {
     "empty": "ഇതുവരെ വീടുകൾ ചേർത്തിട്ടില്ല. ഒരെണ്ണം സൃഷ്ടിക്കാൻ “വീട് ചേർക്കുക” ഉപയോഗിക്കുക.",
@@ -238,7 +250,8 @@
       "withdrawConfirmBody": "{name} ({amount}) പിൻവലിക്കാൻ പോകുന്നു. ഇത് പണത്തിന്റെ ലഭ്യത ആ തുകക്ക് കുറയ്ക്കും, പിൻവലിക്കാൻ കഴിയില്ല.",
       "warningOverBudget": "ഈ മാസത്തെ സ്ഥിരം ചെലവുകൾ ({total}) പ്രതീക്ഷിക്കുന്ന സംഭാവനകളേക്കാൾ ({expected}) കൂടുതലാണ്.",
       "dismiss": "ഒഴിവാക്കുക"
-    }
+    },
+    "addHouseholdButton": "Add Household Chelavakal"
   },
   "recurring": {
     "heading": "സ്ഥിരം ചെലവുകൾ",
@@ -347,5 +360,21 @@
   "months": {
     "prev": "മുൻ മാസം",
     "next": "അടുത്ത മാസം"
+  },
+  "contributions": {
+    "heading": "Sambawava",
+    "addButton": "Add Sambawava",
+    "addTitle": "New Sambawava",
+    "save": "Save Sambawava",
+    "saving": "Saving…",
+    "totalContributed": "Total Sambawava",
+    "records": "Records",
+    "contributorName": "Contributor name",
+    "amount": "Amount",
+    "date": "Date",
+    "note": "Note",
+    "empty": "No sambawava recorded yet.",
+    "confirmDelete": "Delete this sambawava?",
+    "delete": "Delete"
   }
 }

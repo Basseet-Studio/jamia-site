@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { EditFamilyDialog } from "@/components/households/EditFamilyDialog";
 import { FamilyMembersDialog } from "@/components/households/FamilyMembersDialog";
 import { SoftDeleteFamilyDialog } from "@/components/households/SoftDeleteFamilyDialog";
+import { RecordPaymentDialog } from "@/components/payments/RecordPaymentDialog";
 import { StatusBadge } from "@/components/payments/StatusBadge";
 import { useT } from "@/lib/i18n";
 
@@ -80,7 +81,12 @@ export function FamilyRow({
       </td>
       <td className="px-3 py-2 text-right">
         {family.active ? (
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
+            <RecordPaymentDialog
+              householdId={householdId}
+              familyId={family.id}
+              familyName={family.name}
+            />
             <FamilyMembersDialog householdId={householdId} family={family} />
             <EditFamilyDialog householdId={householdId} family={family} />
             <SoftDeleteFamilyDialog

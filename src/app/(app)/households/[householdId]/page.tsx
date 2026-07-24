@@ -8,7 +8,6 @@ import { AddFamilyDialog } from "@/components/households/AddFamilyDialog";
 import { AddExpenseDialog } from "@/components/expenses/AddExpenseDialog";
 import { ExpenseTable } from "@/components/expenses/ExpenseTable";
 import { FamilyRow } from "@/components/households/FamilyRow";
-import { RecordPaymentDialog } from "@/components/payments/RecordPaymentDialog";
 import { MonthNavigator } from "@/components/nav/MonthNavigator";
 import { currentMonthKey, toMonthKey } from "@/lib/utils/dates";
 import { useT } from "@/lib/i18n";
@@ -20,9 +19,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type {
   Expense,
   Family,
+  FamilyMonthlyStatus,
   FamilyMonthlySummary,
   Household,
 } from "@/lib/types";
@@ -31,6 +39,13 @@ import { useMoneyOnHand } from "@/lib/hooks/useMoneyOnHand";
 import { useHouseholdFinancialSummary } from "@/lib/hooks/useHouseholdFinancialSummary";
 import { FullReportButton } from "@/components/excel/FullReportButton";
 import { PerScreenExportButton } from "@/components/excel/PerScreenExportButton";
+
+const STATUS_OPTIONS: FamilyMonthlyStatus[] = [
+  "Unpaid",
+  "Partial",
+  "Met",
+  "Over",
+];
 
 export default function HouseholdDetailPage({
   params,
@@ -47,6 +62,10 @@ export default function HouseholdDetailPage({
   const [householdExpenses, setHouseholdExpenses] = useState<Expense[]>([]);
   const [month, setMonth] = useState<string>(currentMonthKey());
   const [showSoftDeleted, setShowSoftDeleted] = useState<boolean>(false);
+  const [nameSort, setNameSort] = useState<"asc" | "desc">("asc");
+  const [statusFilter, setStatusFilter] = useState<"all" | FamilyMonthlyStatus>(
+    "all",
+  );
   const [loading, setLoading] = useState(true);
   const financialSummary = useHouseholdFinancialSummary(householdId);
 
@@ -82,6 +101,21 @@ export default function HouseholdDetailPage({
     return m;
   }, [statuses]);
 
+  const visibleFamilies = useMemo(() => {
+    const filtered = families.filter((f) => {
+      if (!showSoftDeleted && !f.active) return false;
+      if (statusFilter === "all") return true;
+      const status = statusById.get(f.id)?.status ?? "Unpaid";
+      return status === statusFilter;
+    });
+    return filtered.sort((a, b) => {
+      const cmp = a.name.localeCompare(b.name, undefined, {
+        sensitivity: "base",
+      });
+      return nameSort === "asc" ? cmp : -cmp;
+    });
+  }, [families, showSoftDeleted, statusFilter, statusById, nameSort]);
+
   if (loading) {
     return (
       <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
@@ -109,8 +143,7 @@ export default function HouseholdDetailPage({
       <div className="grid gap-3 md:grid-cols-3">
         <Card>
           <CardHeader>
-            {/* TODO: localise this later */}
-            <CardTitle>Total Contributions</CardTitle>
+            <CardTitle>{t("householdDetail.totalContributions")}</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold tabular-nums">
             {formatCurrency(financialSummary.totalContributions, cur)}
@@ -118,8 +151,7 @@ export default function HouseholdDetailPage({
         </Card>
         <Card>
           <CardHeader>
-            {/* TODO: localise this later */}
-            <CardTitle>Total Expenses</CardTitle>
+            <CardTitle>{t("householdDetail.totalExpenses")}</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold tabular-nums">
             {formatCurrency(financialSummary.totalExpenses, cur)}
@@ -127,8 +159,7 @@ export default function HouseholdDetailPage({
         </Card>
         <Card>
           <CardHeader>
-            {/* TODO: localise this later */}
-            <CardTitle>Net</CardTitle>
+            <CardTitle>{t("householdDetail.net")}</CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold tabular-nums">
             {formatCurrency(financialSummary.net, cur)}
@@ -137,9 +168,73 @@ export default function HouseholdDetailPage({
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0">
           <CardTitle>{t("householdDetail.families")}</CardTitle>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Label
+                htmlFor="family-name-sort"
+                className="text-xs text-muted-foreground"
+              >
+                {t("householdDetail.sortByName")}
+              </Label>
+              <Select
+                value={nameSort}
+                onValueChange={(value) =>
+                  setNameSort(value as "asc" | "desc")
+                }
+              >
+                <SelectTrigger
+                  id="family-name-sort"
+                  size="sm"
+                  className="w-[140px]"
+                  data-testid="family-name-sort"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="asc">
+                    {t("householdDetail.sortAsc")}
+                  </SelectItem>
+                  <SelectItem value="desc">
+                    {t("householdDetail.sortDesc")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label
+                htmlFor="family-status-filter"
+                className="text-xs text-muted-foreground"
+              >
+                {t("householdDetail.filterByStatus")}
+              </Label>
+              <Select
+                value={statusFilter}
+                onValueChange={(value) =>
+                  setStatusFilter(value as "all" | FamilyMonthlyStatus)
+                }
+              >
+                <SelectTrigger
+                  id="family-status-filter"
+                  size="sm"
+                  className="w-[130px]"
+                  data-testid="family-status-filter"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">
+                    {t("householdDetail.statusAll")}
+                  </SelectItem>
+                  {STATUS_OPTIONS.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {t(`paymentStatus.${status}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
               <input
                 type="checkbox"
@@ -175,6 +270,10 @@ export default function HouseholdDetailPage({
             <p className="text-sm text-muted-foreground">
               {t("householdDetail.noFamilies")}
             </p>
+          ) : visibleFamilies.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {t("householdDetail.noMatchingFamilies")}
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -200,16 +299,14 @@ export default function HouseholdDetailPage({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {families
-                  .filter((f) => showSoftDeleted || f.active)
-                  .map((f) => (
-                    <FamilyRow
-                      key={f.id}
-                      householdId={householdId}
-                      family={f}
-                      status={statusById.get(f.id) ?? null}
-                    />
-                  ))}
+                {visibleFamilies.map((f) => (
+                  <FamilyRow
+                    key={f.id}
+                    householdId={householdId}
+                    family={f}
+                    status={statusById.get(f.id) ?? null}
+                  />
+                ))}
               </TableBody>
             </Table>
           )}
@@ -218,15 +315,13 @@ export default function HouseholdDetailPage({
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-3">
-          {/* TODO: localise this later */}
-          <CardTitle>Household Expenses</CardTitle>
+          <CardTitle>{t("householdDetail.householdExpensesHeading")}</CardTitle>
           <AddExpenseDialog fixedHouseholdId={householdId} />
         </CardHeader>
         <CardContent>
           {householdExpenses.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              {/* TODO: localise this later */}
-              No pending household expenses.
+              {t("householdDetail.noPendingHouseholdExpenses")}
             </p>
           ) : (
             <ExpenseTable
@@ -237,26 +332,6 @@ export default function HouseholdDetailPage({
               })}
             />
           )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("householdDetail.quickActions")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {families
-              .filter((f) => f.active)
-              .map((f) => (
-                <RecordPaymentDialog
-                  key={f.id}
-                  householdId={householdId}
-                  familyId={f.id}
-                  familyName={f.name}
-                />
-              ))}
-          </div>
         </CardContent>
       </Card>
     </div>

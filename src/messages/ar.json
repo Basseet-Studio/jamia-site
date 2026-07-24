@@ -30,7 +30,8 @@
     "recurring": "Recurring",
     "calendar": "Calendar",
     "settings": "Settings",
-    "debug": "Debug"
+    "debug": "Debug",
+    "contributions": "Sambawava"
   },
   "auth": {
     "signInTitle": "Veeramangalam Juma Masjid",
@@ -87,7 +88,18 @@
     "tableActions": "Actions",
     "quickActions": "Quick actions",
     "householdExpenses": "Household expenses ({month})",
-    "noHouseholdExpenses": "No household-scoped expenses recorded for this month."
+    "noHouseholdExpenses": "No household-scoped expenses recorded for this month.",
+    "noMatchingFamilies": "No families match the current filters.",
+    "sortByName": "Sort by name",
+    "sortAsc": "Ascending",
+    "sortDesc": "Descending",
+    "filterByStatus": "Filter by status",
+    "statusAll": "All",
+    "totalContributions": "Total Sambawava",
+    "totalExpenses": "Total Chelavakal",
+    "net": "Net",
+    "householdExpensesHeading": "Household Chelavakal",
+    "noPendingHouseholdExpenses": "No pending household chelavakal."
   },
   "householdTable": {
     "empty": "No households yet. Use “Add household” to create one.",
@@ -239,7 +251,8 @@
       "withdrawConfirmBody": "أنت على وشك سحب {name} ({amount}). سيؤدي ذلك إلى تقليل الرصيد النقدي بهذا المبلغ ولا يمكن التراجع.",
       "warningOverBudget": "مصروفات هذا الشهر المتكررة ({total}) تتجاوز المساهمات المتوقعة ({expected}).",
       "dismiss": "إخفاء"
-    }
+    },
+    "addHouseholdButton": "Add Household Chelavakal"
   },
   "recurring": {
     "heading": "Recurring expenses",
@@ -348,5 +361,21 @@
   "months": {
     "prev": "Previous month",
     "next": "Next month"
+  },
+  "contributions": {
+    "heading": "Sambawava",
+    "addButton": "Add Sambawava",
+    "addTitle": "New Sambawava",
+    "save": "Save Sambawava",
+    "saving": "Saving…",
+    "totalContributed": "Total Sambawava",
+    "records": "Records",
+    "contributorName": "Contributor name",
+    "amount": "Amount",
+    "date": "Date",
+    "note": "Note",
+    "empty": "No sambawava recorded yet.",
+    "confirmDelete": "Delete this sambawava?",
+    "delete": "Delete"
   }
 }
