@@ -27,7 +27,10 @@ import type { Payment } from "@/lib/types";
 export interface MonthSlot {
   /** "YYYY-MM" — the month covered by this slot. */
   month: string;
-  /** Always equal to `family.contributionTarget` in v1. */
+  /**
+   * Current month: `min(enteredAmount, target)`. Spillover slots: always
+   * `target` (whole-month rule).
+   */
   amount: number;
   /** True for checkbox rows; false for the always-included current month. */
   selectable: boolean;
@@ -129,11 +132,12 @@ export function planCoverage(args: PlanCoverageArgs): CoveragePlan {
 
   const coverageGroupId = providedId ?? uuid();
 
-  // The current-month slot always exists when target > 0 and carries the full
-  // amount the admin typed. Spillover slots are additional opt-in documents.
+  // Current-month slot is capped at target; excess is allocated only via
+  // opt-in spillover slots (data-model §2). Under-target payments keep the
+  // entered amount so Partial months stay accurate.
   const currentMonth: MonthSlot = {
     month: currentMonthKey,
-    amount,
+    amount: Math.min(amount, target),
     selectable: false,
     defaultSelected: true,
   };

@@ -239,8 +239,12 @@ export async function recordPaymentWithCoverage(
   const selectedSlots = eligibleSlots.filter((slot) =>
     selectedMonths.has(slot.month),
   );
+  // Current-month amount comes from the plan (capped at target). Writing the
+  // full entered amount here would double-book cash when spillover months are
+  // also selected (spec 003 data-model §2).
+  const currentAmount = plan.currentMonth?.amount ?? parsed.amount;
   const writes = [
-    { month: toMonthKey(parsed.date), amount: parsed.amount, primary: true },
+    { month: toMonthKey(parsed.date), amount: currentAmount, primary: true },
     ...selectedSlots.map((slot) => ({
       month: slot.month,
       amount: slot.amount,

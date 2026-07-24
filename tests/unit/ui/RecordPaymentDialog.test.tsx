@@ -6,7 +6,7 @@
  * user-event.type() and asserts the over-limit indicator, coverage preview,
  * and future-months checkbox toggle at the right moments.
  */
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { I18nProvider } from "@/lib/i18n";
@@ -101,6 +101,14 @@ import { RecordPaymentDialog } from "@/components/payments/RecordPaymentDialog";
 beforeEach(() => {
   familyListeners.length = 0;
   paymentListeners.length = 0;
+  // Freeze "today" so cascade current-month slots stay deterministic
+  // (matches coverage.test.ts scenarios dated 2026-06-17).
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(new Date("2026-06-17T12:00:00Z"));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 // --- Tests ---------------------------------------------------------------
@@ -162,13 +170,16 @@ describe("RecordPaymentDialog — US3 coverage preview", () => {
       expect(screen.getByTestId("rp-preview")).toBeInTheDocument(),
     );
     const preview = screen.getByTestId("rp-preview");
-    // current-month slot (Jun 2026)
+    // current-month slot (Jun 2026) capped at target
     expect(preview.textContent).toMatch(/2026-06/);
     // back-months oldest-first (Jan, Feb)
     expect(preview.textContent).toMatch(/2026-01/);
     expect(preview.textContent).toMatch(/2026-02/);
-    // total of 1500
-    expect(preview.textContent).toMatch(/AED 1,500\.00/);
+    // Total = current only (500); back months are unchecked by default.
+    expect(preview.textContent).toMatch(/AED 500\.00/);
+    expect(screen.getByTestId("rp-remainder").textContent).toMatch(
+      /AED 1,000\.00/,
+    );
   });
 
   it("does NOT render a preview when amount is under limit", async () => {
@@ -181,6 +192,25 @@ describe("RecordPaymentDialog — US3 coverage preview", () => {
     // Wait a tick for the plan to settle.
     await new Promise((r) => setTimeout(r, 30));
     expect(screen.queryByTestId("rp-preview")).toBeNull();
+  });
+
+  it("selecting spillover months brings preview total to the entered amount", async () => {
+    renderDialog();
+    const user = userEvent.setup();
+    await openDialog(user);
+    const amountInput = await screen.findByLabelText(/amount/i);
+    await user.clear(amountInput);
+    await user.type(amountInput, "1500");
+    await waitFor(() =>
+      expect(screen.getByTestId("rp-preview")).toBeInTheDocument(),
+    );
+    await user.click(screen.getByTestId("rp-slot-2026-01"));
+    await user.click(screen.getByTestId("rp-slot-2026-02"));
+    await waitFor(() => {
+      const preview = screen.getByTestId("rp-preview");
+      expect(preview.textContent).toMatch(/AED 1,500\.00/);
+    });
+    expect(screen.queryByTestId("rp-remainder")).toBeNull();
   });
 
   it("renders the 'Remaining over-limit' line when partial cascade leaves a remainder", async () => {

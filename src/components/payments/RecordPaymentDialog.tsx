@@ -136,7 +136,10 @@ export function RecordPaymentDialog({
   const target = family?.contributionTarget ?? 0;
   const overLimit = Math.max(0, (Number(amount) || 0) - target);
   const remainingOverLimit = Math.max(0, overLimit - selectedExtra);
-  const previewTotal = (Number(amount) || 0) + selectedExtra;
+  // Preview total = capped current-month slot + selected spillover extras
+  // (not enteredAmount + extras — that inflated MOH past cash received).
+  const currentSlotAmount = plan.currentMonth?.amount ?? 0;
+  const previewTotal = currentSlotAmount + selectedExtra;
   const showOverLimit = overLimit > 0;
   const showPreview = !!plan.currentMonth && showOverLimit;
 

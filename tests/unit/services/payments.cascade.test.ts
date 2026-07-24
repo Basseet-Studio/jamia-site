@@ -130,22 +130,22 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)(
         // Months: 2026-06 (current), 2026-01 + 2026-02 (back cascade, oldest first).
         const months = docs.map((d) => d.month).sort();
         expect(months).toEqual(["2026-01", "2026-02", "2026-06"]);
-        expect(docs.find((d) => d.month === "2026-06")?.amount).toBe(1500);
+        expect(docs.find((d) => d.month === "2026-06")?.amount).toBe(500);
         expect(docs.find((d) => d.month === "2026-01")?.amount).toBe(500);
         expect(docs.find((d) => d.month === "2026-02")?.amount).toBe(500);
-        // MOH shift: 1000 + 2500 = 3500.
+        // MOH shift: opening 1000 + group total 1500 = 2500.
         const settingsSnap = await getDocs(
           query(collection(db, "settings"), where("__name__", "==", "global")),
         );
         expect(
           (settingsSnap.docs[0]?.data()?.moneyOnHand as number) ?? null,
-        ).toBe(3500);
+        ).toBe(2500);
       } finally {
         (client as { getDb: typeof realGetDb }).getDb = realGetDb;
       }
     });
 
-    it("partial cascade writes current-month doc at the entered amount", async () => {
+    it("partial cascade writes current-month doc at target (not entered over-limit)", async () => {
       const { hh, fam } = await seedFamily();
       const realGetDb = client.getDb;
       (client as { getDb: typeof realGetDb }).getDb = () =>
@@ -165,14 +165,14 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)(
         });
         const docs = await listPayments(hh, fam);
         expect(docs).toHaveLength(3);
-        expect(docs.find((d) => d.month === "2026-06")?.amount).toBe(1700);
+        expect(docs.find((d) => d.month === "2026-06")?.amount).toBe(500);
         expect(docs.find((d) => d.month === "2026-01")?.amount).toBe(500);
         expect(docs.find((d) => d.month === "2026-02")?.amount).toBe(500);
-        // MOH shift = entered primary + selected spillover docs.
+        // MOH shift = group total 1500 (remainder 200 stays unallocated).
         const settingsSnap = await getDocs(
           query(collection(db, "settings"), where("__name__", "==", "global")),
         );
-        expect(settingsSnap.docs[0]?.data()?.moneyOnHand).toBe(3700);
+        expect(settingsSnap.docs[0]?.data()?.moneyOnHand).toBe(2500);
       } finally {
         (client as { getDb: typeof realGetDb }).getDb = realGetDb;
       }

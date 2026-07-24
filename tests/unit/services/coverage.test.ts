@@ -53,7 +53,7 @@ describe("planCoverage — back cascade", () => {
     });
     expect(plan.currentMonth).toMatchObject({
       month: "2026-06",
-      amount: 1500,
+      amount: 500,
       selectable: false,
       defaultSelected: true,
     });
@@ -72,7 +72,8 @@ describe("planCoverage — back cascade", () => {
       },
     ]);
     expect(plan.futureMonths).toEqual([]);
-    expect(plan.totalAmount).toBe(1500);
+    // Back months are opt-in (not defaultSelected) → total is current only.
+    expect(plan.totalAmount).toBe(500);
     expect(plan.overLimitRemainder).toBe(1000);
   });
 
@@ -85,9 +86,9 @@ describe("planCoverage — back cascade", () => {
       applyToFutureMonths: false,
       randomUUID: deterministicUuid(),
     });
-    expect(plan.currentMonth?.amount).toBe(1700);
+    expect(plan.currentMonth?.amount).toBe(500);
     expect(plan.backMonths).toHaveLength(2);
-    expect(plan.totalAmount).toBe(1700);
+    expect(plan.totalAmount).toBe(500);
     expect(plan.overLimitRemainder).toBe(1200);
     expect(plan.backMonths.every((s) => !s.defaultSelected)).toBe(true);
   });
@@ -108,7 +109,7 @@ describe("planCoverage — back cascade", () => {
       randomUUID: deterministicUuid(),
     });
     expect(plan.backMonths).toEqual([]);
-    expect(plan.currentMonth?.amount).toBe(1500);
+    expect(plan.currentMonth?.amount).toBe(500);
     expect(plan.overLimitRemainder).toBe(1000);
   });
 
@@ -149,7 +150,8 @@ describe("planCoverage — future cascade", () => {
     ]);
     expect(plan.futureMonths[0]?.defaultSelected).toBe(true);
     expect(plan.futureMonths[1]?.defaultSelected).toBe(false);
-    expect(plan.totalAmount).toBe(2000);
+    // Current (500) + first future defaultSelected (500) = 1000.
+    expect(plan.totalAmount).toBe(1000);
     expect(plan.overLimitRemainder).toBe(500);
   });
 
@@ -169,7 +171,7 @@ describe("planCoverage — future cascade", () => {
       randomUUID: deterministicUuid(),
     });
     expect(plan.futureMonths).toEqual([]);
-    expect(plan.totalAmount).toBe(1500);
+    expect(plan.totalAmount).toBe(500);
     expect(plan.overLimitRemainder).toBe(1000);
   });
 });
@@ -229,9 +231,10 @@ describe("planCoverage — edge cases", () => {
       applyToFutureMonths: false,
       randomUUID: deterministicUuid(),
     });
+    expect(plan.currentMonth?.amount).toBe(500);
     expect(plan.overLimitRemainder).toBe(100);
     expect(plan.backMonths).toEqual([]);
-    expect(plan.totalAmount).toBe(600);
+    expect(plan.totalAmount).toBe(500);
   });
 
   it("under-limit (amount=300): currentMonth still written, no overLimit signal", () => {
@@ -243,6 +246,7 @@ describe("planCoverage — edge cases", () => {
       applyToFutureMonths: false,
       randomUUID: deterministicUuid(),
     });
+    expect(plan.currentMonth?.amount).toBe(300);
     expect(plan.overLimitRemainder).toBe(0);
     expect(plan.backMonths).toEqual([]);
     expect(plan.totalAmount).toBe(300);
