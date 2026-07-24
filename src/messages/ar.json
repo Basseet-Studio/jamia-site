@@ -31,7 +31,7 @@
     "calendar": "Calendar",
     "settings": "Settings",
     "debug": "Debug",
-    "contributions": "Sambawava"
+    "contributions": "Sambhaavana"
   },
   "auth": {
     "signInTitle": "Veeramangalam Juma Masjid",
@@ -95,11 +95,11 @@
     "sortDesc": "Descending",
     "filterByStatus": "Filter by status",
     "statusAll": "All",
-    "totalContributions": "Total Sambawava",
+    "totalContributions": "Total Sambhaavana",
     "totalExpenses": "Total Chelavakal",
     "net": "Net",
     "householdExpensesHeading": "Household Chelavakal",
-    "noPendingHouseholdExpenses": "No pending household chelavakal."
+    "noPendingHouseholdExpenses": "No pending household Chelavakal."
   },
   "householdTable": {
     "empty": "No households yet. Use “Add household” to create one.",
@@ -363,19 +363,19 @@
     "next": "Next month"
   },
   "contributions": {
-    "heading": "Sambawava",
-    "addButton": "Add Sambawava",
-    "addTitle": "New Sambawava",
-    "save": "Save Sambawava",
+    "heading": "Sambhaavana",
+    "addButton": "Add Sambhaavana",
+    "addTitle": "New Sambhaavana",
+    "save": "Save Sambhaavana",
     "saving": "Saving…",
-    "totalContributed": "Total Sambawava",
+    "totalContributed": "Total Sambhaavana",
     "records": "Records",
     "contributorName": "Contributor name",
     "amount": "Amount",
     "date": "Date",
     "note": "Note",
-    "empty": "No sambawava recorded yet.",
-    "confirmDelete": "Delete this sambawava?",
+    "empty": "No Sambhaavana recorded yet.",
+    "confirmDelete": "Delete this Sambhaavana?",
     "delete": "Delete"
   }
 }
