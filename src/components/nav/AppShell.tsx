@@ -27,10 +27,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/debug", labelKey: "nav.debug" },
   ];
 
+  // Household detail family rows need more horizontal room for action buttons.
+  const wideContent = pathname?.startsWith("/households") ?? false;
+  const contentMaxWidth = wideContent ? "max-w-screen-2xl" : "max-w-6xl";
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+        <div
+          className={cn(
+            "mx-auto flex items-center justify-between px-4 py-3",
+            contentMaxWidth,
+          )}
+        >
           <div className="flex items-center gap-6">
             <Link href="/dashboard" className="text-base font-semibold">
               {t("brand.name")}
@@ -75,7 +84,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+      <main
+        className={cn(
+          "mx-auto w-full flex-1 px-4 py-6",
+          contentMaxWidth,
+        )}
+      >
         {children}
       </main>
     </div>

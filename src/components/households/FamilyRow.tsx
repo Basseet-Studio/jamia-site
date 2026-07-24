@@ -81,7 +81,7 @@ export function FamilyRow({
       </td>
       <td className="px-3 py-2 text-right">
         {family.active ? (
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="flex flex-nowrap justify-end gap-2">
             <RecordPaymentDialog
               householdId={householdId}
               familyId={family.id}

@@ -111,6 +111,7 @@ export default function HouseholdDetailPage({
     return filtered.sort((a, b) => {
       const cmp = a.name.localeCompare(b.name, undefined, {
         sensitivity: "base",
+        numeric: true,
       });
       return nameSort === "asc" ? cmp : -cmp;
     });
@@ -275,7 +276,8 @@ export default function HouseholdDetailPage({
               {t("householdDetail.noMatchingFamilies")}
             </p>
           ) : (
-            <Table>
+            <div className="overflow-x-auto">
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("householdDetail.tableName")}</TableHead>
@@ -308,7 +310,8 @@ export default function HouseholdDetailPage({
                   />
                 ))}
               </TableBody>
-            </Table>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
