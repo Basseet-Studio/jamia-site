@@ -21,7 +21,7 @@ export function printReceiptPdf(
   try {
     const { doc } = buildReceiptPdfDoc(ctx, format);
     logReceiptPdf("build_ok", "ok", { format });
-    const url = doc.output("bloburl");
+    const url = doc.output("bloburl").toString();
     const iframe = document.createElement("iframe");
     iframe.style.cssText =
       "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
