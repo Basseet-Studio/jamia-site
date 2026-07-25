@@ -45,6 +45,12 @@ export async function listHouseholds(): Promise<Household[]> {
     .filter(isActiveHousehold);
 }
 
+/** All households including soft-deleted — for MoH rebuild / full audits. */
+export async function listAllHouseholds(): Promise<Household[]> {
+  const snap = await getDocs(collection(getDb(), "households"));
+  return snap.docs.map((d) => toHousehold(d.id, d.data()));
+}
+
 export function subscribeHouseholds(
   callback: (h: Household[]) => void,
 ): Unsubscribe {

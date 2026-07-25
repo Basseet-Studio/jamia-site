@@ -6,6 +6,7 @@
  * - deleteExpense (withdrawn): MoH += amount  (atomic with the row delete)
  * - deleteExpense (not withdrawn): MoH unchanged
  * - updateSettings (opening-balance delta): MoH shifts by delta
+ * - recalculateMoneyOnHand: MoH = opening + Σ payments − Σ withdrawn
  *
  * The "atomic with ..." cases are guaranteed by the call site — each mutator
  * wraps its row write and the MOH shift in a single `runTransaction`. This
@@ -15,6 +16,7 @@
  */
 import { describe, expect, it } from "vitest";
 import * as svc from "@/lib/services/moneyOnHand";
+import { recalculateMoneyOnHand } from "@/lib/services/recalculateMoneyOnHand";
 
 describe("moneyOnHand — module exports", () => {
   it("exposes adjustMoneyOnHand / subscribeMoneyOnHand / getMoneyOnHand", () => {
@@ -35,6 +37,29 @@ describe("moneyOnHand — module exports", () => {
     // two divergent MOH-update code paths drifting apart.
     expect(svc.adjustMoneyOnHand.length).toBe(1);
     expect(svc.shiftMoneyOnHandInTx.length).toBe(2);
+  });
+
+  it("exposes computeMoneyOnHandFromParts and recalculateMoneyOnHand", () => {
+    expect(typeof svc.computeMoneyOnHandFromParts).toBe("function");
+    expect(typeof recalculateMoneyOnHand).toBe("function");
+  });
+});
+
+describe("computeMoneyOnHandFromParts", () => {
+  it("opening + payments − withdrawn", () => {
+    expect(svc.computeMoneyOnHandFromParts(100, 50, 20)).toBe(130);
+  });
+
+  it("returns opening when there are no payments or withdrawals", () => {
+    expect(svc.computeMoneyOnHandFromParts(12340.04, 0, 0)).toBe(12340.04);
+  });
+
+  it("net-zero payments and withdrawals leave opening", () => {
+    expect(svc.computeMoneyOnHandFromParts(240, 12000, 12000)).toBe(240);
+  });
+
+  it("allows a negative result when withdrawn exceeds opening + payments", () => {
+    expect(svc.computeMoneyOnHandFromParts(0, 10, 50)).toBe(-40);
   });
 });
 

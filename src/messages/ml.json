@@ -59,7 +59,8 @@
     "logPaymentButton": "Log payment",
     "noHouseholds": "No households yet.",
     "noFamilies": "No active families in this household.",
-    "loadingFamilies": "Loading families…"
+    "loadingFamilies": "Loading families…",
+    "refresh": "പുതുക്കുക"
   },
   "households": {
     "heading": "വീടുകൾ",
@@ -321,6 +322,18 @@
     "warningTitle": "ഓപ്പണിംഗ് ബാലൻസ് മാറ്റണോ?",
     "warningBody": "കൈവശമുള്ള പണത്തിൽ {delta} വ്യത്യാസം വരും. ഇതൊരു ഒറ്റത്തവണ ക്രമീകരണമാണ്; ഭാവിയിൽ ഇവിടെ വരുത്തുന്ന മാറ്റങ്ങളും കൈവശമുള്ള പണത്തെ ബാധിക്കും.",
     "warningAction": "മാറ്റം സ്ഥിരീകരിക്കുക",
+    "recalculateTitle": "കൈവശമുള്ള പണം",
+    "recalculateHelper": "ഓപ്പണിംഗ് ബാലൻസ് + എല്ലാ വരിസംഖ്യ − പിൻവലിച്ച എല്ലാ ചെലവുകൾ (സോഫ്റ്റ്-ഡിലീറ്റ് ചെയ്ത കുടുംബങ്ങൾ ഉൾപ്പെടെ) എന്നതിൽ നിന്ന് വീണ്ടും കണക്കാക്കുക. ഒരു കുടുംബം സോഫ്റ്റ്-ഡിലീറ്റ് ചെയ്താൽ അതിന്റെ പേയ്‌മെന്റുകൾ ഈ ആകെത്തുകയിൽ നിന്ന് നീക്കം ചെയ്യപ്പെടില്ല.",
+    "recalculateButton": "കൈവശമുള്ള പണം വീണ്ടും കണക്കാക്കുക",
+    "recalculateConfirmTitle": "കൈവശമുള്ള പണം വീണ്ടും കണക്കാക്കണോ?",
+    "recalculateConfirmBody": "സൂക്ഷിച്ചിരിക്കുന്ന കൈവശമുള്ള പണം ഓപ്പണിംഗ് ബാലൻസ് + എല്ലാ പേയ്‌മെന്റുകൾ − പിൻവലിച്ച എല്ലാ ചെലവുകൾ എന്നതിൽ നിന്ന് മാറ്റി എഴുതപ്പെടും. പേയ്‌മെന്റുകൾ ഇല്ലാതാക്കുകയോ ബാലൻസ് പൂജ്യമാക്കുകയോ ചെയ്യില്ല.",
+    "recalculateConfirmAction": "വീണ്ടും കണക്കാക്കുക",
+    "recalculateWorking": "കണക്കാക്കുന്നു…",
+    "recalculatePrevious": "മുമ്പത്തേത്",
+    "recalculateNext": "പുതിയ ആകെത്തുക",
+    "recalculateOpening": "ഓപ്പണിംഗ് ബാലൻസ്",
+    "recalculatePayments": "എല്ലാ വരിസംഖ്യ",
+    "recalculateWithdrawn": "പിൻവലിച്ച ചെലവുകൾ",
     "language": "ഭാഷ",
     "languageDescription": "ഡാഷ്‌ബോർഡിനുള്ള ഭാഷ തിരഞ്ഞെടുക്കുക. മാറ്റങ്ങൾ ഉടനടി പ്രാബല്യത്തിൽ വരും.",
     "languageLabel": "പ്രദർശന ഭാഷ"

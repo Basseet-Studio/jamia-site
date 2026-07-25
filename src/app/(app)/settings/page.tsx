@@ -1,5 +1,6 @@
 "use client";
 import { SettingsForm } from "@/components/settings/SettingsForm";
+import { RecalculateMoneyOnHandCard } from "@/components/settings/RecalculateMoneyOnHandCard";
 import { LanguageSwitcher } from "@/components/settings/LanguageSwitcher";
 import { AdminManagement } from "@/components/settings/AdminManagement";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +15,12 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">{t("settings.heading")}</h1>
-      {canWriteSettings ? <SettingsForm /> : null}
+      {canWriteSettings ? (
+        <>
+          <SettingsForm />
+          <RecalculateMoneyOnHandCard />
+        </>
+      ) : null}
       <LanguageSwitcher />
       <Card>
         <CardHeader>

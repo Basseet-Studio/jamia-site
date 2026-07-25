@@ -12,6 +12,8 @@
  * Initialisation: `scripts/seed-settings.ts` seeds `settings/global` with
  * opening balance as the starting value. The `moneyOnHand` field is
  * populated on first read if missing (defaults to openingBalance).
+ *
+ * Rebuild: see `recalculateMoneyOnHand.ts` (admin Settings action).
  */
 import {
   doc,
@@ -25,7 +27,22 @@ import {
 import { getDb } from "@/lib/firebase/client";
 import type { MoneyOnHand, Setting } from "@/lib/types";
 
-const SETTINGS_DOC = "settings/global";
+/** Pure SC-009 formula parts → money on hand. */
+export function computeMoneyOnHandFromParts(
+  openingBalance: number,
+  paymentsSum: number,
+  withdrawnSum: number,
+): number {
+  return openingBalance + paymentsSum - withdrawnSum;
+}
+
+export type RecalculateMoneyOnHandResult = {
+  previous: number;
+  next: number;
+  openingBalance: number;
+  paymentsSum: number;
+  withdrawnSum: number;
+};
 
 /**
  * Read-modify-write helper for `settings/global.moneyOnHand` that runs inside

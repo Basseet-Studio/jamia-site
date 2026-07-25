@@ -59,7 +59,8 @@
     "logPaymentButton": "Log Varisankya",
     "noHouseholds": "No members yet.",
     "noFamilies": "No active families in this household.",
-    "loadingFamilies": "Loading families…"
+    "loadingFamilies": "Loading families…",
+    "refresh": "Refresh"
   },
   "households": {
     "heading": "Members",
@@ -337,6 +338,18 @@
     "warningTitle": "Change opening balance?",
     "warningBody": "Money on hand will shift by {delta}. This is a one-time seed adjustment; future changes here also shift money on hand.",
     "warningAction": "Confirm change",
+    "recalculateTitle": "Money on hand",
+    "recalculateHelper": "Rebuild from opening balance + all Varisankya − all withdrawn Chelavakal (including soft-deleted families). Soft-deleting a family does not remove its payments from this total.",
+    "recalculateButton": "Recalculate money on hand",
+    "recalculateConfirmTitle": "Recalculate money on hand?",
+    "recalculateConfirmBody": "This overwrites the stored money-on-hand total with opening balance + all payments − all withdrawn expenses. It does not delete payments or set the balance to zero.",
+    "recalculateConfirmAction": "Recalculate",
+    "recalculateWorking": "Recalculating…",
+    "recalculatePrevious": "Previous",
+    "recalculateNext": "New total",
+    "recalculateOpening": "Opening balance",
+    "recalculatePayments": "All Varisankya",
+    "recalculateWithdrawn": "Withdrawn Chelavakal",
     "language": "Language",
     "languageDescription": "Choose the language for the dashboard. Changes apply immediately.",
     "languageLabel": "Display language"
