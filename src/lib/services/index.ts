@@ -12,6 +12,7 @@ export * from "@/lib/services/expenses";
 export * from "@/lib/services/recurring";
 export * from "@/lib/services/moneyOnHand";
 export * from "@/lib/services/recalculateMoneyOnHand";
+export * from "@/lib/services/resetFinancialBooks";
 export * from "@/lib/services/derived";
 
 // 002: re-exported types for downstream convenience (US-2 / US-4 / US-5).
