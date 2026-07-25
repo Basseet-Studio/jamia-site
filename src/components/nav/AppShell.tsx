@@ -5,6 +5,7 @@
  */
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
@@ -30,10 +31,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         { href: "/settings", labelKey: "nav.settings" },
         { href: "/debug", labelKey: "nav.debug" },
       ]
-    : [
-        { href: "/households", labelKey: "nav.households" },
-        { href: "/settings", labelKey: "nav.settings" },
-      ];
+    : [{ href: "/households", labelKey: "nav.households" }];
+
+  // Block deep-links to settings/debug for clerks.
+  useEffect(() => {
+    if (isFullAdmin) return;
+    if (
+      pathname?.startsWith("/settings") ||
+      pathname?.startsWith("/debug")
+    ) {
+      router.replace("/households");
+    }
+  }, [isFullAdmin, pathname, router]);
 
   // Household detail family rows need more horizontal room for action buttons.
   const wideContent = pathname?.startsWith("/households") ?? false;
