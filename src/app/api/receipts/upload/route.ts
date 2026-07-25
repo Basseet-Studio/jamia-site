@@ -11,14 +11,14 @@ import {
 import {
   AuthError,
   jsonError,
-  verifyAdminRequest,
+  verifyFullAdminRequest,
 } from "@/lib/server/verifyAdmin";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
-    await verifyAdminRequest(request);
+    await verifyFullAdminRequest(request);
   } catch (err) {
     if (err instanceof AuthError) {
       return jsonError(err.status, err.message);

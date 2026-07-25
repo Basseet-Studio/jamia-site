@@ -44,7 +44,7 @@ import {
   parseAttachmentFields,
   uploadReceiptAttachment,
 } from "@/lib/services/attachments";
-import { planCoverage } from "@/lib/services/coverage";
+import { resolveCoverageAllocation } from "@/lib/services/coverage";
 import type { Family, Payment } from "@/lib/types";
 
 function toPayment(
@@ -177,7 +177,13 @@ export async function recordPaymentWithCoverage(
   uid: string,
   input: RecordPaymentWithCoverageSchema,
   attachmentFile?: File | null,
-): Promise<string[]> {
+): Promise<{
+  ids: string[];
+  coverageGroupId: string | null;
+  slots: { id: string; month: string; amount: number; primary: boolean }[];
+  date: Date;
+  note: string | null;
+}> {
   const parsed = recordPaymentWithCoverageSchema.parse(input);
   const db = getDb();
   const paymentsCol = collection(
@@ -222,37 +228,35 @@ export async function recordPaymentWithCoverage(
       : 0;
   const createdAt = familyData.createdAt as { toDate?: () => Date } | undefined;
 
-  const plan = planCoverage({
+  const familyInput = {
+    contributionTarget,
+    createdAt: createdAt?.toDate?.() ?? null,
+  };
+  // Resolve current + selected spillover + auto remainder so every cent hits
+  // a monthly target when target > 0 (no loose unallocated cash).
+  const resolved = resolveCoverageAllocation({
     amount: parsed.amount,
     date: parsed.date,
-    family: {
-      contributionTarget,
-      createdAt: createdAt?.toDate?.() ?? null,
-    },
+    family: familyInput,
     payments: existingPayments,
-    applyToFutureMonths: true,
-    coverageGroupId: parsed.coverageGroupId,
+    selectedCoverageMonths: parsed.selectedCoverageMonths,
   });
 
-  const selectedMonths = new Set(parsed.selectedCoverageMonths);
-  const eligibleSlots = [...plan.backMonths, ...plan.futureMonths];
-  const selectedSlots = eligibleSlots.filter((slot) =>
-    selectedMonths.has(slot.month),
-  );
-  // Current-month amount comes from the plan (capped at target). Writing the
-  // full entered amount here would double-book cash when spillover months are
-  // also selected (spec 003 data-model §2).
-  const currentAmount = plan.currentMonth?.amount ?? parsed.amount;
-  const writes = [
-    { month: toMonthKey(parsed.date), amount: currentAmount, primary: true },
-    ...selectedSlots.map((slot) => ({
-      month: slot.month,
-      amount: slot.amount,
-      primary: false,
-    })),
-  ];
+  // Fallback when target is 0: write the full amount on the payment month
+  // (no cascade). Callers with target > 0 always get a full allocation.
+  const writes =
+    resolved.writes.length > 0
+      ? resolved.writes
+      : [
+          {
+            month: toMonthKey(parsed.date),
+            amount: parsed.amount,
+            primary: true,
+            auto: false,
+          },
+        ];
   const groupId =
-    selectedSlots.length > 0
+    writes.length > 1
       ? parsed.coverageGroupId ?? cryptoRandomUUIDFallback()
       : null;
 
@@ -266,8 +270,16 @@ export async function recordPaymentWithCoverage(
   // "Firestore transactions require all reads to be executed before all
   // writes" (visible on the emulator; silently misordered in prod).
   const slotRefs = writes.map(() => doc(paymentsCol));
+  const primaryIndex = Math.max(
+    0,
+    writes.findIndex((w) => w.primary),
+  );
   const attachment = attachmentFile
-    ? await uploadReceiptAttachment("payments", slotRefs[0].id, attachmentFile)
+    ? await uploadReceiptAttachment(
+        "payments",
+        slotRefs[primaryIndex]!.id,
+        attachmentFile,
+      )
     : null;
   const attachmentFields = attachmentFieldsFromInput(attachment);
 
@@ -277,8 +289,8 @@ export async function recordPaymentWithCoverage(
     await shiftMoneyOnHandInTx(tx, +shift);
     // 2. Writes only after all reads are queued.
     for (let i = 0; i < writes.length; i++) {
-      const slot = writes[i];
-      tx.set(slotRefs[i], {
+      const slot = writes[i]!;
+      tx.set(slotRefs[i]!, {
         amount: slot.amount,
         date: parsed.date,
         month: slot.month,
@@ -286,12 +298,23 @@ export async function recordPaymentWithCoverage(
         recordedAt: serverTimestamp(),
         recordedBy: uid,
         ...(groupId ? { coverageGroupId: groupId } : {}),
-        ...(i === 0 ? attachmentFields : attachmentFieldsFromInput(null)),
+        ...(slot.primary ? attachmentFields : attachmentFieldsFromInput(null)),
       });
     }
     return slotRefs.map((r) => r.id);
   });
-  return refs;
+  return {
+    ids: refs,
+    coverageGroupId: groupId,
+    slots: writes.map((w, i) => ({
+      id: refs[i]!,
+      month: w.month,
+      amount: w.amount,
+      primary: w.primary,
+    })),
+    date: parsed.date,
+    note: parsed.note ?? null,
+  };
 }
 
 export async function deletePayment(

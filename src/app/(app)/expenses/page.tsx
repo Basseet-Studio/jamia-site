@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useT } from "@/lib/i18n";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { FullReportButton } from "@/components/excel/FullReportButton";
 import { PerScreenExportButton } from "@/components/excel/PerScreenExportButton";
 import type { Expense, ExpenseFilter, MosqueSubCategory } from "@/lib/types";
@@ -23,6 +24,7 @@ const NONE = "__none__";
 
 export default function ExpensesPage() {
   const t = useT();
+  const { canFinancial } = usePermissions();
   const [filter, setFilter] = useState<"all" | string>(currentMonthKey());
   const [prevMonth, setPrevMonth] = useState<string>(currentMonthKey());
   const [subFilter, setSubFilter] = useState<MosqueSubCategory | null>(null);
@@ -54,7 +56,7 @@ export default function ExpensesPage() {
         <h1 className="text-2xl font-semibold">{t("expenses.heading")}</h1>
         <div className="flex items-center gap-2">
           <FullReportButton />
-          <AddExpenseDialog />
+          {canFinancial ? <AddExpenseDialog /> : null}
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-3">

@@ -35,7 +35,13 @@ function toAdmin(uid: string, data: Record<string, unknown>): Admin | null {
   if (!data || typeof data !== "object") return null;
   if (typeof data.email !== "string") return null;
   if (typeof data.displayName !== "string") return null;
-  if (data.role !== "owner" && data.role !== "admin") return null;
+  if (
+    data.role !== "owner" &&
+    data.role !== "admin" &&
+    data.role !== "clerk"
+  ) {
+    return null;
+  }
   return {
     uid,
     email: data.email,

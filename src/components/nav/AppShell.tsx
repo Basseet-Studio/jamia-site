@@ -6,6 +6,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
@@ -14,18 +15,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { admin, signOut } = useAuth();
+  const { isFullAdmin } = usePermissions();
   const t = useT();
 
-  const navItems: { href: string; labelKey: string }[] = [
-    { href: "/dashboard", labelKey: "nav.dashboard" },
-    { href: "/households", labelKey: "nav.households" },
-    { href: "/contributions", labelKey: "nav.contributions" },
-    { href: "/expenses", labelKey: "nav.expenses" },
-    { href: "/recurring", labelKey: "nav.recurring" },
-    { href: "/calendar", labelKey: "nav.calendar" },
-    { href: "/settings", labelKey: "nav.settings" },
-    { href: "/debug", labelKey: "nav.debug" },
-  ];
+  // Clerks only need Households (to add HH/families). Full admins get everything.
+  const navItems: { href: string; labelKey: string }[] = isFullAdmin
+    ? [
+        { href: "/dashboard", labelKey: "nav.dashboard" },
+        { href: "/households", labelKey: "nav.households" },
+        { href: "/contributions", labelKey: "nav.contributions" },
+        { href: "/expenses", labelKey: "nav.expenses" },
+        { href: "/recurring", labelKey: "nav.recurring" },
+        { href: "/calendar", labelKey: "nav.calendar" },
+        { href: "/settings", labelKey: "nav.settings" },
+        { href: "/debug", labelKey: "nav.debug" },
+      ]
+    : [
+        { href: "/households", labelKey: "nav.households" },
+        { href: "/settings", labelKey: "nav.settings" },
+      ];
 
   // Household detail family rows need more horizontal room for action buttons.
   const wideContent = pathname?.startsWith("/households") ?? false;
@@ -41,7 +49,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         >
           <div className="flex items-center gap-6">
-            <Link href="/dashboard" className="text-base font-semibold">
+            <Link
+              href={isFullAdmin ? "/dashboard" : "/households"}
+              className="text-base font-semibold"
+            >
               {t("brand.name")}
             </Link>
             <nav className="flex items-center gap-2">
@@ -69,6 +80,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {admin ? (
               <span className="text-sm text-muted-foreground">
                 {admin.displayName} · {admin.email}
+                {admin.role === "clerk" ? " · clerk" : ""}
               </span>
             ) : null}
             <Button

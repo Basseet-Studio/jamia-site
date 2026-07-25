@@ -16,6 +16,7 @@ import { useT } from "@/lib/i18n";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PerScreenExportButton } from "@/components/excel/PerScreenExportButton";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import type { Family, Payment } from "@/lib/types";
 
 type Filter = "all" | { month: string };
@@ -27,6 +28,7 @@ export default function FamilyHistoryPage({
 }) {
   const { householdId, familyId } = use(params);
   const t = useT();
+  const { canFinancial, canExport } = usePermissions();
   const [family, setFamily] = useState<Family | null>(null);
   const [householdName, setHouseholdName] = useState("");
   const [allPayments, setAllPayments] = useState<Payment[]>([]);
@@ -99,11 +101,13 @@ export default function FamilyHistoryPage({
         <h1 className="text-2xl font-semibold">
           {t("payments.historyHeading", { name: family.name })}
         </h1>
-        <RecordPaymentDialog
-          householdId={householdId}
-          familyId={familyId}
-          familyName={family.name}
-        />
+        {canFinancial ? (
+          <RecordPaymentDialog
+            householdId={householdId}
+            familyId={familyId}
+            familyName={family.name}
+          />
+        ) : null}
       </div>
 
       <Card>

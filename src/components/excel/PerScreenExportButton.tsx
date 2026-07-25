@@ -14,6 +14,7 @@
 import { useCallback, useMemo } from "react";
 
 import { useAuth } from "@/lib/hooks/useAuth";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useExcelExport } from "@/lib/hooks/useExcelExport";
 import { useLocale } from "@/lib/i18n";
 import { subscribeSettings } from "@/lib/services/settings";
@@ -47,6 +48,7 @@ export function PerScreenExportButton({
   disabled,
 }: PerScreenExportButtonProps) {
   const { user } = useAuth();
+  const { canExport } = usePermissions();
   const locale = useLocale();
   const { triggerWithData, isExporting, error, supported, success, clearSuccess } =
     useExcelExport();
@@ -75,7 +77,7 @@ export function PerScreenExportButton({
     await triggerWithData(filter, ctx, data);
   }, [ctx, buildFilter, buildData, fetchDataAsync, triggerWithData]);
 
-  if (!user) return null;
+  if (!user || !canExport) return null;
 
   return (
     <div className="inline-flex flex-col items-start gap-1">

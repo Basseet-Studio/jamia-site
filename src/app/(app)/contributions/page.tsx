@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useMoneyOnHand } from "@/lib/hooks/useMoneyOnHand";
 import { useContributions } from "@/lib/hooks/useContributions";
 import {
@@ -30,6 +31,7 @@ import { useT } from "@/lib/i18n";
 export default function ContributionsPage() {
   const t = useT();
   const { user } = useAuth();
+  const { canExport, canFinancial, canDelete } = usePermissions();
   const { moh } = useMoneyOnHand();
   const { contributions, loading, error } = useContributions();
   const [showForm, setShowForm] = useState(false);
@@ -78,10 +80,12 @@ export default function ContributionsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{t("contributions.heading")}</h1>
         <div className="flex items-center gap-2">
-          <FullReportButton />
-          <Button onClick={() => setShowForm((value) => !value)}>
-            {t("contributions.addButton")}
-          </Button>
+          {canExport ? <FullReportButton /> : null}
+          {canFinancial ? (
+            <Button onClick={() => setShowForm((value) => !value)}>
+              {t("contributions.addButton")}
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -104,7 +108,7 @@ export default function ContributionsPage() {
         </Card>
       </div>
 
-      {showForm ? (
+      {canFinancial && showForm ? (
         <Card>
           <CardHeader>
             <CardTitle>{t("contributions.addTitle")}</CardTitle>
@@ -212,14 +216,16 @@ export default function ContributionsPage() {
                   <div className="font-medium tabular-nums">
                     {formatCurrency(item.amount, cur)}
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-destructive"
-                    onClick={() => onDelete(item.id)}
-                  >
-                    {t("contributions.delete")}
-                  </Button>
+                  {canDelete ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive"
+                      onClick={() => onDelete(item.id)}
+                    >
+                      {t("contributions.delete")}
+                    </Button>
+                  ) : null}
                 </div>
               </div>
             );

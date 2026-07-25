@@ -13,10 +13,12 @@ import { LogPaymentCard } from "@/components/payments/LogPaymentCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useT } from "@/lib/i18n";
 import { FullReportButton } from "@/components/excel/FullReportButton";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 export default function DashboardPage() {
   const { moh } = useMoneyOnHand();
   const t = useT();
+  const { canExport, canFinancial } = usePermissions();
   const month = currentMonthKey();
   const [rows, setRows] = useState<HouseholdSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +52,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{t("dashboard.heading")}</h1>
-        <FullReportButton />
+        {canExport ? <FullReportButton /> : null}
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         <MoneyOnHandCard />
@@ -92,7 +94,7 @@ export default function DashboardPage() {
         <HouseholdTable rows={rows} loading={loading} />
       </section>
       <section>
-        <LogPaymentCard />
+        {canFinancial ? <LogPaymentCard /> : null}
       </section>
     </div>
   );

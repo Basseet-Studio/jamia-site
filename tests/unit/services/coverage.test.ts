@@ -1,13 +1,11 @@
 /**
- * 003 — Pure-function tests for `planCoverage()`.
- *
- * The algorithm lives in src/lib/services/coverage.ts. It is the single source
- * of truth for cascade math, used by both the dialog preview and the submit
- * txn. These tests exercise the algorithm in isolation — no Firestore, no
- * React — and must be exhaustive enough that every FR-005..FR-013 is covered.
+ * Pure-function tests for `planCoverage()` + `resolveCoverageAllocation()`.
  */
 import { describe, expect, it } from "vitest";
-import { planCoverage } from "@/lib/services/coverage";
+import {
+  planCoverage,
+  resolveCoverageAllocation,
+} from "@/lib/services/coverage";
 import type { Payment } from "@/lib/types";
 
 let uuidCounter = 0;
@@ -23,7 +21,7 @@ function deterministicUuid(): () => string {
 /** Tiny helper: build a Payment with sensible defaults so test bodies stay focused. */
 function pay(month: string, amount = 500): Payment {
   return {
-    id: `p-${month}`,
+    id: `p-${month}-${amount}`,
     householdId: "hh",
     familyId: "fam",
     amount,
@@ -42,7 +40,7 @@ const FAMILY = {
 };
 
 describe("planCoverage — back cascade", () => {
-  it("full back cascade: 1500 on a fresh family fills 3 months (Jun + Jan + Feb)", () => {
+  it("full back cascade: 1500 on a fresh family offers current + Jan + Feb", () => {
     const plan = planCoverage({
       amount: 1500,
       date: new Date("2026-06-17"),
@@ -57,27 +55,14 @@ describe("planCoverage — back cascade", () => {
       selectable: false,
       defaultSelected: true,
     });
-    expect(plan.backMonths).toEqual([
-      {
-        month: "2026-01",
-        amount: 500,
-        selectable: true,
-        defaultSelected: false,
-      },
-      {
-        month: "2026-02",
-        amount: 500,
-        selectable: true,
-        defaultSelected: false,
-      },
-    ]);
+    expect(plan.backMonths.map((s) => s.month)).toEqual(["2026-01", "2026-02"]);
     expect(plan.futureMonths).toEqual([]);
-    // Back months are opt-in (not defaultSelected) → total is current only.
-    expect(plan.totalAmount).toBe(500);
-    expect(plan.overLimitRemainder).toBe(1000);
+    // Default selection is none of the back months → auto fills after current.
+    expect(plan.totalAmount).toBe(1500);
+    expect(plan.overLimitRemainder).toBe(0);
   });
 
-  it("partial back cascade: 1700 fills Jun + Jan + Feb (whole-month rule), remainder 200", () => {
+  it("partial remainder is auto-allocated (no loose money)", () => {
     const plan = planCoverage({
       amount: 1700,
       date: new Date("2026-06-17"),
@@ -87,48 +72,39 @@ describe("planCoverage — back cascade", () => {
       randomUUID: deterministicUuid(),
     });
     expect(plan.currentMonth?.amount).toBe(500);
-    expect(plan.backMonths).toHaveLength(2);
-    expect(plan.totalAmount).toBe(500);
-    expect(plan.overLimitRemainder).toBe(1200);
-    expect(plan.backMonths.every((s) => !s.defaultSelected)).toBe(true);
+    expect(plan.backMonths.length).toBeGreaterThan(0);
+    expect(plan.totalAmount).toBe(1700);
+    expect(plan.overLimitRemainder).toBe(0);
   });
 
-  it("no back cascade when all back months already paid", () => {
+  it("skips Met back months but continues past them", () => {
     const plan = planCoverage({
       amount: 1500,
       date: new Date("2026-06-17"),
       family: FAMILY,
-      payments: [
-        pay("2026-01"),
-        pay("2026-02"),
-        pay("2026-03"),
-        pay("2026-04"),
-        pay("2026-05"),
-      ],
-      applyToFutureMonths: false,
-      randomUUID: deterministicUuid(),
-    });
-    expect(plan.backMonths).toEqual([]);
-    expect(plan.currentMonth?.amount).toBe(500);
-    expect(plan.overLimitRemainder).toBe(1000);
-  });
-
-  it("skips individual paid back months but continues past them", () => {
-    const plan = planCoverage({
-      amount: 1500,
-      date: new Date("2026-06-17"),
-      family: FAMILY,
-      // Jan paid, Feb unpaid → cascade fills Feb + Mar
       payments: [pay("2026-01")],
       applyToFutureMonths: false,
       randomUUID: deterministicUuid(),
     });
     expect(plan.backMonths.map((s) => s.month)).toEqual(["2026-02", "2026-03"]);
   });
+
+  it("offers Partial top-up on a back month that is under target", () => {
+    const plan = planCoverage({
+      amount: 1500,
+      date: new Date("2026-06-17"),
+      family: FAMILY,
+      payments: [pay("2026-01", 200)],
+      applyToFutureMonths: false,
+      randomUUID: deterministicUuid(),
+    });
+    const jan = plan.backMonths.find((s) => s.month === "2026-01");
+    expect(jan?.amount).toBe(300);
+  });
 });
 
 describe("planCoverage — future cascade", () => {
-  it("future cascade fills forward when checkbox is ticked AND back is empty", () => {
+  it("future cascade fills forward when back is empty", () => {
     const plan = planCoverage({
       amount: 1500,
       date: new Date("2026-06-17"),
@@ -149,13 +125,11 @@ describe("planCoverage — future cascade", () => {
       "2026-08",
     ]);
     expect(plan.futureMonths[0]?.defaultSelected).toBe(true);
-    expect(plan.futureMonths[1]?.defaultSelected).toBe(false);
-    // Current (500) + first future defaultSelected (500) = 1000.
-    expect(plan.totalAmount).toBe(1000);
-    expect(plan.overLimitRemainder).toBe(500);
+    expect(plan.totalAmount).toBe(1500);
+    expect(plan.overLimitRemainder).toBe(0);
   });
 
-  it("future cascade WITHOUT tick leaves the over-limit as remainder, no future docs", () => {
+  it("without future candidates still auto-allocates leftover after current", () => {
     const plan = planCoverage({
       amount: 1500,
       date: new Date("2026-06-17"),
@@ -171,8 +145,8 @@ describe("planCoverage — future cascade", () => {
       randomUUID: deterministicUuid(),
     });
     expect(plan.futureMonths).toEqual([]);
-    expect(plan.totalAmount).toBe(500);
-    expect(plan.overLimitRemainder).toBe(1000);
+    expect(plan.totalAmount).toBe(1500);
+    expect(plan.overLimitRemainder).toBe(0);
   });
 });
 
@@ -202,42 +176,26 @@ describe("planCoverage — edge cases", () => {
       applyToFutureMonths: false,
       randomUUID: deterministicUuid(),
     });
-    // First payment is Feb → Feb already paid; Mar is the oldest unpaid.
     expect(plan.backMonths.map((s) => s.month)).toEqual(["2026-03", "2026-04"]);
   });
 
-  it("race scenario: input payments include a month the algorithm would otherwise fill — that month is skipped", () => {
-    // Caller passes the current snapshot; if a parallel write paid Mar
-    // already, planCoverage must not re-fill it. This is the same
-    // `paidSet` filter that the txn re-reads (FR-023, SC-007).
+  it("tops up current month when already Partial", () => {
     const plan = planCoverage({
-      amount: 1500,
+      amount: 300,
       date: new Date("2026-06-17"),
-      family: FAMILY,
-      payments: [pay("2026-02")], // Feb already paid
-      applyToFutureMonths: false,
+      family: { contributionTarget: 400, createdAt: new Date("2026-01-15") },
+      payments: [pay("2026-06", 300)],
+      applyToFutureMonths: true,
       randomUUID: deterministicUuid(),
     });
-    expect(plan.backMonths.map((s) => s.month)).not.toContain("2026-02");
-    expect(plan.backMonths.map((s) => s.month)).toEqual(["2026-03", "2026-04"]);
+    expect(plan.alreadyPaidCurrent).toBe(300);
+    expect(plan.remainingCapacityCurrent).toBe(100);
+    expect(plan.currentMonth?.amount).toBe(100);
+    expect(plan.totalAmount).toBe(300);
+    expect(plan.overLimitRemainder).toBe(0);
   });
 
-  it("over-limit indicator: amount=600 with target=500 reports overLimitRemainder=100", () => {
-    const plan = planCoverage({
-      amount: 600,
-      date: new Date("2026-06-17"),
-      family: FAMILY,
-      payments: [],
-      applyToFutureMonths: false,
-      randomUUID: deterministicUuid(),
-    });
-    expect(plan.currentMonth?.amount).toBe(500);
-    expect(plan.overLimitRemainder).toBe(100);
-    expect(plan.backMonths).toEqual([]);
-    expect(plan.totalAmount).toBe(500);
-  });
-
-  it("under-limit (amount=300): currentMonth still written, no overLimit signal", () => {
+  it("under-limit (amount=300): currentMonth still written, fully allocated", () => {
     const plan = planCoverage({
       amount: 300,
       date: new Date("2026-06-17"),
@@ -270,5 +228,59 @@ describe("planCoverage — edge cases", () => {
       randomUUID: deterministicUuid(),
     });
     expect(a.coverageGroupId).not.toBe(b.coverageGroupId);
+  });
+});
+
+describe("resolveCoverageAllocation", () => {
+  it("auto-applies leftover after selected spillover months", () => {
+    const resolved = resolveCoverageAllocation({
+      amount: 1000,
+      date: new Date("2026-06-17"),
+      family: { contributionTarget: 80, createdAt: new Date("2026-01-01") },
+      payments: [],
+      // Select 11 future spillover months after current (80*11=880) → leftover 40
+      selectedCoverageMonths: [
+        "2026-07",
+        "2026-08",
+        "2026-09",
+        "2026-10",
+        "2026-11",
+        "2026-12",
+        "2027-01",
+        "2027-02",
+        "2027-03",
+        "2027-04",
+        "2027-05",
+      ],
+    });
+    expect(resolved.totalAmount).toBe(1000);
+    expect(resolved.overLimitRemainder).toBe(0);
+    const auto = resolved.autoMonths;
+    expect(auto).toHaveLength(1);
+    expect(auto[0]).toMatchObject({ month: "2027-06", amount: 40, auto: true });
+  });
+
+  it("tops up Partial current then spills remainder to next month", () => {
+    const resolved = resolveCoverageAllocation({
+      amount: 300,
+      date: new Date("2026-06-17"),
+      family: { contributionTarget: 400, createdAt: new Date("2026-01-01") },
+      payments: [pay("2026-06", 300)],
+      selectedCoverageMonths: [],
+    });
+    expect(resolved.writes).toEqual([
+      expect.objectContaining({
+        month: "2026-06",
+        amount: 100,
+        primary: true,
+        auto: false,
+      }),
+      expect.objectContaining({
+        month: "2026-07",
+        amount: 200,
+        auto: true,
+      }),
+    ]);
+    expect(resolved.totalAmount).toBe(300);
   });
 });

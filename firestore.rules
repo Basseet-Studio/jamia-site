@@ -18,6 +18,36 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    function adminRole() {
+      return get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role;
+    }
+
+    // owner | admin — financial writes, deletes, settings, admin management
+    function isFullAdmin() {
+      return isAdmin() && adminRole() in ['owner', 'admin'];
+    }
+
+    // Any authenticated admin doc (owner | admin | clerk) may create structure
+    function canCreateStructure() {
+      return isAdmin() && adminRole() in ['owner', 'admin', 'clerk'];
+    }
+
+    function canDeleteData() {
+      return isFullAdmin();
+    }
+
+    function canWriteFinancial() {
+      return isFullAdmin();
+    }
+
+    function canWriteSettings() {
+      return isFullAdmin();
+    }
+
+    function canManageAdmins() {
+      return isFullAdmin();
+    }
+
     function validOptionalAttachment() {
       return !('attachmentPath' in request.resource.data)
         || request.resource.data.attachmentPath == null
@@ -34,37 +64,30 @@ service cloud.firestore {
     match /admins/{uid} {
       allow read: if isSignedIn();
 
-      // Self-service admin management. Rules are intentionally permissive
-      // on `create` — the service layer in `admins.ts` is the one that
-      // enforces "only the first user can self-promote" (via a Firestore
-      // transaction that reads the collection, checks size, and only then
-      // writes). The shape is the only thing the rule checks.
-      //
-      // After the first admin exists, normal add/remove goes through the
-      // admin-management UI in Settings.
+      // Self-bootstrap (first owner) OR full-admin promoting another user
+      // (including clerks).
       allow create: if isSignedIn()
-        && request.auth.uid == uid
         && request.resource.data.keys().hasAll([
           'email', 'displayName', 'role'
         ])
-        && request.resource.data.role in ['owner', 'admin']
+        && request.resource.data.role in ['owner', 'admin', 'clerk']
         && request.resource.data.email is string
-        && request.resource.data.displayName is string;
+        && request.resource.data.displayName is string
+        && (
+          (request.auth.uid == uid
+            && request.resource.data.role in ['owner', 'admin'])
+          || canManageAdmins()
+        );
 
-      // Only admins can mutate an existing admin doc. This is the gate the
-      // service uses for self-update (display name only) and other updates.
-      allow update: if isAdmin();
-
-      // Only admins can remove admin docs. The service layer blocks
-      // self-removal if it would leave the collection empty.
-      allow delete: if isAdmin();
+      allow update: if canManageAdmins();
+      allow delete: if canManageAdmins();
     }
 
     // ---- settings ----
 
     match /settings/{doc} {
       allow read: if isAdmin();
-      allow write: if isAdmin()
+      allow write: if canWriteSettings()
         && doc == 'global'
         && request.resource.data.keys().hasAll(['defaultContributionTarget', 'openingBalance', 'currency']);
     }
@@ -74,16 +97,15 @@ service cloud.firestore {
     match /households/{householdId} {
       allow read: if isAdmin();
 
-      allow create: if isAdmin()
+      allow create: if canCreateStructure()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdAt == request.time
         && request.resource.data.active == true
         && request.resource.data.deletedAt == null
         && request.resource.data.deletedBy == null;
 
-      // Soft-delete only — sets active=false, deletedAt, deletedBy.
-      // Legacy docs may omit `active`; treat missing as active (same as client).
-      allow update: if isAdmin()
+      // Soft-delete only — full admins.
+      allow update: if canDeleteData()
         && (resource.data.active == true || !('active' in resource.data))
         && request.resource.data.active == false
         && request.resource.data.deletedBy == request.auth.uid
@@ -91,14 +113,14 @@ service cloud.firestore {
           'active', 'deletedAt', 'deletedBy'
         ]);
 
-      allow delete: if isAdmin();
+      allow delete: if canDeleteData();
 
       // ---- families (sub-collection) ----
 
       match /families/{familyId} {
         allow read: if isAdmin();
 
-        allow create: if isAdmin()
+        allow create: if canCreateStructure()
           && request.resource.data.createdBy == request.auth.uid
           && request.resource.data.createdAt == request.time
           && request.resource.data.active == true
@@ -109,16 +131,8 @@ service cloud.firestore {
           && request.resource.data.memberCount == 0
           && request.resource.data.memberNames.size() == 0;
 
-        // Three allowed transitions, expressed as allowed affectedKeys sets
-        // combined with the per-transition invariants:
-        //   1) soft-delete — only `active`, `deletedAt`, `deletedBy` change
-        //   2) name/target edit — only `name`, `contributionTarget`, `updatedAt`, `updatedBy` change
-        //   3) member edit — only `memberCount`, `memberNames`, `updatedAt`, `updatedBy` change
-        //
-        // Using `affectedKeys().hasOnly([...])` is the idiomatic Firestore
-        // pattern — it lets the rule allow exactly the fields each
-        // transition touches and reject anything else.
-        allow update: if isAdmin()
+        // Soft-delete / edit / members — full admins only (clerks are add-only).
+        allow update: if isFullAdmin()
           && (
             // 1) soft-delete
             (
@@ -161,21 +175,20 @@ service cloud.firestore {
             )
           );
 
-        allow delete: if isAdmin();
+        allow delete: if canDeleteData();
 
         // ---- payments (sub-sub-collection) ----
 
         match /payments/{paymentId} {
           allow read: if isAdmin();
 
-          allow create: if isAdmin()
+          allow create: if canWriteFinancial()
                       && request.resource.data.recordedBy == request.auth.uid
                       && request.resource.data.recordedAt == request.time
                       && request.resource.data.amount is number
                       && request.resource.data.amount > 0
                       && request.resource.data.month is string
                       && request.resource.data.month.matches('^\\d{4}-(0[1-9]|1[0-2])$')
-                      // 003 — coverageGroupId, when present, MUST be a UUID.
                       && (
                         !('coverageGroupId' in request.resource.data)
                         || (request.resource.data.coverageGroupId is string
@@ -185,16 +198,13 @@ service cloud.firestore {
                       && validOptionalAttachment();
 
           allow update: if false;
-          allow delete: if isAdmin();
+          allow delete: if canDeleteData();
         }
 
-        // ---- member history (sub-sub-collection, per family) ----
-        // Append-only. The atomic create is the same batched write that
-        // updates the family doc's member fields.
         match /memberHistory/{historyId} {
           allow read: if isAdmin();
 
-          allow create: if isAdmin()
+          allow create: if isFullAdmin()
             && request.resource.data.changedBy == request.auth.uid
             && request.resource.data.changedAt == request.time
             && request.resource.data.householdId == householdId
@@ -206,9 +216,8 @@ service cloud.firestore {
             && request.resource.data.newCount >= 0
             && request.resource.data.newNames is list;
 
-          // Append-only: no update. Admin delete allowed for household cascade.
           allow update: if false;
-          allow delete: if isAdmin();
+          allow delete: if canDeleteData();
         }
       }
     }
@@ -218,7 +227,7 @@ service cloud.firestore {
     match /contributions/{contributionId} {
       allow read: if isAdmin();
 
-      allow create: if isAdmin()
+      allow create: if canWriteFinancial()
         && request.resource.data.addedBy == request.auth.uid
         && request.resource.data.addedAt == request.time
         && request.resource.data.contributorName is string
@@ -229,7 +238,7 @@ service cloud.firestore {
         && validOptionalAttachment();
 
       allow update: if false;
-      allow delete: if isAdmin();
+      allow delete: if canDeleteData();
     }
 
     // ---- expenses ----
@@ -237,8 +246,7 @@ service cloud.firestore {
     match /expenses/{expenseId} {
       allow read: if isAdmin();
 
-      // Extended create guard for the type/linkage XOR.
-      allow create: if isAdmin()
+      allow create: if canWriteFinancial()
         && request.resource.data.addedBy == request.auth.uid
         && request.resource.data.addedAt == request.time
         && request.resource.data.withdrawn == false
@@ -250,12 +258,10 @@ service cloud.firestore {
         && request.resource.data.month.matches('^\\d{4}-(0[1-9]|1[0-2])$')
         && (request.resource.data.isRecurring == false || request.resource.data.recurringId is string)
         && (
-          // household branch
           (request.resource.data.type == 'household'
             && request.resource.data.householdId is string
             && request.resource.data.mosqueSubCategory == null)
           ||
-          // mosque branch
           (request.resource.data.type == 'mosque'
             && request.resource.data.householdId == null
             && request.resource.data.familyId == null
@@ -267,8 +273,7 @@ service cloud.firestore {
         && request.resource.data.get('attachmentFileName', null) == null
         && request.resource.data.get('attachmentMimeType', null) == null;
 
-      // Withdraw: flip withdrawn flag only; attachment unchanged.
-      allow update: if isAdmin()
+      allow update: if canWriteFinancial()
         && resource.data.withdrawn == false
         && request.resource.data.withdrawn == true
         && request.resource.data.withdrawnAt == request.time
@@ -290,8 +295,7 @@ service cloud.firestore {
         && request.resource.data.attachmentFileName == resource.data.get('attachmentFileName', null)
         && request.resource.data.attachmentMimeType == resource.data.get('attachmentMimeType', null);
 
-      // Attach signed receipt after withdrawal.
-      allow update: if isAdmin()
+      allow update: if canWriteFinancial()
         && resource.data.withdrawn == true
         && request.resource.data.withdrawn == true
         && request.resource.data.withdrawnAt == resource.data.withdrawnAt
@@ -312,7 +316,7 @@ service cloud.firestore {
         && resource.data.get('attachmentPath', null) == null
         && validOptionalAttachment();
 
-      allow delete: if isAdmin();
+      allow delete: if canDeleteData();
     }
 
     // ---- recurringExpenses ----
@@ -320,8 +324,7 @@ service cloud.firestore {
     match /recurringExpenses/{templateId} {
       allow read: if isAdmin();
 
-      // Create accepts the new type/linkage fields and the default-mosque branch.
-      allow create: if isAdmin()
+      allow create: if canWriteFinancial()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdAt == request.time
         && request.resource.data.active == true
@@ -340,8 +343,7 @@ service cloud.firestore {
               || request.resource.data.mosqueSubCategory == 'other'))
         );
 
-      // Update keeps createdAt/createdBy immutable and the new fields well-formed.
-      allow update: if isAdmin()
+      allow update: if canWriteFinancial()
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.createdBy == resource.data.createdBy
         && request.resource.data.type in ['household', 'mosque']
@@ -351,7 +353,7 @@ service cloud.firestore {
             && request.resource.data.householdId is string)
         );
 
-      allow delete: if isAdmin();
+      allow delete: if canDeleteData();
     }
 
     // Default: deny everything else.

@@ -16,6 +16,7 @@ import { ReceiptPrintButtons } from "@/components/receipts/ReceiptPrintButtons";
 import { buildPaymentReceiptContext } from "@/lib/services/receiptPdfContext";
 import { AttachmentLink } from "@/components/receipts/AttachmentLink";
 import { useT } from "@/lib/i18n";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { format } from "date-fns";
 
 export function PaymentHistoryTable({
@@ -33,6 +34,7 @@ export function PaymentHistoryTable({
 }) {
   const { moh } = useMoneyOnHand();
   const t = useT();
+  const { canDelete } = usePermissions();
   const cur = moh.currency || t("common.dash");
   const dash = t("common.dash");
 
@@ -118,14 +120,16 @@ export function PaymentHistoryTable({
                 </div>
               </TableCell>
               <TableCell className="text-right">
-                <DeletePaymentDialog
-                  householdId={householdId}
-                  familyId={p.familyId}
-                  paymentId={p.id}
-                  paymentAmount={p.amount}
-                  familyName={family?.name ?? ""}
-                  coverageGroupId={p.coverageGroupId}
-                />
+                {canDelete ? (
+                  <DeletePaymentDialog
+                    householdId={householdId}
+                    familyId={p.familyId}
+                    paymentId={p.id}
+                    paymentAmount={p.amount}
+                    familyName={family?.name ?? ""}
+                    coverageGroupId={p.coverageGroupId}
+                  />
+                ) : null}
               </TableCell>
             </TableRow>
           );

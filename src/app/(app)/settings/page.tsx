@@ -4,15 +4,17 @@ import { LanguageSwitcher } from "@/components/settings/LanguageSwitcher";
 import { AdminManagement } from "@/components/settings/AdminManagement";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { useT } from "@/lib/i18n";
 
 export default function SettingsPage() {
   const t = useT();
+  const { canWriteSettings, canManageAdmins } = usePermissions();
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">{t("settings.heading")}</h1>
-      <SettingsForm />
+      {canWriteSettings ? <SettingsForm /> : null}
       <LanguageSwitcher />
       <Card>
         <CardHeader>
@@ -23,7 +25,7 @@ export default function SettingsPage() {
           <SignOutButton />
         </CardContent>
       </Card>
-      <AdminManagement />
+      {canManageAdmins ? <AdminManagement /> : null}
     </div>
   );
 }

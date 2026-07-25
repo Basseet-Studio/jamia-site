@@ -6,13 +6,13 @@ import { formatCurrency } from "@/lib/utils/currency";
 import { useMoneyOnHand } from "@/lib/hooks/useMoneyOnHand";
 import { subscribePayments } from "@/lib/services/payments";
 import { deriveFamilySummary } from "@/lib/services/derived";
-import { Button } from "@/components/ui/button";
 import { EditFamilyDialog } from "@/components/households/EditFamilyDialog";
 import { FamilyMembersDialog } from "@/components/households/FamilyMembersDialog";
 import { SoftDeleteFamilyDialog } from "@/components/households/SoftDeleteFamilyDialog";
 import { RecordPaymentDialog } from "@/components/payments/RecordPaymentDialog";
 import { StatusBadge } from "@/components/payments/StatusBadge";
 import { useT } from "@/lib/i18n";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 export function FamilyRow({
   householdId,
@@ -25,6 +25,7 @@ export function FamilyRow({
 }) {
   const { moh } = useMoneyOnHand();
   const t = useT();
+  const { canFinancial, canEditFamilies, canDelete } = usePermissions();
   const cur = moh.currency || t("common.dash");
   const [payments, setPayments] = useState<Payment[]>([]);
   useEffect(
@@ -82,18 +83,26 @@ export function FamilyRow({
       <td className="px-3 py-2 text-right">
         {family.active ? (
           <div className="flex flex-nowrap justify-end gap-2">
-            <RecordPaymentDialog
-              householdId={householdId}
-              familyId={family.id}
-              familyName={family.name}
-            />
-            <FamilyMembersDialog householdId={householdId} family={family} />
-            <EditFamilyDialog householdId={householdId} family={family} />
-            <SoftDeleteFamilyDialog
-              householdId={householdId}
-              familyId={family.id}
-              familyName={family.name}
-            />
+            {canFinancial ? (
+              <RecordPaymentDialog
+                householdId={householdId}
+                familyId={family.id}
+                familyName={family.name}
+              />
+            ) : null}
+            {canEditFamilies ? (
+              <FamilyMembersDialog householdId={householdId} family={family} />
+            ) : null}
+            {canEditFamilies ? (
+              <EditFamilyDialog householdId={householdId} family={family} />
+            ) : null}
+            {canDelete ? (
+              <SoftDeleteFamilyDialog
+                householdId={householdId}
+                familyId={family.id}
+                familyName={family.name}
+              />
+            ) : null}
           </div>
         ) : null}
       </td>

@@ -11,6 +11,7 @@
 import { useMemo } from "react";
 
 import { useAuth } from "@/lib/hooks/useAuth";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useExcelExport } from "@/lib/hooks/useExcelExport";
 import { useLocale } from "@/lib/i18n";
 import { subscribeSettings } from "@/lib/services/settings";
@@ -27,6 +28,7 @@ export interface FullReportButtonProps {
 
 export function FullReportButton({ ctxOverride }: FullReportButtonProps) {
   const { user } = useAuth();
+  const { canExport } = usePermissions();
   const locale = useLocale();
   const { trigger, isExporting, error, supported } = useExcelExport();
   const [settings, setSettings] = useState<Setting | null>(null);
@@ -48,9 +50,7 @@ export function FullReportButton({ ctxOverride }: FullReportButtonProps) {
     };
   }, [user, currency, locale, ctxOverride]);
 
-  if (!user) {
-    // AuthGuard already handles the auth redirect; if we're somehow here
-    // without a user, just render nothing rather than throw.
+  if (!user || !canExport) {
     return null;
   }
 

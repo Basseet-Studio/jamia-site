@@ -10,9 +10,11 @@ import type { Household } from "@/lib/types";
 import { FullReportButton } from "@/components/excel/FullReportButton";
 import { PerScreenExportButton } from "@/components/excel/PerScreenExportButton";
 import { fetchHouseholdExportData } from "@/lib/services/excelExportClient";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 export default function HouseholdsPage() {
   const t = useT();
+  const { canExport, canDelete } = usePermissions();
   const [list, setList] = useState<Household[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -29,20 +31,22 @@ export default function HouseholdsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{t("households.heading")}</h1>
         <div className="flex items-center gap-2">
-          <PerScreenExportButton
-            buildFilter={() => ({ kind: "households" })}
-            buildData={() => ({
-              households: list,
-              families: [],
-              payments: [],
-              expenses: [],
-              recurringTemplates: [],
-            })}
-            fetchDataAsync={() => fetchHouseholdExportData(list)}
-            // TODO: localise this later
-            label="Export to Excel"
-          />
-          <FullReportButton />
+          {canExport ? (
+            <PerScreenExportButton
+              buildFilter={() => ({ kind: "households" })}
+              buildData={() => ({
+                households: list,
+                families: [],
+                payments: [],
+                expenses: [],
+                recurringTemplates: [],
+              })}
+              fetchDataAsync={() => fetchHouseholdExportData(list)}
+              // TODO: localise this later
+              label="Export to Excel"
+            />
+          ) : null}
+          {canExport ? <FullReportButton /> : null}
           <AddHouseholdDialog />
         </div>
       </div>
@@ -73,10 +77,12 @@ export default function HouseholdsPage() {
                         })
                       : t("common.dash")}
                   </span>
-                  <DeleteHouseholdDialog
-                    householdId={h.id}
-                    householdName={h.name}
-                  />
+                  {canDelete ? (
+                    <DeleteHouseholdDialog
+                      householdId={h.id}
+                      householdName={h.name}
+                    />
+                  ) : null}
                 </CardContent>
               </Card>
             );

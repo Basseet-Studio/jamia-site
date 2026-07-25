@@ -39,6 +39,7 @@ import { useMoneyOnHand } from "@/lib/hooks/useMoneyOnHand";
 import { useHouseholdFinancialSummary } from "@/lib/hooks/useHouseholdFinancialSummary";
 import { FullReportButton } from "@/components/excel/FullReportButton";
 import { PerScreenExportButton } from "@/components/excel/PerScreenExportButton";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 
 const STATUS_OPTIONS: FamilyMonthlyStatus[] = [
   "Unpaid",
@@ -54,6 +55,7 @@ export default function HouseholdDetailPage({
 }) {
   const { householdId } = use(params);
   const t = useT();
+  const { canExport, canFinancial } = usePermissions();
   const { moh } = useMoneyOnHand();
   const cur = moh.currency || t("common.dash");
   const [household, setHousehold] = useState<Household | null>(null);
@@ -137,7 +139,7 @@ export default function HouseholdDetailPage({
         <div className="flex items-center gap-3">
           <MonthNavigator month={month} onChange={setMonth} />
           <AddFamilyDialog householdId={householdId} />
-          <FullReportButton />
+          {canExport ? <FullReportButton /> : null}
         </div>
       </div>
 
@@ -247,23 +249,25 @@ export default function HouseholdDetailPage({
               {/* TODO: localise this later */}
               Show soft-deleted
             </label>
-            <PerScreenExportButton
-              buildFilter={() => ({
-                kind: "families",
-                householdId,
-                showSoftDeleted,
-                month,
-              })}
-              buildData={() => ({
-                households: household ? [household] : [],
-                families,
-                payments: [],
-                expenses: [],
-                recurringTemplates: [],
-              })}
-              // TODO: localise this later
-              label="Export families"
-            />
+            {canExport ? (
+              <PerScreenExportButton
+                buildFilter={() => ({
+                  kind: "families",
+                  householdId,
+                  showSoftDeleted,
+                  month,
+                })}
+                buildData={() => ({
+                  households: household ? [household] : [],
+                  families,
+                  payments: [],
+                  expenses: [],
+                  recurringTemplates: [],
+                })}
+                // TODO: localise this later
+                label="Export families"
+              />
+            ) : null}
           </div>
         </CardHeader>
         <CardContent>
@@ -319,7 +323,9 @@ export default function HouseholdDetailPage({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-3">
           <CardTitle>{t("householdDetail.householdExpensesHeading")}</CardTitle>
-          <AddExpenseDialog fixedHouseholdId={householdId} />
+          {canFinancial ? (
+            <AddExpenseDialog fixedHouseholdId={householdId} />
+          ) : null}
         </CardHeader>
         <CardContent>
           {householdExpenses.length === 0 ? (

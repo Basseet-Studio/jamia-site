@@ -353,6 +353,7 @@ function PromoteAdminDialog({
               <SelectContent>
                 <SelectItem value="owner">owner</SelectItem>
                 <SelectItem value="admin">admin</SelectItem>
+                <SelectItem value="clerk">clerk</SelectItem>
               </SelectContent>
             </Select>
           </div>

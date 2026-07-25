@@ -30,6 +30,7 @@ import {
   listRecurringTemplatesWithStatus,
 } from "@/lib/services/recurring";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n";
 import { formatCurrency } from "@/lib/utils/currency";
 import { PerScreenExportButton } from "@/components/excel/PerScreenExportButton";
@@ -79,6 +80,7 @@ export function RecurringTemplatesSection({
 }: RecurringTemplatesSectionProps) {
   const t = useT();
   const { user } = useAuth();
+  const { canFinancial, canDelete } = usePermissions();
   const [templates, setTemplates] = useState<RecurringTemplateWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -239,27 +241,31 @@ export function RecurringTemplatesSection({
                   >
                     {t(statusKey(row.currentMonthStatus))}
                   </Badge>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={
-                      busyId === row.id || row.currentMonthStatus !== "NotAdded"
-                    }
-                    onClick={() => handleAdd(row.id)}
-                  >
-                    {busyId === row.id
-                      ? t("expenses.recurring.adding")
-                      : t("expenses.recurring.addForMonth")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={busyId === row.id}
-                    onClick={() => handleArchive(row.id)}
-                    className="text-muted-foreground"
-                  >
-                    {t("expenses.recurring.archive")}
-                  </Button>
+                  {canFinancial ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={
+                        busyId === row.id || row.currentMonthStatus !== "NotAdded"
+                      }
+                      onClick={() => handleAdd(row.id)}
+                    >
+                      {busyId === row.id
+                        ? t("expenses.recurring.adding")
+                        : t("expenses.recurring.addForMonth")}
+                    </Button>
+                  ) : null}
+                  {canDelete ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busyId === row.id}
+                      onClick={() => handleArchive(row.id)}
+                      className="text-muted-foreground"
+                    >
+                      {t("expenses.recurring.archive")}
+                    </Button>
+                  ) : null}
                 </div>
               </li>
             ))}

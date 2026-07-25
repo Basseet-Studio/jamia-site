@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const adminRoleSchema = z.enum(["owner", "admin"]);
+export const adminRoleSchema = z.enum(["owner", "admin", "clerk"]);
 export type AdminRoleSchema = z.infer<typeof adminRoleSchema>;
 
 export const adminSchema = z.object({

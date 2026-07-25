@@ -145,15 +145,15 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)(
       }
     });
 
-    it("partial cascade writes current-month doc at target (not entered over-limit)", async () => {
+    it("partial cascade auto-allocates leftover onto the next month (no loose money)", async () => {
       const { hh, fam } = await seedFamily();
       const realGetDb = client.getDb;
       (client as { getDb: typeof realGetDb }).getDb = () =>
         db as unknown as ReturnType<typeof realGetDb>;
 
       try {
-        // 1700 entered; back cascade fits 2 slots (Jan+Feb at 500 each), then
-        // stops on whole-month rule. Group total = 500 (current) + 500 + 500 = 1500.
+        // 1700 entered; select Jan+Feb (500 each) + current 500 = 1500,
+        // leftover 200 auto-applies to Mar as Partial.
         await payments.recordPaymentWithCoverage("uid-test", {
           householdId: hh,
           familyId: fam,
@@ -164,15 +164,16 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)(
           note: null,
         });
         const docs = await listPayments(hh, fam);
-        expect(docs).toHaveLength(3);
+        expect(docs).toHaveLength(4);
         expect(docs.find((d) => d.month === "2026-06")?.amount).toBe(500);
         expect(docs.find((d) => d.month === "2026-01")?.amount).toBe(500);
         expect(docs.find((d) => d.month === "2026-02")?.amount).toBe(500);
-        // MOH shift = group total 1500 (remainder 200 stays unallocated).
+        expect(docs.find((d) => d.month === "2026-03")?.amount).toBe(200);
+        // MOH shift = full entered amount 1700.
         const settingsSnap = await getDocs(
           query(collection(db, "settings"), where("__name__", "==", "global")),
         );
-        expect(settingsSnap.docs[0]?.data()?.moneyOnHand).toBe(2500);
+        expect(settingsSnap.docs[0]?.data()?.moneyOnHand).toBe(2700);
       } finally {
         (client as { getDb: typeof realGetDb }).getDb = realGetDb;
       }
@@ -218,7 +219,7 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)(
           { merge: true },
         );
 
-        // Now run the cascade — the txn must re-read and skip the already-paid months.
+        // Now run the cascade — resolve skips Met months and auto-fills leftover.
         await payments.recordPaymentWithCoverage("uid-test", {
           householdId: hh,
           familyId: fam,
@@ -229,13 +230,15 @@ describe.skipIf(!process.env.FIRESTORE_EMULATOR_HOST)(
           note: null,
         });
         const docs = await listPayments(hh, fam);
-        // 4 total docs (2 pre-existing + 2 cascade: Jun + Mar).
-        // Mar was the next unpaid back month — June 2026 is current.
-        expect(docs).toHaveLength(4);
+        // 2 pre-existing (Jan, Feb) + cascade writes Jun + Mar + auto Apr = 5.
+        expect(docs).toHaveLength(5);
         const junDocs = docs.filter((d) => d.month === "2026-06");
         const marDocs = docs.filter((d) => d.month === "2026-03");
+        const aprDocs = docs.filter((d) => d.month === "2026-04");
         expect(junDocs).toHaveLength(1);
         expect(marDocs).toHaveLength(1);
+        expect(aprDocs).toHaveLength(1);
+        expect(aprDocs[0]?.amount).toBe(500);
         // No duplicate Jan or Feb from this cascade.
         const janFromCascade = docs.filter(
           (d) =>

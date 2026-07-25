@@ -18,6 +18,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { deleteExpense } from "@/lib/services/expenses";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { usePermissions } from "@/lib/hooks/usePermissions";
 import { useT } from "@/lib/i18n";
 import { ReceiptPrintButtons } from "@/components/receipts/ReceiptPrintButtons";
 import { buildExpenseReceiptContext } from "@/lib/services/receiptPdfContext";
@@ -29,6 +30,7 @@ export function ExpenseTable({ expenses }: { expenses: Expense[] }) {
   const cur = moh.currency || t("common.dash");
   const dash = t("common.dash");
   const { user } = useAuth();
+  const { canDelete, canFinancial } = usePermissions();
   const [busyId, setBusyId] = useState<string | null>(null);
 
   if (expenses.length === 0) {
@@ -121,13 +123,13 @@ export function ExpenseTable({ expenses }: { expenses: Expense[] }) {
                     path={e.attachmentPath}
                     fileName={e.attachmentFileName}
                   />
-                  {e.withdrawn && !e.attachmentPath ? (
+                  {e.withdrawn && !e.attachmentPath && canFinancial ? (
                     <AttachSignedReceiptDialog
                       expenseId={e.id}
                       expenseName={e.name}
                     />
                   ) : null}
-                  {!e.withdrawn ? (
+                  {!e.withdrawn && canFinancial ? (
                     <WithdrawDialog
                       expenseId={e.id}
                       expenseName={e.name}
@@ -136,17 +138,19 @@ export function ExpenseTable({ expenses }: { expenses: Expense[] }) {
                       isRecurring={e.isRecurring}
                     />
                   ) : null}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-destructive"
-                    disabled={busyId === e.id}
-                    onClick={() => onDelete(e.id)}
-                  >
-                    {busyId === e.id
-                      ? t("common.deleting")
-                      : t("common.delete")}
-                  </Button>
+                  {canDelete ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive"
+                      disabled={busyId === e.id}
+                      onClick={() => onDelete(e.id)}
+                    >
+                      {busyId === e.id
+                        ? t("common.deleting")
+                        : t("common.delete")}
+                    </Button>
+                  ) : null}
                 </div>
               </TableCell>
             </TableRow>

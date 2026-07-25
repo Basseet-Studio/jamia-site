@@ -1,5 +1,7 @@
 import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 
+export type AdminRole = "owner" | "admin" | "clerk";
+
 export function jsonError(
   status: number,
   message: string,
@@ -9,7 +11,7 @@ export function jsonError(
 
 export async function verifyAdminRequest(
   request: Request,
-): Promise<{ uid: string }> {
+): Promise<{ uid: string; role: AdminRole }> {
   const header = request.headers.get("Authorization");
   if (!header?.startsWith("Bearer ")) {
     throw new AuthError(401, "Missing or invalid authorization");
@@ -33,14 +35,28 @@ export async function verifyAdminRequest(
     if (!adminDoc.exists) {
       throw new AuthError(403, "Admin access required");
     }
+    const role = adminDoc.data()?.role;
+    if (role !== "owner" && role !== "admin" && role !== "clerk") {
+      throw new AuthError(403, "Admin access required");
+    }
+    return { uid, role };
   } catch (err) {
     if (err instanceof AuthError) throw err;
     const message =
       err instanceof Error ? err.message : "Admin verification failed";
     throw new AuthError(500, message);
   }
+}
 
-  return { uid };
+/** Upload/delete receipts — owner/admin only (not clerks). */
+export async function verifyFullAdminRequest(
+  request: Request,
+): Promise<{ uid: string; role: AdminRole }> {
+  const result = await verifyAdminRequest(request);
+  if (result.role !== "owner" && result.role !== "admin") {
+    throw new AuthError(403, "Full admin access required");
+  }
+  return result;
 }
 
 export class AuthError extends Error {
