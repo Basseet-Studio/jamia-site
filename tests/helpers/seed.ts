@@ -252,6 +252,7 @@ export async function clearTestData(db: Firestore): Promise<void> {
     "expenses",
     "recurringExpenses",
     "settings",
+    "staff",
     "admins",
   ]
   for (const col of collections) {

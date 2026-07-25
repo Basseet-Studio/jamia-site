@@ -13,13 +13,24 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Prefer `staff` (ad-blocker safe). Legacy `admins` still authorises
+    // until docs are migrated.
+    function hasStaffDoc() {
+      return exists(/databases/$(database)/documents/staff/$(request.auth.uid));
+    }
+
+    function hasLegacyAdminDoc() {
+      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
     function isAdmin() {
-      return isSignedIn()
-        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return isSignedIn() && (hasStaffDoc() || hasLegacyAdminDoc());
     }
 
     function adminRole() {
-      return get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role;
+      return hasStaffDoc()
+        ? get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role
+        : get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role;
     }
 
     // owner | admin — financial writes, deletes, settings, admin management
@@ -27,7 +38,7 @@ service cloud.firestore {
       return isAdmin() && adminRole() in ['owner', 'admin'];
     }
 
-    // Any authenticated admin doc (owner | admin | clerk) may create structure
+    // Any authenticated staff doc (owner | admin | clerk) may create structure
     function canCreateStructure() {
       return isAdmin() && adminRole() in ['owner', 'admin', 'clerk'];
     }
@@ -59,20 +70,42 @@ service cloud.firestore {
         );
     }
 
-    // ---- admins ----
-
-    match /admins/{uid} {
-      allow read: if isSignedIn();
-
-      // Self-bootstrap (first owner) OR full-admin promoting another user
-      // (including clerks).
-      allow create: if isSignedIn()
-        && request.resource.data.keys().hasAll([
+    function validStaffCreateShape() {
+      return request.resource.data.keys().hasAll([
           'email', 'displayName', 'role'
         ])
         && request.resource.data.role in ['owner', 'admin', 'clerk']
         && request.resource.data.email is string
-        && request.resource.data.displayName is string
+        && request.resource.data.displayName is string;
+    }
+
+    // ---- staff (authorized users: owner | admin | clerk) ----
+    // Collection is NOT named `admins` — ad blockers block `/admins/` URLs.
+
+    match /staff/{uid} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && validStaffCreateShape()
+        && (
+          (request.auth.uid == uid
+            && request.resource.data.role in ['owner', 'admin'])
+          || canManageAdmins()
+        );
+
+      allow update: if canManageAdmins();
+      allow delete: if canManageAdmins();
+    }
+
+    // ---- legacy admins (read + migrate only; prefer staff for writes) ----
+
+    match /admins/{uid} {
+      allow read: if isSignedIn();
+
+      // Allow full admins to copy/migrate (create on staff is primary; keep
+      // create here so bootstrap race / tools still work briefly).
+      allow create: if isSignedIn()
+        && validStaffCreateShape()
         && (
           (request.auth.uid == uid
             && request.resource.data.role in ['owner', 'admin'])

@@ -1,4 +1,8 @@
 import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
+import {
+  LEGACY_ADMINS_COLLECTION,
+  STAFF_COLLECTION,
+} from "@/lib/auth/collections";
 
 export type AdminRole = "owner" | "admin" | "clerk";
 
@@ -31,11 +35,15 @@ export async function verifyAdminRequest(
   }
 
   try {
-    const adminDoc = await getAdminDb().doc(`admins/${uid}`).get();
-    if (!adminDoc.exists) {
+    const db = getAdminDb();
+    let snap = await db.doc(`${STAFF_COLLECTION}/${uid}`).get();
+    if (!snap.exists) {
+      snap = await db.doc(`${LEGACY_ADMINS_COLLECTION}/${uid}`).get();
+    }
+    if (!snap.exists) {
       throw new AuthError(403, "Admin access required");
     }
-    const role = adminDoc.data()?.role;
+    const role = snap.data()?.role;
     if (role !== "owner" && role !== "admin" && role !== "clerk") {
       throw new AuthError(403, "Admin access required");
     }

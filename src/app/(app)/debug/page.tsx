@@ -228,14 +228,14 @@ export default function DebugPage() {
   async function probeBootstrapAdmin() {
     if (!user) return;
     try {
-      addLog("info", `attempting to create admins/${user.uid}…`);
-      await setDoc(doc(getDb(), "admins", user.uid), {
+      addLog("info", `attempting to create staff/${user.uid}…`);
+      await setDoc(doc(getDb(), "staff", user.uid), {
         email: user.email ?? "",
         displayName: user.displayName ?? user.email ?? "Owner",
         role: "owner",
         addedAt: serverTimestamp(),
       });
-      addLog("ok", `bootstrap admin succeeded`);
+      addLog("ok", `bootstrap staff succeeded`);
       await refreshAdmin();
     } catch (e) {
       const err = e as Error & { code?: string };
@@ -306,7 +306,7 @@ export default function DebugPage() {
         </p>
       </div>
 
-      <CardTitle> App version 1.0.1.4 </CardTitle>
+      <CardTitle> App version 1.0.1.5</CardTitle>
       <Card>
         <CardHeader>
           <CardTitle>Auth</CardTitle>

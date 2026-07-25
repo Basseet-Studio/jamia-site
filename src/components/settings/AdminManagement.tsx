@@ -55,6 +55,29 @@ export function AdminManagement() {
     return off;
   }, []);
 
+  // Server-side migrate legacy admins → staff (bypasses ad blockers).
+  useEffect(() => {
+    if (!currentUser) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await currentUser.getIdToken();
+        await fetch("/api/staff/migrate", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch {
+        // Non-fatal — promote still works against staff once rules are deployed.
+      }
+      if (!cancelled) {
+        // subscription already live on staff
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser]);
+
   return (
     <Card>
       <CardHeader>
@@ -63,6 +86,12 @@ export function AdminManagement() {
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
           {t("adminManagement.body")}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {/* TODO: localise this later */}
+          Tip: if promote fails with ERR_BLOCKED_BY_CLIENT, disable your ad
+          blocker for this site — or refresh after deploying rules (roster now
+          uses the <code>staff</code> collection).
         </p>
         {error ? (
           <p className="text-sm text-destructive">{error}</p>

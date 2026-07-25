@@ -1,21 +1,15 @@
 /**
- * Admins service: reads `admins/{uid}` to authorise the signed-in user.
+ * Staff / admin roster service.
  *
- * Self-service admin management:
- *  - `bootstrapFirstAdmin(uid, data)` creates the very first admin doc.
- *    Allowed only when the `admins` collection is currently empty. Used
- *    to seed a brand-new project without touching the Firebase Console.
- *  - `promoteToAdmin(uid, data)` adds another admin. Caller must already
- *    be an admin (the rules enforce this).
- *  - `demoteAdmin(uid)` removes an admin. Refuses if it would leave the
- *    collection empty.
+ * Collection is `staff` (see collections.ts) — not `admins` — to avoid
+ * ad blockers matching `/admins/` in Firestore request URLs
+ * (`net::ERR_BLOCKED_BY_CLIENT`).
  *
- * The client-side `Transaction.get()` only accepts DocumentReferences, so
- * we can't atomically "check count + write" inside a single transaction.
- * Instead, `bootstrapFirstAdmin` does the count check on the client and
- * trusts the rules + a follow-up re-check. The race condition only applies
- * to the very first bootstrap (two simultaneous first-time visitors) and
- * even then the worst case is two admins get created, not zero.
+ * Self-service:
+ *  - `bootstrapFirstAdmin` — first owner when roster is empty
+ *  - `promoteToAdmin` — owner/admin adds another staff member (admin/clerk/owner)
+ *  - `demoteAdmin` — remove a staff member (not the last one)
+ *  - `migrateLegacyAdminsIfNeeded` — one-shot copy from legacy `admins` → `staff`
  */
 import {
   collection,
@@ -29,6 +23,10 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase/client";
+import {
+  LEGACY_ADMINS_COLLECTION,
+  STAFF_COLLECTION,
+} from "@/lib/auth/collections";
 import type { Admin, AdminRole } from "@/lib/types";
 
 function toAdmin(uid: string, data: Record<string, unknown>): Admin | null {
@@ -51,30 +49,69 @@ function toAdmin(uid: string, data: Record<string, unknown>): Admin | null {
   };
 }
 
-/** One-shot fetch — used by server components and AuthGuard initial check. */
-export async function getCurrentAdmin(uid: string): Promise<Admin | null> {
-  const snap = await getDoc(doc(getDb(), "admins", uid));
-  if (!snap.exists()) return null;
-  return toAdmin(uid, snap.data());
+async function readStaffDoc(uid: string): Promise<Admin | null> {
+  const db = getDb();
+  try {
+    const staffSnap = await getDoc(doc(db, STAFF_COLLECTION, uid));
+    if (staffSnap.exists()) {
+      return toAdmin(uid, staffSnap.data());
+    }
+  } catch {
+    // staff read failed (network) — try legacy below
+  }
+  try {
+    const legacySnap = await getDoc(doc(db, LEGACY_ADMINS_COLLECTION, uid));
+    if (legacySnap.exists()) {
+      return toAdmin(uid, legacySnap.data());
+    }
+  } catch {
+    // Legacy path often fails with ERR_BLOCKED_BY_CLIENT under ad blockers.
+  }
+  return null;
 }
 
-/** Live subscription to the admin doc — used for mid-session revocation. */
+/** One-shot fetch — used by server components and AuthGuard initial check. */
+export async function getCurrentAdmin(uid: string): Promise<Admin | null> {
+  return readStaffDoc(uid);
+}
+
+/** Live subscription to the staff doc — used for mid-session revocation. */
 export function subscribeCurrentAdmin(
   uid: string,
   callback: (admin: Admin | null) => void,
 ): Unsubscribe {
-  return onSnapshot(doc(getDb(), "admins", uid), (snap) => {
-    if (!snap.exists()) {
+  const db = getDb();
+  return onSnapshot(
+    doc(db, STAFF_COLLECTION, uid),
+    (snap) => {
+      if (snap.exists()) {
+        callback(toAdmin(uid, snap.data()));
+        return;
+      }
+      void getDoc(doc(db, LEGACY_ADMINS_COLLECTION, uid))
+        .then((legacy) => {
+          if (legacy.exists()) {
+            callback(toAdmin(uid, legacy.data()));
+          } else {
+            callback(null);
+          }
+        })
+        .catch(() => {
+          // Ad blockers often block `/admins/` — treat as missing and let
+          // the access-denied migrate flow recover via Admin SDK.
+          callback(null);
+        });
+    },
+    () => {
       callback(null);
-      return;
-    }
-    callback(toAdmin(uid, snap.data()));
-  });
+    },
+  );
 }
 
-/** One-shot fetch of all admins. Used by the admin-management UI. */
+/** One-shot fetch of all staff. Used by the admin-management UI. */
 export async function listAdmins(): Promise<Admin[]> {
-  const snap = await getDocs(collection(getDb(), "admins"));
+  await migrateLegacyAdminsIfNeeded();
+  const snap = await getDocs(collection(getDb(), STAFF_COLLECTION));
   const admins: Admin[] = [];
   for (const d of snap.docs) {
     const a = toAdmin(d.id, d.data());
@@ -83,11 +120,13 @@ export async function listAdmins(): Promise<Admin[]> {
   return admins;
 }
 
-/** Live subscription to the full admins list — admin-management UI. */
+/** Live subscription to the full staff list — admin-management UI. */
 export function subscribeAdmins(
   callback: (admins: Admin[]) => void,
 ): Unsubscribe {
-  return onSnapshot(collection(getDb(), "admins"), (snap) => {
+  // Kick migration once; subscription then listens to staff only.
+  void migrateLegacyAdminsIfNeeded();
+  return onSnapshot(collection(getDb(), STAFF_COLLECTION), (snap) => {
     const admins: Admin[] = [];
     for (const d of snap.docs) {
       const a = toAdmin(d.id, d.data());
@@ -97,76 +136,125 @@ export function subscribeAdmins(
   });
 }
 
-/** True when the admins collection is currently empty (used by the access
- *  denied screen to offer the bootstrap button). */
+/** True when both staff and legacy admins collections are empty. */
 export async function isAdminsCollectionEmpty(): Promise<boolean> {
-  const snap = await getDocs(collection(getDb(), "admins"));
-  return snap.empty;
+  const db = getDb();
+  try {
+    const staff = await getDocs(collection(db, STAFF_COLLECTION));
+    if (!staff.empty) return false;
+  } catch {
+    // ignore
+  }
+  try {
+    const legacy = await getDocs(collection(db, LEGACY_ADMINS_COLLECTION));
+    return legacy.empty;
+  } catch {
+    // Ad blocker may block legacy — assume not empty so we don't offer
+    // a wrong bootstrap.
+    return false;
+  }
 }
 
 /**
- * Seed the very first admin. Reads the collection size on the client
- * first; if zero, writes the new admin doc with a server timestamp. If
- * a concurrent first-time visitor also bootstrapped in the same window,
- * the rules won't reject the duplicate (they only check the doc shape),
- * so we'd end up with two first-admins — both are owners, both have
- * full access. Acceptable for v1; the v2 spec can introduce a single
- * "first-admin" rule primitive if needed.
+ * Copy every legacy `admins/{uid}` doc into `staff/{uid}` when staff is empty.
+ * Safe to call repeatedly — no-ops once staff has any document.
+ */
+export async function migrateLegacyAdminsIfNeeded(): Promise<number> {
+  const db = getDb();
+  const staffSnap = await getDocs(collection(db, STAFF_COLLECTION));
+  if (!staffSnap.empty) return 0;
+
+  const legacySnap = await getDocs(collection(db, LEGACY_ADMINS_COLLECTION));
+  if (legacySnap.empty) return 0;
+
+  let copied = 0;
+  for (const d of legacySnap.docs) {
+    const data = d.data();
+    await setDoc(doc(db, STAFF_COLLECTION, d.id), {
+      email: data.email,
+      displayName: data.displayName,
+      role: data.role,
+      addedAt: data.addedAt ?? serverTimestamp(),
+    });
+    copied += 1;
+  }
+  return copied;
+}
+
+/**
+ * Seed the very first owner. Reads roster size on the client first.
  */
 export async function bootstrapFirstAdmin(
   uid: string,
   input: { email: string; displayName: string },
 ): Promise<void> {
   const db = getDb();
-  // 1) Pre-check (advisory; the rules don't enforce this).
-  const current = await getDocs(collection(db, "admins"));
-  if (!current.empty) {
+  if (!(await isAdminsCollectionEmpty())) {
     throw new Error(
       "An admin already exists — ask the owner to promote you from Settings instead.",
     );
   }
-  // 2) Write the admin doc.
-  await setDoc(doc(db, "admins", uid), {
+  await setDoc(doc(db, STAFF_COLLECTION, uid), {
     email: input.email,
     displayName: input.displayName,
     role: "owner" as AdminRole,
     addedAt: serverTimestamp(),
   });
-  // 3) Re-check and self-rollback if a concurrent writer beat us to it.
-  //    (This is best-effort cleanup — not strictly required for correctness.)
-  const after = await getDocs(collection(db, "admins"));
-  if (after.size > 1) {
-    // Another writer is in the same race; not our problem to clean up.
-    return;
-  }
 }
 
 /**
- * Promote an existing signed-in user to admin. Caller must already be an
- * admin (the rules enforce this).
+ * Promote a user (by Firebase Auth UID) to owner | admin | clerk.
+ * Caller must already be owner/admin (rules enforce this).
  */
 export async function promoteToAdmin(
   uid: string,
   input: { email: string; displayName: string; role: AdminRole },
 ): Promise<void> {
-  await setDoc(doc(getDb(), "admins", uid), {
-    email: input.email,
-    displayName: input.displayName,
-    role: input.role,
-    addedAt: serverTimestamp(),
-  });
+  await migrateLegacyAdminsIfNeeded();
+  try {
+    await setDoc(doc(getDb(), STAFF_COLLECTION, uid), {
+      email: input.email,
+      displayName: input.displayName,
+      role: input.role,
+      addedAt: serverTimestamp(),
+    });
+  } catch (e) {
+    const err = e as { code?: string; message?: string };
+    if (
+      typeof err.message === "string" &&
+      (err.message.includes("BLOCKED_BY_CLIENT") ||
+        err.message.includes("blocked"))
+    ) {
+      throw new Error(
+        "Request blocked by the browser (often an ad blocker). Disable it for this site and try again.",
+      );
+    }
+    if (err.code === "permission-denied") {
+      throw new Error(
+        "Permission denied writing staff. Deploy the latest firestore.rules, then try again.",
+      );
+    }
+    throw e;
+  }
 }
 
 /**
- * Remove an admin. Refuses to remove the last remaining admin.
+ * Remove a staff member. Refuses to remove the last remaining one.
  */
 export async function demoteAdmin(uid: string): Promise<void> {
+  await migrateLegacyAdminsIfNeeded();
   const db = getDb();
-  const allAdmins = await getDocs(collection(db, "admins"));
-  if (allAdmins.size <= 1) {
+  const all = await getDocs(collection(db, STAFF_COLLECTION));
+  if (all.size <= 1) {
     throw new Error(
       "Cannot remove the last admin — promote someone else first.",
     );
   }
-  await deleteDoc(doc(db, "admins", uid));
+  await deleteDoc(doc(db, STAFF_COLLECTION, uid));
+  // Best-effort: also remove legacy twin if present.
+  try {
+    await deleteDoc(doc(db, LEGACY_ADMINS_COLLECTION, uid));
+  } catch {
+    // ignore — legacy may already be gone or rules deny
+  }
 }

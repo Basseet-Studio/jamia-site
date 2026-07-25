@@ -64,7 +64,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     key={it.href}
                     href={it.href}
                     className={cn(
-                      "rounded-md px-3 py-1.5 text-sm",
+                      "rounded-md px-3 py-1.5 text-sm uppercase tracking-wide",
                       active
                         ? "bg-muted font-medium"
                         : "text-muted-foreground hover:bg-muted",

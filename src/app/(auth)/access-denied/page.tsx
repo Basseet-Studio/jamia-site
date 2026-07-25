@@ -25,9 +25,6 @@ export default function AccessDeniedPage() {
         if (!cancelled) setEmpty(v);
       })
       .catch(() => {
-        // The "is collection empty" check requires read access to /admins,
-        // which any signed-in user has. If it fails, treat as "not empty"
-        // and fall through to the standard "ask the owner" copy.
         if (!cancelled) setEmpty(false);
       });
     return () => {
@@ -49,10 +46,38 @@ export default function AccessDeniedPage() {
         email: user.email ?? "",
         displayName: user.displayName ?? user.email ?? "Owner",
       });
-      // Refresh the admin subscription so the AuthGuard picks it up and
-      // routes us into the app.
       await refreshAdmin();
       router.replace("/dashboard");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Recover when legacy `admins/` docs exist but ad blockers block client reads. */
+  async function onRecoverAccess() {
+    if (!user) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/staff/migrate", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+      };
+      if (!res.ok) {
+        throw new Error(
+          body.error ??
+            "Could not migrate access. Disable your ad blocker, or copy your user doc into the Firestore `staff` collection.",
+        );
+      }
+      await refreshAdmin();
+      router.replace("/households");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -88,7 +113,31 @@ export default function AccessDeniedPage() {
                 {busy ? t("common.saving") : t("auth.bootstrapAction")}
               </Button>
             </div>
-          ) : null}
+          ) : (
+            <div className="space-y-2 rounded-md border border-dashed p-3 text-left">
+              <p className="text-sm font-medium">
+                {/* TODO: localise this later */}
+                Already an owner in Firebase?
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {/* TODO: localise this later */}
+                Ad blockers often block the old <code>admins</code> path. Click
+                below to copy your access into the new <code>staff</code>{" "}
+                collection (server-side).
+              </p>
+              {error ? (
+                <p className="text-xs text-destructive">{error}</p>
+              ) : null}
+              <Button
+                className="w-full"
+                onClick={onRecoverAccess}
+                disabled={busy}
+              >
+                {/* TODO: localise this later */}
+                {busy ? t("common.saving") : "Recover access"}
+              </Button>
+            </div>
+          )}
           <div className="flex justify-center">
             <Button variant="outline" onClick={onSignOut}>
               {t("common.signOut")}
