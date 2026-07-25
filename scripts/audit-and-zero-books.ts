@@ -7,9 +7,6 @@
  *
  * --apply: deletes ALL payment docs, deletes ALL expense docs, sets
  * openingBalance=0 and moneyOnHand=0. Keeps households + families (members).
- *
- * Loads credentials from `.env.local` even when the service-account JSON is
- * stored as a multi-line value (dotenv only keeps the first `{`).
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -32,7 +29,6 @@ function loadEnvLocal(): Record<string, string> {
     if (eq < 0) continue;
     const key = line.slice(0, eq).trim();
     let value = line.slice(eq + 1);
-    // Multi-line JSON object value for FIREBASE_SERVICE_ACCOUNT_JSON
     if (key === "FIREBASE_SERVICE_ACCOUNT_JSON" && value.trim() === "{") {
       const parts = ["{"];
       while (i < lines.length) {
@@ -53,10 +49,6 @@ function loadEnvLocal(): Record<string, string> {
   return out;
 }
 
-function normalizePrivateKey(key: string): string {
-  return key.replace(/\\n/g, "\n");
-}
-
 function getDb() {
   const env = loadEnvLocal();
   const raw = env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
@@ -67,7 +59,7 @@ function getDb() {
   }
   const sa = JSON.parse(raw) as Record<string, unknown>;
   if (typeof sa.private_key === "string") {
-    sa.private_key = normalizePrivateKey(sa.private_key);
+    sa.private_key = sa.private_key.replace(/\\n/g, "\n");
   }
   const projectId =
     env.FIREBASE_PROJECT_ID ||
@@ -82,152 +74,105 @@ function getDb() {
   return getFirestore();
 }
 
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 async function main() {
   const db = getDb();
+  let lastErr: unknown;
 
-  const settingsSnap = await db.doc("settings/global").get();
-  const settings = settingsSnap.data() ?? {};
-  console.log("=== SETTINGS ===");
-  console.log({
-    openingBalance: settings.openingBalance,
-    moneyOnHand: settings.moneyOnHand,
-    currency: settings.currency,
-    defaultContributionTarget: settings.defaultContributionTarget,
-  });
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    try {
+      const settingsSnap = await db.doc("settings/global").get();
+      const settings = settingsSnap.data() ?? {};
+      console.log("=== SETTINGS ===");
+      console.log({
+        openingBalance: settings.openingBalance,
+        moneyOnHand: settings.moneyOnHand,
+        currency: settings.currency,
+      });
 
-  const hhSnap = await db.collection("households").get();
-  console.log("\n=== HOUSEHOLDS ===", hhSnap.size);
-
-  type PayRow = {
-    path: string;
-    amount: number;
-    month: string;
-    note: unknown;
-    familyName: string;
-    familyActive: boolean;
-    hhName: string;
-    hhActive: boolean;
-  };
-  const payments: PayRow[] = [];
-  let activeFamilies = 0;
-  let inactiveFamilies = 0;
-
-  for (const hh of hhSnap.docs) {
-    const hhData = hh.data();
-    const fams = await hh.ref.collection("families").get();
-    for (const fam of fams.docs) {
-      const famData = fam.data();
-      const active = famData.active !== false;
-      if (active) activeFamilies += 1;
-      else inactiveFamilies += 1;
-      const pays = await fam.ref.collection("payments").get();
-      for (const p of pays.docs) {
-        const d = p.data();
-        payments.push({
-          path: p.ref.path,
-          amount: typeof d.amount === "number" ? d.amount : 0,
-          month: String(d.month ?? ""),
-          note: d.note ?? null,
-          familyName: String(famData.name ?? ""),
-          familyActive: active,
-          hhName: String(hhData.name ?? ""),
-          hhActive: hhData.active !== false,
-        });
+      const paySnap = await db.collectionGroup("payments").get();
+      let paySum = 0;
+      console.log("=== PAYMENTS ===", paySnap.size);
+      for (const d of paySnap.docs) {
+        const x = d.data();
+        const amount = typeof x.amount === "number" ? x.amount : 0;
+        paySum += amount;
+        console.log(
+          `  ${amount} | ${x.month} | note=${JSON.stringify(x.note ?? null)} | ${d.ref.path}`,
+        );
       }
+      console.log("paySum=", paySum);
+
+      const expSnap = await db.collection("expenses").get();
+      let withdrawnSum = 0;
+      console.log("=== EXPENSES ===", expSnap.size);
+      for (const d of expSnap.docs) {
+        const x = d.data();
+        const amount = typeof x.amount === "number" ? x.amount : 0;
+        if (x.withdrawn === true) withdrawnSum += amount;
+        console.log(
+          `  ${amount} | withdrawn=${x.withdrawn === true} | ${x.month} | ${x.description ?? x.note ?? ""}`,
+        );
+      }
+      console.log("withdrawnSum=", withdrawnSum);
+
+      const opening =
+        typeof settings.openingBalance === "number"
+          ? settings.openingBalance
+          : 0;
+      const storedMoH =
+        typeof settings.moneyOnHand === "number"
+          ? settings.moneyOnHand
+          : opening;
+      console.log("=== BALANCE ===", {
+        opening,
+        storedMoH,
+        expected: opening + paySum - withdrawnSum,
+        drift: storedMoH - (opening + paySum - withdrawnSum),
+      });
+
+      if (!APPLY) {
+        console.log("\nDry run. Re-run with --apply to zero books.");
+        return;
+      }
+
+      const batch = db.batch();
+      let ops = 0;
+      for (const d of paySnap.docs) {
+        batch.delete(d.ref);
+        ops += 1;
+      }
+      for (const d of expSnap.docs) {
+        batch.delete(d.ref);
+        ops += 1;
+      }
+      if (ops > 0) await batch.commit();
+
+      await db.doc("settings/global").update({
+        openingBalance: 0,
+        moneyOnHand: 0,
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedBy: "scripts/audit-and-zero-books",
+      });
+
+      console.log("RESET_DONE", {
+        deletedPayments: paySnap.size,
+        deletedExpenses: expSnap.size,
+        moneyOnHand: 0,
+        openingBalance: 0,
+      });
+      return;
+    } catch (e) {
+      lastErr = e;
+      const msg = e instanceof Error ? e.message : String(e);
+      console.log(`attempt ${attempt} failed: ${msg}`);
+      if (attempt < 6) await sleep(20000 * attempt);
     }
   }
-
-  const paySum = payments.reduce((s, p) => s + p.amount, 0);
-  console.log("\n=== FAMILIES ===", { activeFamilies, inactiveFamilies });
-  console.log("=== PAYMENTS ===", payments.length, "sum=", paySum);
-  for (const p of payments) {
-    console.log(
-      `  ${p.amount} | ${p.month} | fam=${p.familyName} (active=${p.familyActive}) | hh=${p.hhName} | note=${JSON.stringify(p.note)}`,
-    );
-  }
-
-  const expSnap = await db.collection("expenses").get();
-  const expenses = expSnap.docs.map((d) => {
-    const x = d.data();
-    return {
-      id: d.id,
-      amount: typeof x.amount === "number" ? x.amount : 0,
-      withdrawn: x.withdrawn === true,
-      month: String(x.month ?? ""),
-      description: String(x.description ?? x.note ?? ""),
-      type: String(x.type ?? ""),
-    };
-  });
-  const withdrawnSum = expenses
-    .filter((e) => e.withdrawn)
-    .reduce((s, e) => s + e.amount, 0);
-  const pendingSum = expenses
-    .filter((e) => !e.withdrawn)
-    .reduce((s, e) => s + e.amount, 0);
-  console.log(
-    "\n=== EXPENSES ===",
-    expenses.length,
-    "withdrawn=",
-    withdrawnSum,
-    "pending=",
-    pendingSum,
-  );
-  for (const e of expenses) {
-    console.log(
-      `  ${e.amount} | withdrawn=${e.withdrawn} | ${e.month} | ${e.type} | ${e.description}`,
-    );
-  }
-
-  const opening =
-    typeof settings.openingBalance === "number" ? settings.openingBalance : 0;
-  const storedMoH =
-    typeof settings.moneyOnHand === "number" ? settings.moneyOnHand : opening;
-  const expected = opening + paySum - withdrawnSum;
-  console.log("\n=== BALANCE CHECK ===");
-  console.log({
-    opening,
-    storedMoH,
-    paySum,
-    withdrawnSum,
-    expected,
-    drift: storedMoH - expected,
-  });
-
-  if (!APPLY) {
-    console.log(
-      "\nDry run only. Re-run with --apply to delete all payments + expenses and set MoH/opening to 0 (keeps members/families).",
-    );
-    return;
-  }
-
-  console.log("\n=== APPLYING RESET ===");
-  let deletedPayments = 0;
-  for (const p of payments) {
-    await db.doc(p.path).delete();
-    deletedPayments += 1;
-  }
-  let deletedExpenses = 0;
-  for (const e of expenses) {
-    await db.collection("expenses").doc(e.id).delete();
-    deletedExpenses += 1;
-  }
-
-  await db.doc("settings/global").update({
-    openingBalance: 0,
-    moneyOnHand: 0,
-    updatedAt: FieldValue.serverTimestamp(),
-    updatedBy: "scripts/audit-and-zero-books",
-  });
-
-  console.log({
-    deletedPayments,
-    deletedExpenses,
-    openingBalance: 0,
-    moneyOnHand: 0,
-    householdsKept: hhSnap.size,
-    familiesKept: activeFamilies + inactiveFamilies,
-  });
-  console.log("Done. Books zeroed; members preserved.");
+  throw lastErr;
 }
 
 main().catch((err) => {
