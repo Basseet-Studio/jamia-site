@@ -11,6 +11,11 @@ export const createHouseholdSchema = z.object({
 });
 export type CreateHouseholdSchema = z.infer<typeof createHouseholdSchema>;
 
+export const editHouseholdSchema = z.object({
+  name: householdNameSchema,
+});
+export type EditHouseholdSchema = z.infer<typeof editHouseholdSchema>;
+
 export const deleteHouseholdSchema = z.object({
   householdId: z.string().min(1),
   confirmName: z.string().min(1),

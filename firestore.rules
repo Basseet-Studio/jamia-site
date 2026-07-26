@@ -137,14 +137,32 @@ service cloud.firestore {
         && request.resource.data.deletedAt == null
         && request.resource.data.deletedBy == null;
 
-      // Soft-delete only — full admins.
-      allow update: if canDeleteData()
+      // Soft-delete or rename — full admins.
+      allow update: if isFullAdmin()
         && (resource.data.active == true || !('active' in resource.data))
-        && request.resource.data.active == false
-        && request.resource.data.deletedBy == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'active', 'deletedAt', 'deletedBy'
-        ]);
+        && (
+          // 1) soft-delete
+          (
+            request.resource.data.active == false
+            && request.resource.data.deletedBy == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'active', 'deletedAt', 'deletedBy'
+            ])
+          )
+          ||
+          // 2) rename
+          (
+            (request.resource.data.active == true || !('active' in request.resource.data))
+            && request.resource.data.deletedAt == resource.data.deletedAt
+            && request.resource.data.deletedBy == resource.data.deletedBy
+            && request.resource.data.name is string
+            && request.resource.data.name.size() > 0
+            && request.resource.data.name.size() <= 80
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'name'
+            ])
+          )
+        );
 
       allow delete: if canDeleteData();
 

@@ -18,7 +18,9 @@ import {
 import { getDb } from "@/lib/firebase/client";
 import {
   createHouseholdSchema,
+  editHouseholdSchema,
   type CreateHouseholdSchema,
+  type EditHouseholdSchema,
 } from "@/lib/schemas/household";
 import type { Household } from "@/lib/types";
 
@@ -96,6 +98,16 @@ export async function createHousehold(
     deletedBy: null,
   });
   return ref.id;
+}
+
+/** Rename a household (Members tab). Name only — no other fields. */
+export async function editHousehold(
+  householdId: string,
+  input: EditHouseholdSchema,
+): Promise<void> {
+  const parsed = editHouseholdSchema.parse(input);
+  const ref = doc(getDb(), "households", householdId);
+  await updateDoc(ref, { name: parsed.name });
 }
 
 /**
