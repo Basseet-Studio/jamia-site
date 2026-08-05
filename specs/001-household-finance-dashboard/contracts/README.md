@@ -14,7 +14,7 @@ For a single-tenant, single-admin dashboard backed by Firestore:
 
 ## Mirroring at repo root
 
-`firestore.rules` and `firestore.indexes.json` are mirrored to the repo root (`./firestore.rules`, `./firestore.indexes.json`) so the Firebase CLI finds them via `firebase deploy --only firestore:rules,firestore:indexes`. The copies in this folder are the source of truth for design and review.
+`firebase.json` deploys `./firestore.rules` and `./firestore.indexes.json` from the **repo root** (`firebase deploy --only firestore:rules,firestore:indexes`). Keep the copies in this folder in sync with those root files so design/review docs match what actually ships.
 
 ## Deployment
 
@@ -22,7 +22,7 @@ For a single-tenant, single-admin dashboard backed by Firestore:
 firebase deploy --only firestore:rules,firestore:indexes
 ```
 
-Both `firestore.rules` and `firestore.indexes.json` are deployed to Firebase. The local copies in this folder are mirrored at the repo root for the Firebase CLI to find.
+Both `firestore.rules` and `firestore.indexes.json` are deployed from the **repo root**. Keep this folder’s copies aligned with those files.
 
 ## How to extend
 

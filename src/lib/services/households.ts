@@ -107,7 +107,17 @@ export async function editHousehold(
 ): Promise<void> {
   const parsed = editHouseholdSchema.parse(input);
   const ref = doc(getDb(), "households", householdId);
-  await updateDoc(ref, { name: parsed.name });
+  try {
+    await updateDoc(ref, { name: parsed.name });
+  } catch (e) {
+    const err = e as { code?: string; message?: string };
+    if (err.code === "permission-denied") {
+      throw new Error(
+        "Permission denied renaming member. Deploy the latest firestore.rules (`firebase deploy --only firestore:rules`), and confirm your staff role is owner or admin.",
+      );
+    }
+    throw e;
+  }
 }
 
 /**

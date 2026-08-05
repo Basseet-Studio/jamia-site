@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -68,6 +69,7 @@ export default function HouseholdDetailPage({
   const [statusFilter, setStatusFilter] = useState<"all" | FamilyMonthlyStatus>(
     "all",
   );
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const financialSummary = useHouseholdFinancialSummary(householdId);
 
@@ -104,11 +106,21 @@ export default function HouseholdDetailPage({
   }, [statuses]);
 
   const visibleFamilies = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     const filtered = families.filter((f) => {
       if (!showSoftDeleted && !f.active) return false;
-      if (statusFilter === "all") return true;
-      const status = statusById.get(f.id)?.status ?? "Unpaid";
-      return status === statusFilter;
+      if (statusFilter !== "all") {
+        const status = statusById.get(f.id)?.status ?? "Unpaid";
+        if (status !== statusFilter) return false;
+      }
+      if (q) {
+        const nameMatch = f.name.toLowerCase().includes(q);
+        const memberMatch = f.memberNames.some((n) =>
+          n.toLowerCase().includes(q),
+        );
+        if (!nameMatch && !memberMatch) return false;
+      }
+      return true;
     });
     return filtered.sort((a, b) => {
       const cmp = a.name.localeCompare(b.name, undefined, {
@@ -117,7 +129,14 @@ export default function HouseholdDetailPage({
       });
       return nameSort === "asc" ? cmp : -cmp;
     });
-  }, [families, showSoftDeleted, statusFilter, statusById, nameSort]);
+  }, [
+    families,
+    showSoftDeleted,
+    statusFilter,
+    statusById,
+    nameSort,
+    searchQuery,
+  ]);
 
   if (loading) {
     return (
@@ -174,6 +193,16 @@ export default function HouseholdDetailPage({
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0">
           <CardTitle>{t("householdDetail.families")}</CardTitle>
           <div className="flex flex-wrap items-center gap-3">
+            <Input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              // TODO: localise this later
+              placeholder="Search families…"
+              className="w-[180px]"
+              data-testid="family-search"
+              aria-label="Search families"
+            />
             <div className="flex items-center gap-2">
               <Label
                 htmlFor="family-name-sort"

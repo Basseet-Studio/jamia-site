@@ -1,7 +1,8 @@
 rules_version = '2';
 
 // Veeramangalam Juma Masjid Household Finance Dashboard
-// v1 — single admin app. See contracts/README.md and specs/001-household-finance-dashboard/.
+// Hierarchy: household -> family -> members. Members are per-family.
+// See specs/001-household-finance-dashboard/contracts/firestore.rules for v1 origin.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -12,26 +13,114 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      return isSignedIn()
-        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    // Prefer `staff` (ad-blocker safe). Legacy `admins` still authorises
+    // until docs are migrated.
+    function hasStaffDoc() {
+      return exists(/databases/$(database)/documents/staff/$(request.auth.uid));
     }
 
-    // ---- admins ----
+    function hasLegacyAdminDoc() {
+      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
 
-    // Admin docs are written manually in the Firebase Console.
-    // The client never writes, updates, or deletes them in v1.
+    function isAdmin() {
+      return isSignedIn() && (hasStaffDoc() || hasLegacyAdminDoc());
+    }
+
+    function adminRole() {
+      return hasStaffDoc()
+        ? get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role
+        : get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role;
+    }
+
+    // owner | admin — financial writes, deletes, settings, admin management
+    function isFullAdmin() {
+      return isAdmin() && adminRole() in ['owner', 'admin'];
+    }
+
+    // Any authenticated staff doc (owner | admin | clerk) may create structure
+    function canCreateStructure() {
+      return isAdmin() && adminRole() in ['owner', 'admin', 'clerk'];
+    }
+
+    function canDeleteData() {
+      return isFullAdmin();
+    }
+
+    function canWriteFinancial() {
+      return isFullAdmin();
+    }
+
+    function canWriteSettings() {
+      return isFullAdmin();
+    }
+
+    function canManageAdmins() {
+      return isFullAdmin();
+    }
+
+    function validOptionalAttachment() {
+      return !('attachmentPath' in request.resource.data)
+        || request.resource.data.attachmentPath == null
+        || (
+          request.resource.data.attachmentPath is string
+          && request.resource.data.attachmentPath.matches('^receipts/')
+          && request.resource.data.attachmentFileName is string
+          && request.resource.data.attachmentMimeType is string
+        );
+    }
+
+    function validStaffCreateShape() {
+      return request.resource.data.keys().hasAll([
+          'email', 'displayName', 'role'
+        ])
+        && request.resource.data.role in ['owner', 'admin', 'clerk']
+        && request.resource.data.email is string
+        && request.resource.data.displayName is string;
+    }
+
+    // ---- staff (authorized users: owner | admin | clerk) ----
+    // Collection is NOT named `admins` — ad blockers block `/admins/` URLs.
+
+    match /staff/{uid} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && validStaffCreateShape()
+        && (
+          (request.auth.uid == uid
+            && request.resource.data.role in ['owner', 'admin'])
+          || canManageAdmins()
+        );
+
+      allow update: if canManageAdmins();
+      allow delete: if canManageAdmins();
+    }
+
+    // ---- legacy admins (read + migrate only; prefer staff for writes) ----
+
     match /admins/{uid} {
       allow read: if isSignedIn();
-      allow write: if false;
+
+      // Allow full admins to copy/migrate (create on staff is primary; keep
+      // create here so bootstrap race / tools still work briefly).
+      allow create: if isSignedIn()
+        && validStaffCreateShape()
+        && (
+          (request.auth.uid == uid
+            && request.resource.data.role in ['owner', 'admin'])
+          || canManageAdmins()
+        );
+
+      allow update: if canManageAdmins();
+      allow delete: if canManageAdmins();
     }
 
     // ---- settings ----
 
-    // Singleton: settings/global. Anyone authorised can read. Only authorised admins can write.
     match /settings/{doc} {
       allow read: if isAdmin();
-      allow write: if isAdmin()
+      allow write: if canWriteSettings()
         && doc == 'global'
         && request.resource.data.keys().hasAll(['defaultContributionTarget', 'openingBalance', 'currency']);
     }
@@ -41,65 +130,166 @@ service cloud.firestore {
     match /households/{householdId} {
       allow read: if isAdmin();
 
-      allow create: if isAdmin()
+      allow create: if canCreateStructure()
         && request.resource.data.createdBy == request.auth.uid
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.active == true
+        && request.resource.data.deletedAt == null
+        && request.resource.data.deletedBy == null;
 
-      // Update is not used in v1.
-      allow update: if false;
+      // Soft-delete or rename — full admins.
+      allow update: if isFullAdmin()
+        && (resource.data.active == true || !('active' in resource.data))
+        && (
+          // 1) soft-delete
+          (
+            request.resource.data.active == false
+            && request.resource.data.deletedBy == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'active', 'deletedAt', 'deletedBy'
+            ])
+          )
+          ||
+          // 2) rename
+          (
+            (request.resource.data.active == true || !('active' in request.resource.data))
+            && request.resource.data.deletedAt == resource.data.deletedAt
+            && request.resource.data.deletedBy == resource.data.deletedBy
+            && request.resource.data.name is string
+            && request.resource.data.name.size() > 0
+            && request.resource.data.name.size() <= 80
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'name'
+            ])
+          )
+        );
 
-      // Hard delete: cascades via batched write in the service layer.
-      // Rules do not enforce cascade — service layer is responsible.
-      allow delete: if isAdmin();
+      allow delete: if canDeleteData();
 
       // ---- families (sub-collection) ----
 
       match /families/{familyId} {
         allow read: if isAdmin();
 
-        allow create: if isAdmin()
+        allow create: if canCreateStructure()
           && request.resource.data.createdBy == request.auth.uid
           && request.resource.data.createdAt == request.time
           && request.resource.data.active == true
           && request.resource.data.deletedAt == null
           && request.resource.data.deletedBy == null
           && request.resource.data.contributionTarget is number
-          && request.resource.data.contributionTarget >= 0;
+          && request.resource.data.contributionTarget >= 0
+          && request.resource.data.memberCount == 0
+          && request.resource.data.memberNames.size() == 0;
 
-        // Update allowed only for the soft-delete transition: active flips to false,
-        // deletedAt and deletedBy set. Every other field must match the existing value (immutable on soft delete).
-        allow update: if isAdmin()
-          && resource.data.active == true
-          && request.resource.data.active == false
-          && request.resource.data.deletedAt == request.time
-          && request.resource.data.deletedBy == request.auth.uid
-          && request.resource.data.name == resource.data.name
-          && request.resource.data.contributionTarget == resource.data.contributionTarget
-          && request.resource.data.createdAt == resource.data.createdAt
-          && request.resource.data.createdBy == resource.data.createdBy;
+        // Soft-delete / edit / members — full admins only (clerks are add-only).
+        allow update: if isFullAdmin()
+          && (
+            // 1) soft-delete
+            (
+              resource.data.active == true
+              && request.resource.data.active == false
+              && request.resource.data.deletedBy == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'active', 'deletedAt', 'deletedBy'
+              ])
+            )
+            ||
+            // 2) name/target edit
+            (
+              resource.data.active == true
+              && request.resource.data.active == true
+              && request.resource.data.deletedAt == resource.data.deletedAt
+              && request.resource.data.deletedBy == resource.data.deletedBy
+              && request.resource.data.contributionTarget is number
+              && request.resource.data.contributionTarget >= 0
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'name', 'contributionTarget', 'updatedAt', 'updatedBy'
+              ])
+            )
+            ||
+            // 3) member edit
+            (
+              resource.data.active == true
+              && request.resource.data.active == true
+              && request.resource.data.deletedAt == resource.data.deletedAt
+              && request.resource.data.deletedBy == resource.data.deletedBy
+              && request.resource.data.name == resource.data.name
+              && request.resource.data.contributionTarget == resource.data.contributionTarget
+              && request.resource.data.memberCount is number
+              && request.resource.data.memberCount >= 0
+              && request.resource.data.memberNames is list
+              && request.resource.data.memberNames.size() == request.resource.data.memberCount
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'memberCount', 'memberNames', 'updatedAt', 'updatedBy'
+              ])
+            )
+          );
 
-        // Hard delete is NOT allowed on families. Soft delete only.
-        allow delete: if false;
+        allow delete: if canDeleteData();
 
         // ---- payments (sub-sub-collection) ----
 
         match /payments/{paymentId} {
           allow read: if isAdmin();
 
-          allow create: if isAdmin()
-            && request.resource.data.recordedBy == request.auth.uid
-            && request.resource.data.recordedAt == request.time
-            && request.resource.data.amount is number
-            && request.resource.data.amount > 0
-            && request.resource.data.month is string
-            && request.resource.data.month.matches('^\\d{4}-(0[1-9]|1[0-2])$');
+          allow create: if canWriteFinancial()
+                      && request.resource.data.recordedBy == request.auth.uid
+                      && request.resource.data.recordedAt == request.time
+                      && request.resource.data.amount is number
+                      && request.resource.data.amount > 0
+                      && request.resource.data.month is string
+                      && request.resource.data.month.matches('^\\d{4}-(0[1-9]|1[0-2])$')
+                      && (
+                        !('coverageGroupId' in request.resource.data)
+                        || (request.resource.data.coverageGroupId is string
+                            && request.resource.data.coverageGroupId.matches(
+                                 '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'))
+                      )
+                      && validOptionalAttachment();
 
-          // No edit on payments in v1.
           allow update: if false;
+          allow delete: if canDeleteData();
+        }
 
-          allow delete: if isAdmin();
+        match /memberHistory/{historyId} {
+          allow read: if isAdmin();
+
+          allow create: if isFullAdmin()
+            && request.resource.data.changedBy == request.auth.uid
+            && request.resource.data.changedAt == request.time
+            && request.resource.data.householdId == householdId
+            && request.resource.data.familyId == familyId
+            && request.resource.data.previousCount is number
+            && request.resource.data.previousCount >= 0
+            && request.resource.data.previousNames is list
+            && request.resource.data.newCount is number
+            && request.resource.data.newCount >= 0
+            && request.resource.data.newNames is list;
+
+          allow update: if false;
+          allow delete: if canDeleteData();
         }
       }
+    }
+
+    // ---- contributions ----
+
+    match /contributions/{contributionId} {
+      allow read: if isAdmin();
+
+      allow create: if canWriteFinancial()
+        && request.resource.data.addedBy == request.auth.uid
+        && request.resource.data.addedAt == request.time
+        && request.resource.data.contributorName is string
+        && request.resource.data.contributorName.size() > 0
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.date is timestamp
+        && validOptionalAttachment();
+
+      allow update: if false;
+      allow delete: if canDeleteData();
     }
 
     // ---- expenses ----
@@ -107,8 +297,7 @@ service cloud.firestore {
     match /expenses/{expenseId} {
       allow read: if isAdmin();
 
-      // Create: not withdrawn by default.
-      allow create: if isAdmin()
+      allow create: if canWriteFinancial()
         && request.resource.data.addedBy == request.auth.uid
         && request.resource.data.addedAt == request.time
         && request.resource.data.withdrawn == false
@@ -118,13 +307,24 @@ service cloud.firestore {
         && request.resource.data.amount > 0
         && request.resource.data.month is string
         && request.resource.data.month.matches('^\\d{4}-(0[1-9]|1[0-2])$')
-        && (request.resource.data.isRecurring == false || request.resource.data.recurringId is string);
+        && (request.resource.data.isRecurring == false || request.resource.data.recurringId is string)
+        && (
+          (request.resource.data.type == 'household'
+            && request.resource.data.householdId is string
+            && request.resource.data.mosqueSubCategory == null)
+          ||
+          (request.resource.data.type == 'mosque'
+            && request.resource.data.householdId == null
+            && request.resource.data.familyId == null
+            && (request.resource.data.mosqueSubCategory == 'maintenance'
+              || request.resource.data.mosqueSubCategory == 'salary'
+              || request.resource.data.mosqueSubCategory == 'other'))
+        )
+        && request.resource.data.get('attachmentPath', null) == null
+        && request.resource.data.get('attachmentFileName', null) == null
+        && request.resource.data.get('attachmentMimeType', null) == null;
 
-      // Update: only the withdraw transition is allowed.
-      // From: withdrawn=false, withdrawnAt=null, withdrawnBy=null
-      // To:   withdrawn=true,  withdrawnAt=request.time, withdrawnBy=request.auth.uid
-      // Every other field must match the existing value (immutable on withdraw).
-      allow update: if isAdmin()
+      allow update: if canWriteFinancial()
         && resource.data.withdrawn == false
         && request.resource.data.withdrawn == true
         && request.resource.data.withdrawnAt == request.time
@@ -137,9 +337,37 @@ service cloud.firestore {
         && request.resource.data.isRecurring == resource.data.isRecurring
         && request.resource.data.recurringId == resource.data.recurringId
         && request.resource.data.addedAt == resource.data.addedAt
-        && request.resource.data.addedBy == resource.data.addedBy;
+        && request.resource.data.addedBy == resource.data.addedBy
+        && request.resource.data.type == resource.data.type
+        && request.resource.data.householdId == resource.data.householdId
+        && request.resource.data.familyId == resource.data.familyId
+        && request.resource.data.mosqueSubCategory == resource.data.mosqueSubCategory
+        && request.resource.data.attachmentPath == resource.data.get('attachmentPath', null)
+        && request.resource.data.attachmentFileName == resource.data.get('attachmentFileName', null)
+        && request.resource.data.attachmentMimeType == resource.data.get('attachmentMimeType', null);
 
-      allow delete: if isAdmin();
+      allow update: if canWriteFinancial()
+        && resource.data.withdrawn == true
+        && request.resource.data.withdrawn == true
+        && request.resource.data.withdrawnAt == resource.data.withdrawnAt
+        && request.resource.data.withdrawnBy == resource.data.withdrawnBy
+        && request.resource.data.name == resource.data.name
+        && request.resource.data.amount == resource.data.amount
+        && request.resource.data.date == resource.data.date
+        && request.resource.data.month == resource.data.month
+        && request.resource.data.note == resource.data.note
+        && request.resource.data.isRecurring == resource.data.isRecurring
+        && request.resource.data.recurringId == resource.data.recurringId
+        && request.resource.data.addedAt == resource.data.addedAt
+        && request.resource.data.addedBy == resource.data.addedBy
+        && request.resource.data.type == resource.data.type
+        && request.resource.data.householdId == resource.data.householdId
+        && request.resource.data.familyId == resource.data.familyId
+        && request.resource.data.mosqueSubCategory == resource.data.mosqueSubCategory
+        && resource.data.get('attachmentPath', null) == null
+        && validOptionalAttachment();
+
+      allow delete: if canDeleteData();
     }
 
     // ---- recurringExpenses ----
@@ -147,19 +375,36 @@ service cloud.firestore {
     match /recurringExpenses/{templateId} {
       allow read: if isAdmin();
 
-      allow create: if isAdmin()
+      allow create: if canWriteFinancial()
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdAt == request.time
         && request.resource.data.active == true
         && request.resource.data.amount is number
-        && request.resource.data.amount > 0;
+        && request.resource.data.amount > 0
+        && (
+          (request.resource.data.type == 'household'
+            && request.resource.data.householdId is string
+            && request.resource.data.mosqueSubCategory == null)
+          ||
+          (request.resource.data.type == 'mosque'
+            && request.resource.data.householdId == null
+            && request.resource.data.familyId == null
+            && (request.resource.data.mosqueSubCategory == 'maintenance'
+              || request.resource.data.mosqueSubCategory == 'salary'
+              || request.resource.data.mosqueSubCategory == 'other'))
+        );
 
-      // Edit (name, amount, description, active). createdAt/createdBy immutable.
-      allow update: if isAdmin()
+      allow update: if canWriteFinancial()
         && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.createdBy == resource.data.createdBy;
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.type in ['household', 'mosque']
+        && (
+          request.resource.data.type == 'mosque'
+          || (request.resource.data.type == 'household'
+            && request.resource.data.householdId is string)
+        );
 
-      allow delete: if isAdmin();
+      allow delete: if canDeleteData();
     }
 
     // Default: deny everything else.

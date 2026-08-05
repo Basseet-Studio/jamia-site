@@ -49,7 +49,7 @@ Then in a one-off shell: `firebase deploy --only firestore:rules,firestore:index
 - Research: `specs/001-household-finance-dashboard/research.md`
 - Tasks: `specs/001-household-finance-dashboard/tasks.md`
 - Service interface: `specs/001-household-finance-dashboard/contracts/service-interface.ts`
-- Firestore rules (source of truth): `specs/001-household-finance-dashboard/contracts/firestore.rules` (mirrored to `firestore.rules` at repo root for `firebase deploy`)
+- Firestore rules (deploy source of truth): `firestore.rules` at repo root (`firebase.json` → `firebase deploy --only firestore:rules`). Keep `specs/001-household-finance-dashboard/contracts/firestore.rules` in sync with the root file.
 
 ## Architecture
 

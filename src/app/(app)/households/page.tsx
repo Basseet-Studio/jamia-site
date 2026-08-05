@@ -5,6 +5,7 @@ import { AddHouseholdDialog } from "@/components/households/AddHouseholdDialog";
 import { DeleteHouseholdDialog } from "@/components/households/DeleteHouseholdDialog";
 import { EditHouseholdDialog } from "@/components/households/EditHouseholdDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -27,6 +28,7 @@ export default function HouseholdsPage() {
   const [list, setList] = useState<Household[]>([]);
   const [loading, setLoading] = useState(true);
   const [nameSort, setNameSort] = useState<"asc" | "desc">("asc");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const off = subscribeHouseholds((rows) => {
@@ -36,21 +38,35 @@ export default function HouseholdsPage() {
     return off;
   }, []);
 
-  const sorted = useMemo(() => {
-    return list.slice().sort((a, b) => {
+  const visible = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const filtered = q
+      ? list.filter((h) => h.name.toLowerCase().includes(q))
+      : list;
+    return filtered.slice().sort((a, b) => {
       const cmp = a.name.localeCompare(b.name, undefined, {
         sensitivity: "base",
         numeric: true,
       });
       return nameSort === "asc" ? cmp : -cmp;
     });
-  }, [list, nameSort]);
+  }, [list, nameSort, searchQuery]);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{t("households.heading")}</h1>
         <div className="flex flex-wrap items-center gap-2">
+          <Input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            // TODO: localise this later
+            placeholder="Search members…"
+            className="w-[180px]"
+            data-testid="household-search"
+            aria-label="Search members"
+          />
           <div className="flex items-center gap-2">
             <Label
               htmlFor="household-name-sort"
@@ -97,13 +113,18 @@ export default function HouseholdsPage() {
       </div>
       {loading ? (
         <p className="text-sm text-muted-foreground">{t("common.loading")}</p>
-      ) : sorted.length === 0 ? (
+      ) : list.length === 0 ? (
         <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
           {t("households.empty")}
         </div>
+      ) : visible.length === 0 ? (
+        <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+          {/* TODO: localise this later */}
+          No members match the search.
+        </div>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          {sorted.map((h) => {
+          {visible.map((h) => {
             const created = h.createdAt?.toDate ? h.createdAt.toDate() : null;
             return (
               <Card key={h.id}>
