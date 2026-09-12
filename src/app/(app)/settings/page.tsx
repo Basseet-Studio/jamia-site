@@ -1,6 +1,7 @@
 "use client";
 import { SettingsForm } from "@/components/settings/SettingsForm";
 import { RecalculateMoneyOnHandCard } from "@/components/settings/RecalculateMoneyOnHandCard";
+import { DumpDbCard } from "@/components/settings/DumpDbCard";
 import { LanguageSwitcher } from "@/components/settings/LanguageSwitcher";
 import { AdminManagement } from "@/components/settings/AdminManagement";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +20,7 @@ export default function SettingsPage() {
         <>
           <SettingsForm />
           <RecalculateMoneyOnHandCard />
+          <DumpDbCard />
         </>
       ) : null}
       <LanguageSwitcher />

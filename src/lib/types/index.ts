@@ -114,6 +114,10 @@ export interface RecurringTemplate {
   householdId: null;
   familyId: null;
   mosqueSubCategory: MosqueSubCategory;
+  updatedAt?: Timestamp | null;
+  updatedBy?: string | null;
+  archivedAt?: Timestamp | null;
+  archivedBy?: string | null;
 }
 
 export type FamilyMonthlyStatus = "Unpaid" | "Partial" | "Met" | "Over";

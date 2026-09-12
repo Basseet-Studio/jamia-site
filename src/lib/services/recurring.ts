@@ -62,6 +62,10 @@ function toTemplate(
     householdId: null,
     familyId: null,
     mosqueSubCategory: normaliseSubCategory(data.mosqueSubCategory),
+    updatedAt: (data.updatedAt as RecurringTemplate["updatedAt"]) ?? null,
+    updatedBy: typeof data.updatedBy === "string" ? data.updatedBy : null,
+    archivedAt: (data.archivedAt as RecurringTemplate["archivedAt"]) ?? null,
+    archivedBy: typeof data.archivedBy === "string" ? data.archivedBy : null,
   };
 }
 

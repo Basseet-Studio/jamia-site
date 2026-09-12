@@ -259,6 +259,26 @@ export async function updateMembers(
   await batch.commit();
 }
 
+/** All member-history rows for a family — dump export (no 200 cap). */
+export async function listMemberHistory(
+  householdId: string,
+  familyId: string,
+): Promise<FamilyMemberHistory[]> {
+  const snap = await getDocs(
+    collection(
+      getDb(),
+      "households",
+      householdId,
+      "families",
+      familyId,
+      "memberHistory",
+    ),
+  );
+  return snap.docs.map((d) =>
+    toMemberHistory(householdId, familyId, d.id, d.data()),
+  );
+}
+
 /** Live subscription to the member-change history for a family (newest-first). */
 export function subscribeMemberHistory(
   householdId: string,

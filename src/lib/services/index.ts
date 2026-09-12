@@ -14,6 +14,7 @@ export * from "@/lib/services/moneyOnHand";
 export * from "@/lib/services/recalculateMoneyOnHand";
 export * from "@/lib/services/resetFinancialBooks";
 export * from "@/lib/services/derived";
+export * from "@/lib/services/dumpDb";
 
 // 002: re-exported types for downstream convenience (US-2 / US-4 / US-5).
 export type {

@@ -3,6 +3,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   serverTimestamp,
   setDoc,
 } from "firebase/firestore";
@@ -70,6 +71,13 @@ export async function deleteContribution(contributionId: string): Promise<void> 
       // best-effort storage cleanup
     }
   }
+}
+
+export async function listContributions(): Promise<Contribution[]> {
+  const snap = await getDocs(collection(getDb(), "contributions"));
+  return snap.docs.map((d) =>
+    toContribution(d.id, d.data() as Record<string, unknown>),
+  );
 }
 
 export { toContribution };

@@ -120,6 +120,23 @@ export async function listAdmins(): Promise<Admin[]> {
   return admins;
 }
 
+/** Legacy `admins` collection for dump `admins[]`. Empty if blocked/migrated. */
+export async function listLegacyAdmins(): Promise<Admin[]> {
+  try {
+    const snap = await getDocs(
+      collection(getDb(), LEGACY_ADMINS_COLLECTION),
+    );
+    const admins: Admin[] = [];
+    for (const d of snap.docs) {
+      const a = toAdmin(d.id, d.data());
+      if (a) admins.push(a);
+    }
+    return admins;
+  } catch {
+    return [];
+  }
+}
+
 /** Live subscription to the full staff list — admin-management UI. */
 export function subscribeAdmins(
   callback: (admins: Admin[]) => void,

@@ -35,6 +35,37 @@ export async function getSettings(): Promise<Setting | null> {
   return toSetting(snap.data());
 }
 
+/** Full settings row for dump export (includes moneyOnHand + actors). */
+export async function getSettingsDump(): Promise<{
+  defaultContributionTarget: number;
+  openingBalance: number;
+  currency: string;
+  moneyOnHand: number;
+  updatedAt: unknown;
+  updatedBy: string | null;
+} | null> {
+  const snap = await getDoc(doc(getDb(), "settings", "global"));
+  if (!snap.exists()) return null;
+  const data = snap.data() as Record<string, unknown>;
+  if (
+    typeof data.defaultContributionTarget !== "number" ||
+    typeof data.openingBalance !== "number" ||
+    typeof data.currency !== "string"
+  ) {
+    return null;
+  }
+  const opening = data.openingBalance;
+  return {
+    defaultContributionTarget: data.defaultContributionTarget,
+    openingBalance: opening,
+    currency: data.currency,
+    moneyOnHand:
+      typeof data.moneyOnHand === "number" ? data.moneyOnHand : opening,
+    updatedAt: data.updatedAt ?? null,
+    updatedBy: typeof data.updatedBy === "string" ? data.updatedBy : null,
+  };
+}
+
 export function subscribeSettings(callback: (s: Setting | null) => void): Unsubscribe {
   return onSnapshot(doc(getDb(), "settings", "global"), (snap) => {
     if (!snap.exists()) {
