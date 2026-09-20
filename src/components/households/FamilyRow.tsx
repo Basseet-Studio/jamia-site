@@ -13,6 +13,7 @@ import { RecordPaymentDialog } from "@/components/payments/RecordPaymentDialog";
 import { StatusBadge } from "@/components/payments/StatusBadge";
 import { useT } from "@/lib/i18n";
 import { usePermissions } from "@/lib/hooks/usePermissions";
+import { cn } from "@/lib/utils";
 
 export function FamilyRow({
   householdId,
@@ -37,8 +38,15 @@ export function FamilyRow({
     [family, payments],
   );
   const shortfall = Math.max(0, summary.totalExpected - summary.totalPaid);
+  const zeroTarget = family.contributionTarget === 0;
   return (
-    <tr className="border-b last:border-0">
+    <tr
+      className={cn(
+        "border-b last:border-0",
+        zeroTarget && "bg-purple-50/70 dark:bg-purple-950/25",
+      )}
+      title={zeroTarget ? t("families.zeroTargetHint") : undefined}
+    >
       <td className="px-3 py-2 text-sm">
         <Link
           href={`/households/${householdId}/families/${family.id}/history`}

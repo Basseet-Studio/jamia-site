@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { MOSQUE_NAME } from "@/lib/brand";
 import type { Contribution, Expense, Payment } from "@/lib/types";
 import {
   describeTimestamp,
@@ -102,7 +103,7 @@ export function buildReceiptPdfDoc(
   const margin = 14;
   let y = margin;
 
-  const org = ctx.orgName ?? "Jamia Finance";
+  const org = ctx.orgName ?? MOSQUE_NAME;
   doc.setFontSize(14);
   doc.text(org, margin, y);
   y += 8;
@@ -194,5 +195,5 @@ export function buildReceiptPdfDoc(
   const fileName = receiptFileName(ctx);
   logReceiptPdf("build_done", "ok", { fileName, finalY: y });
 
-  return { doc, fileName };
+  return { doc, fileName, org };
 }

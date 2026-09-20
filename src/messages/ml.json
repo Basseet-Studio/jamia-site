@@ -135,7 +135,8 @@
     "removed": "(നീക്കംചെയ്തു)",
     "tableMembers": "Members",
     "membersButton": "Manage members",
-    "membersNone": "No members"
+    "membersNone": "No members",
+    "zeroTargetHint": "വരിസംഖ്യ ലക്ഷ്യം 0 ആണ്"
   },
   "payments": {
     "recordButton": "പേയ്‌മെന്റ് രേഖപ്പെടുത്തുക",

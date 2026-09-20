@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Timestamp } from "firebase/firestore";
+import { MOSQUE_NAME } from "@/lib/brand";
 import { buildReceiptPdfDoc } from "@/lib/services/receiptPdf";
 
 function ts(d: Date): Timestamp {
@@ -22,8 +23,9 @@ const contributionCtx = {
 
 describe("buildReceiptPdfDoc", () => {
   it("builds A5 receipt PDF", () => {
-    const { doc, fileName } = buildReceiptPdfDoc(contributionCtx, "a5");
+    const { doc, fileName, org } = buildReceiptPdfDoc(contributionCtx, "a5");
     expect(fileName).toMatch(/^jamia-receipt-contrib-/);
+    expect(org).toBe(MOSQUE_NAME);
     expect(doc.internal.pageSize.getWidth()).toBeCloseTo(148, 0);
     expect(doc.internal.pageSize.getHeight()).toBeCloseTo(210, 0);
   });
