@@ -4,8 +4,8 @@ import {
   doc,
   getDoc,
   getDocs,
+  runTransaction,
   serverTimestamp,
-  setDoc,
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase/client";
 import {
@@ -19,6 +19,10 @@ import {
   uploadReceiptAttachment,
 } from "@/lib/services/attachments";
 import type { Contribution } from "@/lib/types";
+import {
+  getSettingsSnapInTx,
+} from "@/lib/services/moneyOnHand";
+import { nextReceiptNumbers } from "@/lib/services/receiptSerial";
 
 function toContribution(id: string, data: Record<string, unknown>): Contribution {
   return {
@@ -29,6 +33,10 @@ function toContribution(id: string, data: Record<string, unknown>): Contribution
     note: (data.note as Contribution["note"]) ?? null,
     addedAt: data.addedAt as Contribution["addedAt"],
     addedBy: String(data.addedBy ?? ""),
+    receiptNo:
+      typeof data.receiptNo === "number" && data.receiptNo > 0
+        ? Math.trunc(data.receiptNo)
+        : null,
     ...parseAttachmentFields(data),
   };
 }
@@ -39,18 +47,33 @@ export async function addContribution(
   attachmentFile?: File | null,
 ): Promise<string> {
   const parsed = contributionSchema.parse(input);
-  const newRef = doc(collection(getDb(), "contributions"));
+  const db = getDb();
+  const newRef = doc(collection(db, "contributions"));
   const attachment = attachmentFile
     ? await uploadReceiptAttachment("contributions", newRef.id, attachmentFile)
     : null;
-  await setDoc(newRef, {
-    contributorName: parsed.contributorName,
-    amount: parsed.amount,
-    date: parsed.date,
-    note: parsed.note,
-    addedAt: serverTimestamp(),
-    addedBy: uid,
-    ...attachmentFieldsFromInput(attachment),
+  await runTransaction(db, async (tx) => {
+    const { ref: settingsRef, data: settingsData } =
+      await getSettingsSnapInTx(tx);
+    const { numbers, field, nextSeq } = nextReceiptNumbers(
+      settingsData,
+      "contribution",
+      1,
+    );
+    tx.update(settingsRef, {
+      [field]: nextSeq,
+      updatedAt: serverTimestamp(),
+    });
+    tx.set(newRef, {
+      contributorName: parsed.contributorName,
+      amount: parsed.amount,
+      date: parsed.date,
+      note: parsed.note,
+      addedAt: serverTimestamp(),
+      addedBy: uid,
+      receiptNo: numbers[0],
+      ...attachmentFieldsFromInput(attachment),
+    });
   });
   return newRef.id;
 }

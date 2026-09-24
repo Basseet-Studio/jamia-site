@@ -44,6 +44,29 @@ export type RecalculateMoneyOnHandResult = {
   withdrawnSum: number;
 };
 
+export async function getSettingsSnapInTx(
+  tx: Transaction,
+): Promise<{ ref: ReturnType<typeof doc>; data: Record<string, unknown> }> {
+  const ref = doc(getDb(), "settings", "global");
+  const snap = await tx.get(ref);
+  if (!snap.exists()) {
+    throw new Error(
+      "settings/global not initialised — run seed:settings first",
+    );
+  }
+  return { ref, data: snap.data() as Record<string, unknown> };
+}
+
+export function moneyOnHandFromData(data: Record<string, unknown>): number {
+  const opening =
+    typeof data.openingBalance === "number"
+      ? (data.openingBalance as number)
+      : 0;
+  return typeof data.moneyOnHand === "number"
+    ? (data.moneyOnHand as number)
+    : opening;
+}
+
 /**
  * Read-modify-write helper for `settings/global.moneyOnHand` that runs inside
  * an existing transaction. Use this when the MOH shift must commit atomically
@@ -60,24 +83,9 @@ export async function shiftMoneyOnHandInTx(
   delta: number,
 ): Promise<void> {
   if (delta === 0) return;
-  const ref = doc(getDb(), "settings", "global");
-  const snap = await tx.get(ref);
-  if (!snap.exists()) {
-    throw new Error(
-      "settings/global not initialised — run seed:settings first",
-    );
-  }
-  const data = snap.data() as Record<string, unknown>;
-  const opening =
-    typeof data.openingBalance === "number"
-      ? (data.openingBalance as number)
-      : 0;
-  const current =
-    typeof data.moneyOnHand === "number"
-      ? (data.moneyOnHand as number)
-      : opening;
+  const { ref, data } = await getSettingsSnapInTx(tx);
   tx.update(ref, {
-    moneyOnHand: current + delta,
+    moneyOnHand: moneyOnHandFromData(data) + delta,
     updatedAt: serverTimestamp(),
   });
 }

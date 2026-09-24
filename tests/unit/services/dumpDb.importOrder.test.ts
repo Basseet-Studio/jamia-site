@@ -42,6 +42,8 @@ describe("dumpDb import order", () => {
     );
     const sets = planDumpSetOps(dump);
     expect(sets.every((o) => o.kind === "set")).toBe(true);
+    const paymentOps = sets.filter((o) => o.collection === "payments");
+    expect(paymentOps.map((o) => o.data?.receiptNo).sort((a, b) => Number(a) - Number(b))).toEqual([1, 2, 3]);
     expect(sets.some((o) => o.path.includes("staff-owner-1"))).toBe(true);
     expect(WRITE_BATCH_LIMIT).toBe(500);
   });

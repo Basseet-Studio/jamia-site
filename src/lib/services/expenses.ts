@@ -7,7 +7,6 @@
  * have no `type` field — `toExpense` defaults them to "mosque".
  */
 import {
-  addDoc,
   collection,
   doc,
   getDoc,
@@ -17,7 +16,6 @@ import {
   query,
   runTransaction,
   serverTimestamp,
-  setDoc,
   updateDoc,
   where,
   type Unsubscribe,
@@ -28,7 +26,8 @@ import {
   type CreateExpenseSchema,
 } from "@/lib/schemas/expense";
 import { toMonthKey } from "@/lib/utils/dates";
-import { shiftMoneyOnHandInTx } from "@/lib/services/moneyOnHand";
+import { shiftMoneyOnHandInTx, getSettingsSnapInTx } from "@/lib/services/moneyOnHand";
+import { nextReceiptNumbers } from "@/lib/services/receiptSerial";
 import {
   attachmentFieldsFromInput,
   deleteReceiptAttachment,
@@ -76,6 +75,10 @@ function toExpense(id: string, data: Record<string, unknown>): Expense {
     householdId,
     familyId,
     mosqueSubCategory,
+    receiptNo:
+      typeof data.receiptNo === "number" && data.receiptNo > 0
+        ? Math.trunc(data.receiptNo)
+        : null,
     ...parseAttachmentFields(data),
   };
 }
@@ -198,26 +201,41 @@ export async function createExpense(
   input: CreateExpenseSchema,
 ): Promise<string> {
   const parsed = createExpenseSchema.parse(input);
-  const newRef = doc(collection(getDb(), "expenses"));
-  await setDoc(newRef, {
-    name: parsed.name,
-    amount: parsed.amount,
-    date: parsed.date,
-    month: toMonthKey(parsed.date),
-    note: parsed.note,
-    isRecurring: parsed.isRecurring,
-    recurringId: parsed.isRecurring ? parsed.recurringId : null,
-    withdrawn: false,
-    withdrawnAt: null,
-    withdrawnBy: null,
-    addedAt: serverTimestamp(),
-    addedBy: uid,
-    type: parsed.type,
-    householdId: parsed.type === "household" ? parsed.householdId : null,
-    familyId: parsed.type === "household" ? (parsed.familyId ?? null) : null,
-    mosqueSubCategory:
-      parsed.type === "mosque" ? parsed.mosqueSubCategory : null,
-    ...attachmentFieldsFromInput(null),
+  const db = getDb();
+  const newRef = doc(collection(db, "expenses"));
+  await runTransaction(db, async (tx) => {
+    const { ref: settingsRef, data: settingsData } =
+      await getSettingsSnapInTx(tx);
+    const { numbers, field, nextSeq } = nextReceiptNumbers(
+      settingsData,
+      "expense",
+      1,
+    );
+    tx.update(settingsRef, {
+      [field]: nextSeq,
+      updatedAt: serverTimestamp(),
+    });
+    tx.set(newRef, {
+      name: parsed.name,
+      amount: parsed.amount,
+      date: parsed.date,
+      month: toMonthKey(parsed.date),
+      note: parsed.note,
+      isRecurring: parsed.isRecurring,
+      recurringId: parsed.isRecurring ? parsed.recurringId : null,
+      withdrawn: false,
+      withdrawnAt: null,
+      withdrawnBy: null,
+      addedAt: serverTimestamp(),
+      addedBy: uid,
+      type: parsed.type,
+      householdId: parsed.type === "household" ? parsed.householdId : null,
+      familyId: parsed.type === "household" ? (parsed.familyId ?? null) : null,
+      mosqueSubCategory:
+        parsed.type === "mosque" ? parsed.mosqueSubCategory : null,
+      receiptNo: numbers[0],
+      ...attachmentFieldsFromInput(null),
+    });
   });
   // Money on hand is NOT affected until withdrawn.
   return newRef.id;

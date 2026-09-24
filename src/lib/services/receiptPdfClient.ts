@@ -2,25 +2,71 @@
 
 import {
   buildReceiptPdfDoc,
+  type OrgNameImage,
   type ReceiptContext,
-  type ReceiptPdfFormat,
 } from "@/lib/services/receiptPdf";
+import { MOSQUE_NAME_ML } from "@/lib/brand";
 import {
   logReceiptPdf,
   summarizeReceiptContext,
 } from "@/lib/services/receiptPdfDebug";
 
-export function printReceiptPdf(
-  ctx: ReceiptContext,
-  format: ReceiptPdfFormat,
-): void {
+const FONT_URL = "/fonts/NotoSansMalayalam-Regular.ttf";
+const FONT_FAMILY = "Noto Sans Malayalam";
+
+let fontReady: Promise<void> | null = null;
+
+function ensureMalayalamFont(): Promise<void> {
+  if (typeof document === "undefined") return Promise.resolve();
+  if (!fontReady) {
+    fontReady = (async () => {
+      try {
+        const face = new FontFace(FONT_FAMILY, `url(${FONT_URL})`);
+        const loaded = await face.load();
+        document.fonts.add(loaded);
+      } catch {
+        // Print still works with an unshaped fallback header.
+      }
+    })();
+  }
+  return fontReady;
+}
+
+export async function rasterizeOrgName(): Promise<OrgNameImage | undefined> {
+  if (typeof document === "undefined") return undefined;
+  await ensureMalayalamFont();
+  const fontSizePx = 28;
+  const canvas = document.createElement("canvas");
+  const probe = canvas.getContext("2d");
+  if (!probe) return undefined;
+  probe.font = `${fontSizePx}px "${FONT_FAMILY}"`;
+  const width = Math.ceil(probe.measureText(MOSQUE_NAME_ML).width) + 12;
+  const height = Math.ceil(fontSizePx * 1.45);
+  canvas.width = Math.max(width, 8);
+  canvas.height = Math.max(height, 8);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return undefined;
+  ctx.font = `${fontSizePx}px "${FONT_FAMILY}"`;
+  ctx.fillStyle = "#000000";
+  ctx.textBaseline = "top";
+  ctx.fillText(MOSQUE_NAME_ML, 6, 4);
+  const pxToMm = 25.4 / 96;
+  return {
+    dataUrl: canvas.toDataURL("image/png"),
+    widthMm: canvas.width * pxToMm,
+    heightMm: canvas.height * pxToMm,
+  };
+}
+
+export async function printReceiptPdf(ctx: ReceiptContext): Promise<void> {
   logReceiptPdf("print_start", "info", {
     context: summarizeReceiptContext(ctx),
-    format,
+    format: "a5",
   });
   try {
-    const { doc } = buildReceiptPdfDoc(ctx, format);
-    logReceiptPdf("build_ok", "ok", { format });
+    const orgNameImage = await rasterizeOrgName();
+    const { doc } = buildReceiptPdfDoc(ctx, orgNameImage);
+    logReceiptPdf("build_ok", "ok", { format: "a5" });
     const url = doc.output("bloburl").toString();
     const iframe = document.createElement("iframe");
     iframe.style.cssText =
@@ -30,7 +76,7 @@ export function printReceiptPdf(
     iframe.onload = () => {
       iframe.contentWindow?.focus();
       iframe.contentWindow?.print();
-      logReceiptPdf("print_dialog", "ok", { format });
+      logReceiptPdf("print_dialog", "ok", { format: "a5" });
       const cleanup = () => {
         iframe.remove();
         URL.revokeObjectURL(url);
@@ -46,7 +92,7 @@ export function printReceiptPdf(
       message: err.message,
       stack: err.stack,
       context: summarizeReceiptContext(ctx),
-      format,
+      format: "a5",
     });
   }
 }

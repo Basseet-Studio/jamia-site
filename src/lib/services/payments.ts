@@ -37,7 +37,8 @@ import {
   type RecordPaymentWithCoverageSchema,
 } from "@/lib/schemas/payment";
 import { toMonthKey } from "@/lib/utils/dates";
-import { shiftMoneyOnHandInTx } from "@/lib/services/moneyOnHand";
+import { shiftMoneyOnHandInTx, getSettingsSnapInTx, moneyOnHandFromData } from "@/lib/services/moneyOnHand";
+import { nextReceiptNumbers } from "@/lib/services/receiptSerial";
 import {
   attachmentFieldsFromInput,
   deleteReceiptAttachment,
@@ -67,6 +68,10 @@ function toPayment(
     coverageGroupId:
       typeof data.coverageGroupId === "string"
         ? (data.coverageGroupId as string)
+        : null,
+    receiptNo:
+      typeof data.receiptNo === "number" && data.receiptNo > 0
+        ? Math.trunc(data.receiptNo)
         : null,
     ...parseAttachmentFields(data),
   };
@@ -135,7 +140,18 @@ export async function recordPayment(
   await runTransaction(db, async (tx) => {
     // SC-009: the payment doc and the MOH bump commit together. All tx.get()
     // reads (including settings/global) must run before writes.
-    await shiftMoneyOnHandInTx(tx, +parsed.amount);
+    const { ref: settingsRef, data: settingsData } =
+      await getSettingsSnapInTx(tx);
+    const { numbers, field, nextSeq } = nextReceiptNumbers(
+      settingsData,
+      "payment",
+      1,
+    );
+    tx.update(settingsRef, {
+      moneyOnHand: moneyOnHandFromData(settingsData) + parsed.amount,
+      [field]: nextSeq,
+      updatedAt: serverTimestamp(),
+    });
     tx.set(newRef, {
       amount: parsed.amount,
       date: parsed.date,
@@ -143,6 +159,7 @@ export async function recordPayment(
       note: parsed.note,
       recordedAt: serverTimestamp(),
       recordedBy: uid,
+      receiptNo: numbers[0],
       ...(parsed.coverageGroupId
         ? { coverageGroupId: parsed.coverageGroupId }
         : {}),
@@ -180,7 +197,7 @@ export async function recordPaymentWithCoverage(
 ): Promise<{
   ids: string[];
   coverageGroupId: string | null;
-  slots: { id: string; month: string; amount: number; primary: boolean }[];
+  slots: { id: string; month: string; amount: number; primary: boolean; receiptNo: number }[];
   date: Date;
   note: string | null;
 }> {
@@ -283,11 +300,20 @@ export async function recordPaymentWithCoverage(
     : null;
   const attachmentFields = attachmentFieldsFromInput(attachment);
 
-  const refs = await runTransaction(db, async (tx) => {
+  const committed = await runTransaction(db, async (tx) => {
     const shift = writes.reduce((s, w) => s + w.amount, 0);
-    // 1. Reads first (shiftMoneyOnHandInTx does a `tx.get` on settings/global).
-    await shiftMoneyOnHandInTx(tx, +shift);
-    // 2. Writes only after all reads are queued.
+    const { ref: settingsRef, data: settingsData } =
+      await getSettingsSnapInTx(tx);
+    const { numbers, field, nextSeq } = nextReceiptNumbers(
+      settingsData,
+      "payment",
+      writes.length,
+    );
+    tx.update(settingsRef, {
+      moneyOnHand: moneyOnHandFromData(settingsData) + shift,
+      [field]: nextSeq,
+      updatedAt: serverTimestamp(),
+    });
     for (let i = 0; i < writes.length; i++) {
       const slot = writes[i]!;
       tx.set(slotRefs[i]!, {
@@ -297,20 +323,22 @@ export async function recordPaymentWithCoverage(
         note: parsed.note,
         recordedAt: serverTimestamp(),
         recordedBy: uid,
+        receiptNo: numbers[i],
         ...(groupId ? { coverageGroupId: groupId } : {}),
         ...(slot.primary ? attachmentFields : attachmentFieldsFromInput(null)),
       });
     }
-    return slotRefs.map((r) => r.id);
+    return { ids: slotRefs.map((r) => r.id), numbers };
   });
   return {
-    ids: refs,
+    ids: committed.ids,
     coverageGroupId: groupId,
     slots: writes.map((w, i) => ({
-      id: refs[i]!,
+      id: committed.ids[i]!,
       month: w.month,
       amount: w.amount,
       primary: w.primary,
+      receiptNo: committed.numbers[i]!,
     })),
     date: parsed.date,
     note: parsed.note ?? null,

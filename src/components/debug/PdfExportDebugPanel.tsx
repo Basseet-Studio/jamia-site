@@ -25,7 +25,6 @@ import {
   summarizeReceiptContext,
 } from "@/lib/services/receiptPdfDebug";
 import type { Expense, Family, Payment } from "@/lib/types";
-import type { ReceiptPdfFormat } from "@/lib/services/receiptPdf";
 
 type AddLog = (level: "info" | "ok" | "err", msg: string) => void;
 
@@ -168,7 +167,7 @@ export function PdfExportDebugPanel({
     addLog("info", `verbose PDF logs ${next ? "enabled" : "disabled"}`);
   }
 
-  function testPaymentPrint(format: ReceiptPdfFormat) {
+  function testPaymentPrint() {
     if (!selectedPayment) {
       addLog("err", "no payment selected");
       return;
@@ -179,31 +178,31 @@ export function PdfExportDebugPanel({
       family,
       currency: cur,
     });
-    addLog("info", `testing payment print ${format} id=${selectedPayment.id}`);
+    addLog("info", `testing payment print id=${selectedPayment.id}`);
     logReceiptPdf("debug_test_payment", "info", {
       context: summarizeReceiptContext(ctx),
-      format,
+      format: "a5",
     });
-    printReceiptPdf(ctx, format);
-    addLog("ok", `payment print ${format} triggered id=${selectedPayment.id}`);
+    void printReceiptPdf(ctx);
+    addLog("ok", `payment print triggered id=${selectedPayment.id}`);
   }
 
-  function testExpensePrint(format: ReceiptPdfFormat) {
+  function testExpensePrint() {
     if (!selectedExpense) {
       addLog("err", "no withdrawn expense selected");
       return;
     }
     const ctx = buildExpenseReceiptContext(selectedExpense, { currency: cur });
-    addLog("info", `testing expense print ${format} id=${selectedExpense.id}`);
+    addLog("info", `testing expense print id=${selectedExpense.id}`);
     logReceiptPdf("debug_test_expense", "info", {
       context: summarizeReceiptContext(ctx),
-      format,
+      format: "a5",
     });
-    printReceiptPdf(ctx, format);
-    addLog("ok", `expense print ${format} triggered id=${selectedExpense.id}`);
+    void printReceiptPdf(ctx);
+    addLog("ok", `expense print triggered id=${selectedExpense.id}`);
   }
 
-  function testContributionPrint(format: ReceiptPdfFormat) {
+  function testContributionPrint() {
     if (!selectedContribution) {
       addLog("err", "no contribution selected");
       return;
@@ -213,23 +212,23 @@ export function PdfExportDebugPanel({
     });
     addLog(
       "info",
-      `testing contribution print ${format} id=${selectedContribution.id}`,
+      `testing contribution print id=${selectedContribution.id}`,
     );
     logReceiptPdf("debug_test_contribution", "info", {
       context: summarizeReceiptContext(ctx),
-      format,
+      format: "a5",
     });
-    printReceiptPdf(ctx, format);
+    void printReceiptPdf(ctx);
     addLog(
       "ok",
-      `contribution print ${format} triggered id=${selectedContribution.id}`,
+      `contribution print triggered id=${selectedContribution.id}`,
     );
   }
 
-  function testAll(format: ReceiptPdfFormat) {
-    if (selectedPayment) testPaymentPrint(format);
-    if (selectedExpense) testExpensePrint(format);
-    if (selectedContribution) testContributionPrint(format);
+  function testAll() {
+    if (selectedPayment) testPaymentPrint();
+    if (selectedExpense) testExpensePrint();
+    if (selectedContribution) testContributionPrint();
     if (!selectedPayment && !selectedExpense && !selectedContribution) {
       addLog("err", "no records available to test");
     }
@@ -361,50 +360,26 @@ export function PdfExportDebugPanel({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => testPaymentPrint("a4")}
+            onClick={() => testPaymentPrint()}
           >
-            Print payment A4
+            Print payment
           </Button>
           <Button
             size="sm"
             variant="outline"
-            onClick={() => testPaymentPrint("a5")}
+            onClick={() => testExpensePrint()}
           >
-            Print payment A5
+            Print expense
           </Button>
           <Button
             size="sm"
             variant="outline"
-            onClick={() => testExpensePrint("a4")}
+            onClick={() => testContributionPrint()}
           >
-            Print expense A4
+            Print contribution
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => testExpensePrint("a5")}
-          >
-            Print expense A5
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => testContributionPrint("a4")}
-          >
-            Print contribution A4
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => testContributionPrint("a5")}
-          >
-            Print contribution A5
-          </Button>
-          <Button size="sm" onClick={() => testAll("a5")}>
-            Test all A5
-          </Button>
-          <Button size="sm" variant="secondary" onClick={() => testAll("a4")}>
-            Test all A4
+          <Button size="sm" onClick={() => testAll()}>
+            Test all
           </Button>
         </div>
 

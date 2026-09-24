@@ -122,6 +122,7 @@ const payment = z
     recordedAt: iso,
     recordedBy: z.string(),
     coverageGroupId: z.union([z.string(), z.null()]),
+    receiptNo: z.number().int().positive().nullish(),
     ...attachmentMeta,
   })
   .strict();
@@ -135,6 +136,7 @@ const contribution = z
     note: z.union([z.string().max(280), z.null()]),
     addedAt: iso,
     addedBy: z.string(),
+    receiptNo: z.number().int().positive().nullish(),
     ...attachmentMeta,
   })
   .strict();
@@ -161,6 +163,7 @@ const expense = z
       z.enum(["maintenance", "salary", "other"]),
       z.null(),
     ]),
+    receiptNo: z.number().int().positive().nullish(),
     ...attachmentMeta,
   })
   .strict();

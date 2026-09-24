@@ -43,7 +43,7 @@ import type { Timestamp } from "firebase/firestore";
 type SavedPaymentResult = {
   ids: string[];
   coverageGroupId: string | null;
-  slots: { id: string; month: string; amount: number; primary: boolean }[];
+  slots: { id: string; month: string; amount: number; primary: boolean; receiptNo: number }[];
   date: Date;
   note: string | null;
 };
@@ -268,6 +268,7 @@ export function RecordPaymentDialog({
       recordedAt: asTimestamp(saved.date),
       recordedBy: user?.uid ?? "",
       coverageGroupId: saved.coverageGroupId,
+      receiptNo: slot.receiptNo,
     }));
     const payment = relatedPayments.find((p) => p.id === primary.id)!;
     return buildPaymentReceiptContext(payment, {

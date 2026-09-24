@@ -70,6 +70,14 @@ service cloud.firestore {
         );
     }
 
+    function validReceiptNoBackfill() {
+      return canWriteFinancial()
+        && !('receiptNo' in resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['receiptNo'])
+        && request.resource.data.receiptNo is int
+        && request.resource.data.receiptNo > 0;
+    }
+
     function validStaffCreateShape() {
       return request.resource.data.keys().hasAll([
           'email', 'displayName', 'role'
@@ -248,7 +256,7 @@ service cloud.firestore {
                       )
                       && validOptionalAttachment();
 
-          allow update: if false;
+          allow update: if validReceiptNoBackfill();
           allow delete: if canDeleteData();
         }
 
@@ -288,7 +296,7 @@ service cloud.firestore {
         && request.resource.data.date is timestamp
         && validOptionalAttachment();
 
-      allow update: if false;
+      allow update: if validReceiptNoBackfill();
       allow delete: if canDeleteData();
     }
 
@@ -366,6 +374,8 @@ service cloud.firestore {
         && request.resource.data.mosqueSubCategory == resource.data.mosqueSubCategory
         && resource.data.get('attachmentPath', null) == null
         && validOptionalAttachment();
+
+      allow update: if validReceiptNoBackfill();
 
       allow delete: if canDeleteData();
     }

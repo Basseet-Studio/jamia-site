@@ -10,6 +10,8 @@
 import {
   Timestamp,
   doc,
+  getDoc,
+  setDoc,
   writeBatch,
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase/client";
@@ -39,6 +41,11 @@ import { listAllHouseholds } from "@/lib/services/households";
 import { listPayments } from "@/lib/services/payments";
 import { listRecurringTemplates } from "@/lib/services/recurring";
 import { getSettingsDump } from "@/lib/services/settings";
+import {
+  assignMissingReceiptNumbers,
+  lastReceiptSeq,
+  maxAssignedReceiptNo,
+} from "@/lib/services/receiptSerial";
 import type {
   Admin,
   Contribution,
@@ -162,6 +169,7 @@ function paymentRow(p: Payment) {
     recordedAt: toIsoRequired(p.recordedAt, `payments.${p.id}.recordedAt`),
     recordedBy: p.recordedBy,
     coverageGroupId: p.coverageGroupId,
+    receiptNo: p.receiptNo ?? null,
     attachmentPath: p.attachmentPath ?? null,
     attachmentFileName: p.attachmentFileName ?? null,
     attachmentMimeType: p.attachmentMimeType ?? null,
@@ -177,6 +185,7 @@ function contributionRow(c: Contribution) {
     note: c.note,
     addedAt: toIsoRequired(c.addedAt, `contributions.${c.id}.addedAt`),
     addedBy: c.addedBy,
+    receiptNo: c.receiptNo ?? null,
     attachmentPath: c.attachmentPath ?? null,
     attachmentFileName: c.attachmentFileName ?? null,
     attachmentMimeType: c.attachmentMimeType ?? null,
@@ -203,6 +212,7 @@ function expenseRow(e: Expense) {
     householdId: mosque ? null : e.householdId,
     familyId: mosque ? null : e.familyId,
     mosqueSubCategory: mosque ? e.mosqueSubCategory : null,
+    receiptNo: e.receiptNo ?? null,
     attachmentPath: e.attachmentPath ?? null,
     attachmentFileName: e.attachmentFileName ?? null,
     attachmentMimeType: e.attachmentMimeType ?? null,
@@ -373,6 +383,48 @@ export async function buildDump(now = new Date()): Promise<JamiaDumpV1> {
     families.map((f) => listPayments(f.householdId, f.id)),
   );
   const payments = paymentsByFamily.flat();
+  const paymentAssigned = assignMissingReceiptNumbers(
+    payments.map((p) => ({
+      id: p.id,
+      date: toIsoRequired(p.date, `payments.${p.id}.date`),
+      receiptNo: p.receiptNo,
+    })),
+  );
+  const contributionAssigned = assignMissingReceiptNumbers(
+    contributions.map((c) => ({
+      id: c.id,
+      date: toIsoRequired(c.date, `contributions.${c.id}.date`),
+      receiptNo: c.receiptNo,
+    })),
+  );
+  const expenseAssigned = assignMissingReceiptNumbers(
+    expenses.map((e) => ({
+      id: e.id,
+      date: toIsoRequired(e.date, `expenses.${e.id}.date`),
+      receiptNo: e.receiptNo,
+    })),
+  );
+  await persistReceiptNumberBackfill(
+    payments,
+    contributions,
+    expenses,
+    paymentAssigned,
+    contributionAssigned,
+    expenseAssigned,
+  );
+
+  const numberedPayments = payments.map((p) => ({
+    ...p,
+    receiptNo: paymentAssigned.get(p.id) ?? p.receiptNo,
+  }));
+  const numberedContributions = contributions.map((c) => ({
+    ...c,
+    receiptNo: contributionAssigned.get(c.id) ?? c.receiptNo,
+  }));
+  const numberedExpenses = expenses.map((e) => ({
+    ...e,
+    receiptNo: expenseAssigned.get(e.id) ?? e.receiptNo,
+  }));
 
   const historyByFamily = await Promise.all(
     families.map((f) => listMemberHistory(f.householdId, f.id)),
@@ -407,9 +459,9 @@ export async function buildDump(now = new Date()): Promise<JamiaDumpV1> {
     households: households.map(householdRow),
     families: families.map(familyRow),
     memberHistory: memberHistory.map(historyRow),
-    payments: payments.map(paymentRow),
-    contributions: contributions.map(contributionRow),
-    expenses: expenses.map(expenseRow),
+    payments: numberedPayments.map(paymentRow),
+    contributions: numberedContributions.map(contributionRow),
+    expenses: numberedExpenses.map(expenseRow),
     recurringTemplates: templates.map(templateRow),
     attachments,
   };
@@ -499,6 +551,81 @@ function tsRequired(iso: string): Timestamp {
   return Timestamp.fromDate(new Date(iso));
 }
 
+async function persistReceiptNumberBackfill(
+  payments: Payment[],
+  contributions: Contribution[],
+  expenses: Expense[],
+  paymentAssigned: Map<string, number>,
+  contributionAssigned: Map<string, number>,
+  expenseAssigned: Map<string, number>,
+): Promise<void> {
+  const db = getDb();
+  const missingPayments = payments.filter(
+    (p) => !(typeof p.receiptNo === "number" && p.receiptNo > 0),
+  );
+  const missingContributions = contributions.filter(
+    (c) => !(typeof c.receiptNo === "number" && c.receiptNo > 0),
+  );
+  const missingExpenses = expenses.filter(
+    (e) => !(typeof e.receiptNo === "number" && e.receiptNo > 0),
+  );
+  const ops: { path: string[]; receiptNo: number }[] = [];
+  for (const p of missingPayments) {
+    const n = paymentAssigned.get(p.id);
+    if (n) {
+      ops.push({
+        path: [
+          "households",
+          p.householdId,
+          "families",
+          p.familyId,
+          "payments",
+          p.id,
+        ],
+        receiptNo: n,
+      });
+    }
+  }
+  for (const c of missingContributions) {
+    const n = contributionAssigned.get(c.id);
+    if (n) ops.push({ path: ["contributions", c.id], receiptNo: n });
+  }
+  for (const e of missingExpenses) {
+    const n = expenseAssigned.get(e.id);
+    if (n) ops.push({ path: ["expenses", e.id], receiptNo: n });
+  }
+  for (let i = 0; i < ops.length; i += WRITE_BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    for (const op of ops.slice(i, i + WRITE_BATCH_LIMIT)) {
+      batch.update(doc(db, op.path[0]!, ...op.path.slice(1)), {
+        receiptNo: op.receiptNo,
+      });
+    }
+    await batch.commit();
+  }
+  const settingsRef = doc(db, "settings", "global");
+  const snap = await getDoc(settingsRef);
+  const data = (snap.data() ?? {}) as Record<string, unknown>;
+  await setDoc(
+    settingsRef,
+    {
+      paymentReceiptSeq: Math.max(
+        lastReceiptSeq(data, "payment"),
+        maxAssignedReceiptNo(paymentAssigned),
+      ),
+      contributionReceiptSeq: Math.max(
+        lastReceiptSeq(data, "contribution"),
+        maxAssignedReceiptNo(contributionAssigned),
+      ),
+      expenseReceiptSeq: Math.max(
+        lastReceiptSeq(data, "expense"),
+        maxAssignedReceiptNo(expenseAssigned),
+      ),
+    },
+    { merge: true },
+  );
+}
+
 function dumpCounts(dump: JamiaDumpV1): Record<string, number> {
   return {
     staff: dump.staff.length,
@@ -516,6 +643,27 @@ function dumpCounts(dump: JamiaDumpV1): Record<string, number> {
 
 /** Financial setDocs first (settings → tree → money rows), then staff/admins. */
 export function planDumpSetOps(dump: JamiaDumpV1): ImportOp[] {
+  const paymentNos = assignMissingReceiptNumbers(
+    dump.payments.map((p) => ({
+      id: p.id,
+      date: p.date,
+      receiptNo: p.receiptNo,
+    })),
+  );
+  const contributionNos = assignMissingReceiptNumbers(
+    dump.contributions.map((c) => ({
+      id: c.id,
+      date: c.date,
+      receiptNo: c.receiptNo,
+    })),
+  );
+  const expenseNos = assignMissingReceiptNumbers(
+    dump.expenses.map((e) => ({
+      id: e.id,
+      date: e.date,
+      receiptNo: e.receiptNo,
+    })),
+  );
   const financial: ImportOp[] = [];
   financial.push({
     phase: "financial",
@@ -529,6 +677,9 @@ export function planDumpSetOps(dump: JamiaDumpV1): ImportOp[] {
       moneyOnHand: dump.settings.moneyOnHand,
       updatedAt: ts(dump.settings.updatedAt),
       updatedBy: dump.settings.updatedBy,
+      paymentReceiptSeq: maxAssignedReceiptNo(paymentNos),
+      contributionReceiptSeq: maxAssignedReceiptNo(contributionNos),
+      expenseReceiptSeq: maxAssignedReceiptNo(expenseNos),
     },
   });
   for (const h of dump.households) {
@@ -638,6 +789,7 @@ export function planDumpSetOps(dump: JamiaDumpV1): ImportOp[] {
         recordedAt: tsRequired(p.recordedAt),
         recordedBy: p.recordedBy,
         coverageGroupId: p.coverageGroupId,
+        receiptNo: paymentNos.get(p.id) ?? null,
         attachmentPath: p.attachmentPath,
         attachmentFileName: p.attachmentFileName,
         attachmentMimeType: p.attachmentMimeType,
@@ -657,6 +809,7 @@ export function planDumpSetOps(dump: JamiaDumpV1): ImportOp[] {
         note: c.note,
         addedAt: tsRequired(c.addedAt),
         addedBy: c.addedBy,
+        receiptNo: contributionNos.get(c.id) ?? null,
         attachmentPath: c.attachmentPath,
         attachmentFileName: c.attachmentFileName,
         attachmentMimeType: c.attachmentMimeType,
@@ -686,6 +839,7 @@ export function planDumpSetOps(dump: JamiaDumpV1): ImportOp[] {
         householdId: e.householdId,
         familyId: e.familyId,
         mosqueSubCategory: e.mosqueSubCategory,
+        receiptNo: expenseNos.get(e.id) ?? null,
         attachmentPath: e.attachmentPath,
         attachmentFileName: e.attachmentFileName,
         attachmentMimeType: e.attachmentMimeType,

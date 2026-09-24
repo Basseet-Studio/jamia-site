@@ -61,6 +61,8 @@ export interface Payment extends TransactionAttachment {
   recordedBy: string;
   // 003 — null for legacy single payments; UUID v4 for cascaded docs.
   coverageGroupId: string | null;
+  /** Per-type printed serial (P-n). Null on legacy rows until backfill. */
+  receiptNo?: number | null;
 }
 
 export interface Contribution extends TransactionAttachment {
@@ -71,6 +73,8 @@ export interface Contribution extends TransactionAttachment {
   note: string | null;
   addedAt: Timestamp;
   addedBy: string;
+  /** Per-type printed serial (C-n). Null on legacy rows until backfill. */
+  receiptNo?: number | null;
 }
 
 // 002: expense "household" (linked to a household) or "mosque".
@@ -97,6 +101,8 @@ export interface Expense extends TransactionAttachment {
   householdId: string | null;
   familyId: string | null;
   mosqueSubCategory: MosqueSubCategory | null;
+  /** Per-type printed serial (E-n). Null on legacy rows until backfill. */
+  receiptNo?: number | null;
 }
 
 export interface RecurringTemplate {

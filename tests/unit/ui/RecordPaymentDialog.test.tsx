@@ -69,14 +69,16 @@ vi.mock("@/lib/services/households", () => ({
   },
 }));
 
-const mockRecordPayment = vi.fn(async () => ({
-  ids: ["new-id"],
-  coverageGroupId: null,
-  slots: [
-    { id: "new-id", month: "2026-06", amount: 300, primary: true },
-  ],
-  date: new Date("2026-06-17"),
-  note: null,
+const { mockRecordPayment } = vi.hoisted(() => ({
+  mockRecordPayment: vi.fn(async () => ({
+    ids: ["new-id"],
+    coverageGroupId: null,
+    slots: [
+      { id: "new-id", month: "2026-06", amount: 300, primary: true, receiptNo: 1 },
+    ],
+    date: new Date("2026-06-17"),
+    note: null,
+  })),
 }));
 
 vi.mock("@/lib/services/payments", () => ({
@@ -97,7 +99,7 @@ vi.mock("@/lib/services/payments", () => ({
 
 vi.mock("@/components/receipts/ReceiptPrintButtons", () => ({
   ReceiptPrintButtons: () => (
-    <div data-testid="rp-print-buttons">Print A4 / Print A5</div>
+    <div data-testid="rp-print-buttons">Print</div>
   ),
 }));
 

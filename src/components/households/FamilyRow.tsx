@@ -43,7 +43,7 @@ export function FamilyRow({
     <tr
       className={cn(
         "border-b last:border-0",
-        zeroTarget && "bg-purple-50/70 dark:bg-purple-950/25",
+        zeroTarget && "bg-red-100 dark:bg-red-950/40",
       )}
       title={zeroTarget ? t("families.zeroTargetHint") : undefined}
     >

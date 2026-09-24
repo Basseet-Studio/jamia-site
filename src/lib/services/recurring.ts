@@ -15,6 +15,7 @@ import {
   getDocs,
   onSnapshot,
   query,
+  runTransaction,
   serverTimestamp,
   updateDoc,
   where,
@@ -28,6 +29,8 @@ import {
   type UpdateRecurringTemplateSchema,
 } from "@/lib/schemas/recurringTemplate";
 import { toMonthKey } from "@/lib/utils/dates";
+import { getSettingsSnapInTx } from "@/lib/services/moneyOnHand";
+import { nextReceiptNumbers } from "@/lib/services/receiptSerial";
 import type {
   MosqueSubCategory,
   RecurringTemplate,
@@ -185,26 +188,42 @@ export async function addRecurringForMonth(
 
   // Use a date in the middle of the month for the expense date.
   const date = new Date(`${month}-15T00:00:00`);
-  const ref = await addDoc(collection(getDb(), "expenses"), {
-    name,
-    amount,
-    date,
-    month,
-    note: null,
-    isRecurring: true,
-    recurringId: templateId,
-    withdrawn: false,
-    withdrawnAt: null,
-    withdrawnBy: null,
-    addedAt: serverTimestamp(),
-    addedBy: uid,
-    type: "mosque",
-    householdId: null,
-    familyId: null,
-    mosqueSubCategory: tpl.mosqueSubCategory,
+  const db = getDb();
+  const newRef = doc(collection(db, "expenses"));
+  await runTransaction(db, async (tx) => {
+    const { ref: settingsRef, data: settingsData } =
+      await getSettingsSnapInTx(tx);
+    const { numbers, field, nextSeq } = nextReceiptNumbers(
+      settingsData,
+      "expense",
+      1,
+    );
+    tx.update(settingsRef, {
+      [field]: nextSeq,
+      updatedAt: serverTimestamp(),
+    });
+    tx.set(newRef, {
+      name,
+      amount,
+      date,
+      month,
+      note: null,
+      isRecurring: true,
+      recurringId: templateId,
+      withdrawn: false,
+      withdrawnAt: null,
+      withdrawnBy: null,
+      addedAt: serverTimestamp(),
+      addedBy: uid,
+      type: "mosque",
+      householdId: null,
+      familyId: null,
+      mosqueSubCategory: tpl.mosqueSubCategory,
+      receiptNo: numbers[0],
+    });
   });
   void toMonthKey;
-  return ref.id;
+  return newRef.id;
 }
 
 export async function listRecurringTemplatesWithStatus(
