@@ -5,6 +5,7 @@
  * Connects to the Firestore emulator when FIRESTORE_EMULATOR_HOST is set,
  * otherwise uses the configured project from .env.local.
  */
+import { RECEIPT_TITLE_AR, RECEIPT_TITLE_ML } from "../src/lib/brand";
 import { initializeApp, getApps } from "firebase/app";
 import {
   getFirestore,
@@ -41,6 +42,8 @@ async function main() {
     defaultContributionTarget: 500,
     openingBalance: 0,
     currency: "AED",
+    receiptTitleAr: RECEIPT_TITLE_AR,
+    receiptTitleMl: RECEIPT_TITLE_ML,
     updatedAt: serverTimestamp(),
   });
   // eslint-disable-next-line no-console

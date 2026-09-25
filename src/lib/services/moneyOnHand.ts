@@ -25,6 +25,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase/client";
+import { RECEIPT_TITLE_AR, RECEIPT_TITLE_ML } from "@/lib/brand";
 import type { MoneyOnHand, Setting } from "@/lib/types";
 
 /** Pure SC-009 formula parts → money on hand. */
@@ -172,5 +173,13 @@ export async function readSetting(): Promise<Setting | null> {
     defaultContributionTarget: d.defaultContributionTarget,
     openingBalance: d.openingBalance,
     currency: d.currency,
+    receiptTitleAr:
+      typeof d.receiptTitleAr === "string" && d.receiptTitleAr.trim()
+        ? d.receiptTitleAr.trim()
+        : RECEIPT_TITLE_AR,
+    receiptTitleMl:
+      typeof d.receiptTitleMl === "string" && d.receiptTitleMl.trim()
+        ? d.receiptTitleMl.trim()
+        : RECEIPT_TITLE_ML,
   };
 }

@@ -14,6 +14,8 @@ export interface Setting {
   defaultContributionTarget: number;
   openingBalance: number;
   currency: string;
+  receiptTitleAr: string;
+  receiptTitleMl: string;
 }
 
 export interface Household {

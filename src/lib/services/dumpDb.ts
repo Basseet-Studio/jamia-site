@@ -1029,7 +1029,12 @@ async function commitOps(ops: ImportOp[]): Promise<void> {
     for (const op of chunk) {
       const ref = doc(db, op.path[0]!, ...op.path.slice(1));
       if (op.kind === "set") {
-        batch.set(ref, op.data ?? {});
+        const data = op.data ?? {};
+        if (op.collection === "settings" && op.path[0] === "settings") {
+          batch.set(ref, data, { merge: true });
+        } else {
+          batch.set(ref, data);
+        }
       } else {
         batch.delete(ref);
       }

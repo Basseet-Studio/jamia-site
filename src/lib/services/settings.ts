@@ -12,7 +12,14 @@ import {
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase/client";
 import { updateSettingsSchema, type UpdateSettingsInput } from "@/lib/schemas/setting";
+import { RECEIPT_TITLE_AR, RECEIPT_TITLE_ML } from "@/lib/brand";
 import type { Setting } from "@/lib/types";
+
+function titleOrDefault(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : fallback;
+}
 
 function toSetting(data: Record<string, unknown>): Setting | null {
   if (
@@ -26,6 +33,8 @@ function toSetting(data: Record<string, unknown>): Setting | null {
     defaultContributionTarget: data.defaultContributionTarget,
     openingBalance: data.openingBalance,
     currency: data.currency,
+    receiptTitleAr: titleOrDefault(data.receiptTitleAr, RECEIPT_TITLE_AR),
+    receiptTitleMl: titleOrDefault(data.receiptTitleMl, RECEIPT_TITLE_ML),
   };
 }
 
@@ -104,6 +113,8 @@ export async function updateSettings(
         parsed.defaultContributionTarget ?? current.defaultContributionTarget,
       openingBalance: newOpening,
       currency: parsed.currency ?? current.currency,
+      receiptTitleAr: parsed.receiptTitleAr ?? current.receiptTitleAr,
+      receiptTitleMl: parsed.receiptTitleMl ?? current.receiptTitleMl,
       updatedAt: serverTimestamp(),
       updatedBy: uid,
     };

@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import { MOSQUE_NAME_ML } from "@/lib/brand";
+import { RECEIPT_TITLE_AR, RECEIPT_TITLE_ML } from "@/lib/brand";
 import type { Contribution, Expense, Payment } from "@/lib/types";
 import {
   describeTimestamp,
@@ -49,13 +49,31 @@ export interface ReceiptParticular {
   amount: string | null;
 }
 
+export interface ReceiptTitles {
+  titleAr: string;
+  titleMl: string;
+}
+
 export interface ReceiptModel {
-  orgName: string;
+  titleAr: string;
+  titleMl: string;
   serial: string;
   date: string;
   particulars: ReceiptParticular[];
   total: string;
   note: string | null;
+}
+
+export function resolveReceiptTitles(input?: {
+  titleAr?: string | null;
+  titleMl?: string | null;
+}): ReceiptTitles {
+  const titleAr = input?.titleAr?.trim();
+  const titleMl = input?.titleMl?.trim();
+  return {
+    titleAr: titleAr ? titleAr : RECEIPT_TITLE_AR,
+    titleMl: titleMl ? titleMl : RECEIPT_TITLE_ML,
+  };
 }
 
 export interface OrgNameImage {
@@ -103,8 +121,12 @@ function receiptFileName(model: ReceiptModel): string {
   return `jamia-receipt-${slug}-${date}.pdf`;
 }
 
-export function buildReceiptModel(ctx: ReceiptContext): ReceiptModel {
+export function buildReceiptModel(
+  ctx: ReceiptContext,
+  titles?: { titleAr?: string | null; titleMl?: string | null },
+): ReceiptModel {
   const serial = formatReceiptSerial(serialKind(ctx), receiptNoOf(ctx));
+  const header = resolveReceiptTitles(titles);
   switch (ctx.kind) {
     case "payment": {
       const payments =
@@ -122,7 +144,8 @@ export function buildReceiptModel(ctx: ReceiptContext): ReceiptModel {
         });
       }
       return {
-        orgName: ctx.orgName ?? MOSQUE_NAME_ML,
+        titleAr: header.titleAr,
+        titleMl: header.titleMl,
         serial,
         date: formatDate(ctx.payment.date),
         particulars,
@@ -132,7 +155,8 @@ export function buildReceiptModel(ctx: ReceiptContext): ReceiptModel {
     }
     case "contribution":
       return {
-        orgName: ctx.orgName ?? MOSQUE_NAME_ML,
+        titleAr: header.titleAr,
+        titleMl: header.titleMl,
         serial,
         date: formatDate(ctx.contribution.date),
         particulars: [
@@ -148,7 +172,8 @@ export function buildReceiptModel(ctx: ReceiptContext): ReceiptModel {
       const status = ctx.expense.withdrawn ? "Paid / withdrawn" : "Pending";
       const who = ctx.householdName ? ` · ${ctx.householdName}` : "";
       return {
-        orgName: ctx.orgName ?? MOSQUE_NAME_ML,
+        titleAr: header.titleAr,
+        titleMl: header.titleMl,
         serial,
         date: formatDate(ctx.expense.date),
         particulars: [
@@ -167,21 +192,22 @@ export function buildReceiptModel(ctx: ReceiptContext): ReceiptModel {
 export function buildReceiptPdfDoc(
   ctx: ReceiptContext,
   orgNameImage?: OrgNameImage,
+  titles?: { titleAr?: string | null; titleMl?: string | null },
 ) {
   const verbose = isReceiptPdfVerbose();
-  const model = buildReceiptModel(ctx);
+  const model = buildReceiptModel(ctx, titles);
   logReceiptPdf("build_start", "info", {
     context: summarizeReceiptContext(ctx),
-    format: "a5",
+    format: "a5-landscape",
     serial: model.serial,
   });
 
-  const doc = new jsPDF({ unit: "mm", format: "a5" });
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a5" });
   logReceiptPdf("jspdf_init_ok", "ok");
 
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const margin = 10;
+  const margin = 8;
   const innerW = pageW - margin * 2;
   const amountColW = 38;
   const particularsW = innerW - amountColW;
@@ -195,7 +221,7 @@ export function buildReceiptPdfDoc(
   doc.setLineWidth(0.35);
   doc.rect(left, top, innerW, bottom - top);
 
-  let y = top + 8;
+  let y = top + 4;
   if (orgNameImage) {
     const maxW = innerW - 8;
     const scale = orgNameImage.widthMm > maxW ? maxW / orgNameImage.widthMm : 1;
@@ -209,14 +235,14 @@ export function buildReceiptPdfDoc(
       w,
       h,
     );
-    y += h + 6;
+    y += h + 3;
   } else {
-    y += 10;
+    y += 12;
   }
 
   doc.setLineWidth(0.2);
   doc.line(left, y, right, y);
-  y += 7;
+  y += 5;
 
   doc.setFontSize(10);
   doc.text(`No. ${model.serial}`, left + 4, y);
@@ -258,9 +284,9 @@ export function buildReceiptPdfDoc(
     y += Math.max(0, (wrapped.length - 1) * 4);
   }
 
-  y += 8;
+  y += 4;
   doc.line(left, y, right, y);
-  y += 6;
+  y += 5;
   doc.setFontSize(10);
   doc.text("Total", left + 4, y);
   doc.text(model.total, right - 4, y, { align: "right" });
@@ -269,15 +295,19 @@ export function buildReceiptPdfDoc(
   doc.line(left, totalBottom, right, totalBottom);
   doc.line(colX, bodyTop, colX, totalBottom);
 
-  y += 14;
+  y += 8;
   doc.setFontSize(9);
   doc.text("Signature", left + 4, y);
-  y += 10;
+  y += 8;
   doc.line(left + 4, y, left + 70, y);
-  y += 18;
 
   const fileName = receiptFileName(model);
   logReceiptPdf("build_done", "ok", { fileName, finalY: y, serial: model.serial });
 
-  return { doc, fileName, org: model.orgName, model };
+  return {
+    doc,
+    fileName,
+    org: `${model.titleAr}\n${model.titleMl}`,
+    model,
+  };
 }

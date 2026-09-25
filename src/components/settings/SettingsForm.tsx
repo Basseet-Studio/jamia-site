@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OpeningBalanceWarning } from "@/components/settings/OpeningBalanceWarning";
 import { useT } from "@/lib/i18n";
+import { RECEIPT_TITLE_AR, RECEIPT_TITLE_ML } from "@/lib/brand";
 import type { Setting } from "@/lib/types";
 
 export function SettingsForm() {
@@ -47,6 +48,8 @@ export function SettingsForm() {
       defaultContributionTarget: 0,
       openingBalance: 0,
       currency: "",
+      receiptTitleAr: RECEIPT_TITLE_AR,
+      receiptTitleMl: RECEIPT_TITLE_ML,
     },
   });
 
@@ -113,6 +116,23 @@ export function SettingsForm() {
                 <p className="text-xs text-muted-foreground">
                   {t("settings.openingBalanceHelper")}
                 </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="set-title-ar">{t("settings.receiptTitleAr")}</Label>
+                <Input
+                  id="set-title-ar"
+                  dir="rtl"
+                  maxLength={200}
+                  {...form.register("receiptTitleAr")}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="set-title-ml">{t("settings.receiptTitleMl")}</Label>
+                <Input
+                  id="set-title-ml"
+                  maxLength={200}
+                  {...form.register("receiptTitleMl")}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="set-currency">{t("settings.currency")}</Label>

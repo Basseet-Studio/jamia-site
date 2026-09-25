@@ -325,6 +325,8 @@
     "openingBalance": "Opening balance",
     "openingBalanceHelper": "Changing this shifts money on hand by the same amount.",
     "currency": "Currency label",
+    "receiptTitleAr": "Receipt title (Arabic)",
+    "receiptTitleMl": "Receipt title (Malayalam)",
     "saveSettings": "Save settings",
     "saved": "Saved.",
     "warningTitle": "Change opening balance?",
