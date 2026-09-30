@@ -40,6 +40,8 @@ const staffRow = z
   })
   .strict();
 
+const receiptTitle = z.string().trim().min(1).max(200);
+
 const settings = z
   .object({
     defaultContributionTarget: z.number().int().min(0),
@@ -48,6 +50,8 @@ const settings = z
     moneyOnHand: z.number(),
     updatedAt: isoNull,
     updatedBy: z.union([z.string(), z.null()]),
+    receiptTitleAr: receiptTitle.optional(),
+    receiptTitleMl: receiptTitle.optional(),
   })
   .strict();
 

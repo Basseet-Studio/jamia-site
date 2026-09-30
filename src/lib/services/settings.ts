@@ -52,6 +52,8 @@ export async function getSettingsDump(): Promise<{
   moneyOnHand: number;
   updatedAt: unknown;
   updatedBy: string | null;
+  receiptTitleAr: string;
+  receiptTitleMl: string;
 } | null> {
   const snap = await getDoc(doc(getDb(), "settings", "global"));
   if (!snap.exists()) return null;
@@ -72,6 +74,8 @@ export async function getSettingsDump(): Promise<{
       typeof data.moneyOnHand === "number" ? data.moneyOnHand : opening,
     updatedAt: data.updatedAt ?? null,
     updatedBy: typeof data.updatedBy === "string" ? data.updatedBy : null,
+    receiptTitleAr: titleOrDefault(data.receiptTitleAr, RECEIPT_TITLE_AR),
+    receiptTitleMl: titleOrDefault(data.receiptTitleMl, RECEIPT_TITLE_ML),
   };
 }
 

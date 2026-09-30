@@ -453,6 +453,8 @@ export async function buildDump(now = new Date()): Promise<JamiaDumpV1> {
       moneyOnHand: settings.moneyOnHand,
       updatedAt: toIso(settings.updatedAt),
       updatedBy: settings.updatedBy,
+      receiptTitleAr: settings.receiptTitleAr,
+      receiptTitleMl: settings.receiptTitleMl,
     },
     staff: staff.map(staffRow),
     admins: legacyAdmins.map(staffRow),
@@ -677,6 +679,12 @@ export function planDumpSetOps(dump: JamiaDumpV1): ImportOp[] {
       moneyOnHand: dump.settings.moneyOnHand,
       updatedAt: ts(dump.settings.updatedAt),
       updatedBy: dump.settings.updatedBy,
+      ...(dump.settings.receiptTitleAr
+        ? { receiptTitleAr: dump.settings.receiptTitleAr }
+        : {}),
+      ...(dump.settings.receiptTitleMl
+        ? { receiptTitleMl: dump.settings.receiptTitleMl }
+        : {}),
       paymentReceiptSeq: maxAssignedReceiptNo(paymentNos),
       contributionReceiptSeq: maxAssignedReceiptNo(contributionNos),
       expenseReceiptSeq: maxAssignedReceiptNo(expenseNos),
