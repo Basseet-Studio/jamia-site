@@ -1,6 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import {
+  collection,
+  onSnapshot,
+  query,
+  where,
+  type FirestoreError,
+} from "firebase/firestore";
 import { getDb } from "@/lib/firebase/client";
 import { subscribeFamilies } from "@/lib/services/families";
 import { subscribePayments } from "@/lib/services/payments";
@@ -64,11 +70,23 @@ export function useHouseholdFinancialSummary(householdId: string): {
       where("householdId", "==", householdId),
       where("withdrawn", "==", false),
     );
-    return onSnapshot(ref, (snap) => {
-      setExpenses(
-        snap.docs.map((d) => toExpense(d.id, d.data() as Record<string, unknown>)),
-      );
-    });
+    return onSnapshot(
+      ref,
+      (snap) => {
+        setExpenses(
+          snap.docs.map((d) =>
+            toExpense(d.id, d.data() as Record<string, unknown>),
+          ),
+        );
+      },
+      (error: FirestoreError) => {
+        console.error("[jamia:expense] summary listener failed", {
+          householdId,
+          code: error.code,
+          message: error.message,
+        });
+      },
+    );
   }, [householdId]);
 
   return deriveHouseholdFinancialSummary(

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,63 @@ import type {
 
 const MOSQUE_SUBS: MosqueSubCategory[] = ["maintenance", "salary", "other"];
 const NONE = "__none__";
+
+function valueKind(value: unknown): string {
+  if (value === "") return '""';
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? "Invalid Date" : "Date";
+  }
+  return typeof value;
+}
+
+function collectExpenseFieldErrors(
+  errors: FieldErrors<CreateExpenseSchema>,
+): { path: string; message: string }[] {
+  const out: { path: string; message: string }[] = [];
+  const walk = (node: unknown, path: string) => {
+    if (!node || typeof node !== "object") return;
+    const record = node as Record<string, unknown>;
+    if (typeof record.message === "string" && record.message) {
+      out.push({ path: path || "(root)", message: record.message });
+    }
+    for (const [key, child] of Object.entries(record)) {
+      if (key === "message" || key === "type" || key === "ref" || key === "types") {
+        continue;
+      }
+      if (child && typeof child === "object") {
+        walk(child, path ? `${path}.${key}` : key);
+      }
+    }
+  };
+  walk(errors, "");
+  return out;
+}
+
+function expenseSubmitSnapshot(
+  fixedHouseholdId: string | null,
+  values: {
+    type?: unknown;
+    householdId?: unknown;
+    familyId?: unknown;
+    mosqueSubCategory?: unknown;
+    amount?: unknown;
+    date?: unknown;
+    note?: unknown;
+  },
+) {
+  return {
+    fixedHouseholdId,
+    type: values.type,
+    householdId: values.householdId,
+    familyId: values.familyId,
+    mosqueSubCategory: values.mosqueSubCategory,
+    amountType: valueKind(values.amount),
+    dateType: valueKind(values.date),
+    noteType: valueKind(values.note),
+  };
+}
 
 function defaultExpenseValues(
   fixedHouseholdId: string | null,
@@ -127,15 +184,31 @@ export function AddExpenseDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type, fixedHouseholdId]);
 
+  function onInvalid(errors: FieldErrors<CreateExpenseSchema>) {
+    console.warn("[jamia:expense] submit rejected", {
+      errors: collectExpenseFieldErrors(errors),
+      ...expenseSubmitSnapshot(fixedHouseholdId, form.getValues()),
+    });
+  }
+
   async function onSubmit(values: CreateExpenseSchema) {
-    if (!user) return;
+    console.info(
+      "[jamia:expense] submit accepted",
+      expenseSubmitSnapshot(fixedHouseholdId, values),
+    );
+    if (!user) {
+      console.warn("[jamia:expense] submit skipped: no signed-in user");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      await createExpense(user.uid, values);
+      const id = await createExpense(user.uid, values);
+      console.info("[jamia:expense] created", { id });
       form.reset(defaultExpenseValues(fixedHouseholdId));
       setOpen(false);
     } catch (e) {
+      console.error("[jamia:expense] create failed", (e as Error).message);
       setError((e as Error).message);
     } finally {
       setBusy(false);
@@ -156,7 +229,10 @@ export function AddExpenseDialog({
           <DialogTitle>{t("expenses.addTitle")}</DialogTitle>
           <DialogDescription>{t("expenses.addDescription")}</DialogDescription>
         </DialogHeader>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form
+          onSubmit={form.handleSubmit(onSubmit, onInvalid)}
+          className="space-y-4"
+        >
           {!fixedHouseholdId ? (
           <div className="space-y-2">
             <Label htmlFor="ax-type">{t("expenses.fieldType")}</Label>

@@ -18,6 +18,7 @@ import {
   serverTimestamp,
   updateDoc,
   where,
+  type FirestoreError,
   type Unsubscribe,
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase/client";
@@ -166,8 +167,16 @@ export function subscribeHouseholdPendingExpenses(
     where("householdId", "==", householdId),
     where("withdrawn", "==", false),
   );
-  return onSnapshot(ref, (snap) =>
-    callback(snap.docs.map((d) => toExpense(d.id, d.data()))),
+  return onSnapshot(
+    ref,
+    (snap) => callback(snap.docs.map((d) => toExpense(d.id, d.data()))),
+    (error: FirestoreError) => {
+      console.error("[jamia:expense] pending listener failed", {
+        householdId,
+        code: error.code,
+        message: error.message,
+      });
+    },
   );
 }
 
@@ -200,45 +209,57 @@ export async function createExpense(
   uid: string,
   input: CreateExpenseSchema,
 ): Promise<string> {
-  const parsed = createExpenseSchema.parse(input);
-  const db = getDb();
-  const newRef = doc(collection(db, "expenses"));
-  await runTransaction(db, async (tx) => {
-    const { ref: settingsRef, data: settingsData } =
-      await getSettingsSnapInTx(tx);
-    const { numbers, field, nextSeq } = nextReceiptNumbers(
-      settingsData,
-      "expense",
-      1,
-    );
-    tx.update(settingsRef, {
-      [field]: nextSeq,
-      updatedAt: serverTimestamp(),
-    });
-    tx.set(newRef, {
-      name: parsed.name,
-      amount: parsed.amount,
-      date: parsed.date,
-      month: toMonthKey(parsed.date),
-      note: parsed.note,
-      isRecurring: parsed.isRecurring,
-      recurringId: parsed.isRecurring ? parsed.recurringId : null,
-      withdrawn: false,
-      withdrawnAt: null,
-      withdrawnBy: null,
-      addedAt: serverTimestamp(),
-      addedBy: uid,
+  try {
+    const parsed = createExpenseSchema.parse(input);
+    console.info("[jamia:expense] createExpense", {
       type: parsed.type,
       householdId: parsed.type === "household" ? parsed.householdId : null,
       familyId: parsed.type === "household" ? (parsed.familyId ?? null) : null,
       mosqueSubCategory:
         parsed.type === "mosque" ? parsed.mosqueSubCategory : null,
-      receiptNo: numbers[0],
-      ...attachmentFieldsFromInput(null),
     });
-  });
-  // Money on hand is NOT affected until withdrawn.
-  return newRef.id;
+    const db = getDb();
+    const newRef = doc(collection(db, "expenses"));
+    await runTransaction(db, async (tx) => {
+      const { ref: settingsRef, data: settingsData } =
+        await getSettingsSnapInTx(tx);
+      const { numbers, field, nextSeq } = nextReceiptNumbers(
+        settingsData,
+        "expense",
+        1,
+      );
+      tx.update(settingsRef, {
+        [field]: nextSeq,
+        updatedAt: serverTimestamp(),
+      });
+      tx.set(newRef, {
+        name: parsed.name,
+        amount: parsed.amount,
+        date: parsed.date,
+        month: toMonthKey(parsed.date),
+        note: parsed.note,
+        isRecurring: parsed.isRecurring,
+        recurringId: parsed.isRecurring ? parsed.recurringId : null,
+        withdrawn: false,
+        withdrawnAt: null,
+        withdrawnBy: null,
+        addedAt: serverTimestamp(),
+        addedBy: uid,
+        type: parsed.type,
+        householdId: parsed.type === "household" ? parsed.householdId : null,
+        familyId: parsed.type === "household" ? (parsed.familyId ?? null) : null,
+        mosqueSubCategory:
+          parsed.type === "mosque" ? parsed.mosqueSubCategory : null,
+        receiptNo: numbers[0],
+        ...attachmentFieldsFromInput(null),
+      });
+    });
+    // Money on hand is NOT affected until withdrawn.
+    return newRef.id;
+  } catch (e) {
+    console.error("[jamia:expense] createExpense failed", (e as Error).message);
+    throw e;
+  }
 }
 
 export async function withdrawExpense(
