@@ -2,6 +2,7 @@
 
 import {
   buildReceiptPdfDoc,
+  resolveReceiptAddress,
   resolveReceiptTitles,
   type OrgNameImage,
   type ReceiptContext,
@@ -40,11 +41,13 @@ function ensureHeaderFonts(): Promise<void> {
 export async function rasterizeOrgName(
   titleAr: string,
   titleMl: string,
+  address: string,
 ): Promise<OrgNameImage | undefined> {
   if (typeof document === "undefined") return undefined;
   await ensureHeaderFonts();
   const arSize = 22;
   const mlSize = 20;
+  const addressSize = 13;
   const canvas = document.createElement("canvas");
   const probe = canvas.getContext("2d");
   if (!probe) return undefined;
@@ -52,11 +55,14 @@ export async function rasterizeOrgName(
   const arWidth = probe.measureText(titleAr).width;
   probe.font = `${mlSize}px "${ML_FAMILY}"`;
   const mlWidth = probe.measureText(titleMl).width;
-  const width = Math.ceil(Math.max(arWidth, mlWidth)) + 16;
+  probe.font = `${addressSize}px "${ML_FAMILY}"`;
+  const addressWidth = probe.measureText(address).width;
+  const width = Math.ceil(Math.max(arWidth, mlWidth, addressWidth)) + 16;
   const arHeight = Math.ceil(arSize * 1.5);
   const mlHeight = Math.ceil(mlSize * 1.5);
+  const addressHeight = Math.ceil(addressSize * 1.5);
   const gap = 6;
-  const height = arHeight + gap + mlHeight + 8;
+  const height = arHeight + gap + mlHeight + gap + addressHeight + 8;
   canvas.width = Math.max(width, 8);
   canvas.height = Math.max(height, 8);
   const ctx = canvas.getContext("2d");
@@ -70,6 +76,12 @@ export async function rasterizeOrgName(
   ctx.font = `${mlSize}px "${ML_FAMILY}"`;
   ctx.direction = "ltr";
   ctx.fillText(titleMl, canvas.width / 2, 4 + arHeight + gap);
+  ctx.font = `${addressSize}px "${ML_FAMILY}"`;
+  ctx.fillText(
+    address,
+    canvas.width / 2,
+    4 + arHeight + gap + mlHeight + gap,
+  );
   const pxToMm = 25.4 / 96;
   return {
     dataUrl: canvas.toDataURL("image/png"),
@@ -90,8 +102,13 @@ export async function printReceiptPdf(ctx: ReceiptContext): Promise<void> {
         ? { titleAr: settings.receiptTitleAr, titleMl: settings.receiptTitleMl }
         : undefined,
     );
-    const orgNameImage = await rasterizeOrgName(titles.titleAr, titles.titleMl);
-    const { doc } = buildReceiptPdfDoc(ctx, orgNameImage, titles);
+    const address = resolveReceiptAddress(settings?.receiptAddress);
+    const orgNameImage = await rasterizeOrgName(
+      titles.titleAr,
+      titles.titleMl,
+      address,
+    );
+    const { doc } = buildReceiptPdfDoc(ctx, orgNameImage, { ...titles, address });
     logReceiptPdf("build_ok", "ok", { format: "a5-landscape" });
     const url = doc.output("bloburl").toString();
     const iframe = document.createElement("iframe");

@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import { RECEIPT_TITLE_AR, RECEIPT_TITLE_ML } from "@/lib/brand";
+import { RECEIPT_ADDRESS, RECEIPT_TITLE_AR, RECEIPT_TITLE_ML } from "@/lib/brand";
 import type { Contribution, Expense, Payment } from "@/lib/types";
 import {
   describeTimestamp,
@@ -57,6 +57,7 @@ export interface ReceiptTitles {
 export interface ReceiptModel {
   titleAr: string;
   titleMl: string;
+  address: string;
   serial: string;
   date: string;
   particulars: ReceiptParticular[];
@@ -74,6 +75,11 @@ export function resolveReceiptTitles(input?: {
     titleAr: titleAr ? titleAr : RECEIPT_TITLE_AR,
     titleMl: titleMl ? titleMl : RECEIPT_TITLE_ML,
   };
+}
+
+export function resolveReceiptAddress(address?: string | null): string {
+  const trimmed = address?.trim();
+  return trimmed ? trimmed : RECEIPT_ADDRESS;
 }
 
 export interface OrgNameImage {
@@ -123,10 +129,15 @@ function receiptFileName(model: ReceiptModel): string {
 
 export function buildReceiptModel(
   ctx: ReceiptContext,
-  titles?: { titleAr?: string | null; titleMl?: string | null },
+  titles?: {
+    titleAr?: string | null;
+    titleMl?: string | null;
+    address?: string | null;
+  },
 ): ReceiptModel {
   const serial = formatReceiptSerial(serialKind(ctx), receiptNoOf(ctx));
   const header = resolveReceiptTitles(titles);
+  const address = resolveReceiptAddress(titles?.address);
   switch (ctx.kind) {
     case "payment": {
       const payments =
@@ -146,6 +157,7 @@ export function buildReceiptModel(
       return {
         titleAr: header.titleAr,
         titleMl: header.titleMl,
+        address,
         serial,
         date: formatDate(ctx.payment.date),
         particulars,
@@ -157,6 +169,7 @@ export function buildReceiptModel(
       return {
         titleAr: header.titleAr,
         titleMl: header.titleMl,
+        address,
         serial,
         date: formatDate(ctx.contribution.date),
         particulars: [
@@ -174,6 +187,7 @@ export function buildReceiptModel(
       return {
         titleAr: header.titleAr,
         titleMl: header.titleMl,
+        address,
         serial,
         date: formatDate(ctx.expense.date),
         particulars: [
@@ -192,7 +206,11 @@ export function buildReceiptModel(
 export function buildReceiptPdfDoc(
   ctx: ReceiptContext,
   orgNameImage?: OrgNameImage,
-  titles?: { titleAr?: string | null; titleMl?: string | null },
+  titles?: {
+    titleAr?: string | null;
+    titleMl?: string | null;
+    address?: string | null;
+  },
 ) {
   const verbose = isReceiptPdfVerbose();
   const model = buildReceiptModel(ctx, titles);
@@ -307,7 +325,7 @@ export function buildReceiptPdfDoc(
   return {
     doc,
     fileName,
-    org: `${model.titleAr}\n${model.titleMl}`,
+    org: `${model.titleAr}\n${model.titleMl}\n${model.address}`,
     model,
   };
 }

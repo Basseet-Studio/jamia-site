@@ -52,6 +52,7 @@ const settings = z
     updatedBy: z.union([z.string(), z.null()]),
     receiptTitleAr: receiptTitle.optional(),
     receiptTitleMl: receiptTitle.optional(),
+    receiptAddress: receiptTitle.optional(),
   })
   .strict();
 

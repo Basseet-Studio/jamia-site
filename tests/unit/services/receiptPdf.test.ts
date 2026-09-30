@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Timestamp } from "firebase/firestore";
-import { RECEIPT_TITLE_AR, RECEIPT_TITLE_ML } from "@/lib/brand";
+import { RECEIPT_ADDRESS, RECEIPT_TITLE_AR, RECEIPT_TITLE_ML } from "@/lib/brand";
 import {
   buildReceiptModel,
   buildReceiptPdfDoc,
@@ -15,8 +15,9 @@ function expectSlipTitles(ctx: ReceiptContext) {
   const model = buildReceiptModel(ctx);
   expect(model.titleAr).toBe(RECEIPT_TITLE_AR);
   expect(model.titleMl).toBe(RECEIPT_TITLE_ML);
+  expect(model.address).toBe(RECEIPT_ADDRESS);
   const { doc, org } = buildReceiptPdfDoc(ctx);
-  expect(org).toBe(`${RECEIPT_TITLE_AR}\n${RECEIPT_TITLE_ML}`);
+  expect(org).toBe(`${RECEIPT_TITLE_AR}\n${RECEIPT_TITLE_ML}\n${RECEIPT_ADDRESS}`);
   expect(doc.internal.pageSize.getWidth()).toBeCloseTo(210, 0);
   expect(doc.internal.pageSize.getHeight()).toBeCloseTo(148, 0);
 }
@@ -39,11 +40,12 @@ const contributionCtx = {
 describe("buildReceiptPdfDoc", () => {
   it("builds an A5 landscape contribution receipt with both titles", () => {
     const model = buildReceiptModel(contributionCtx);
-    expect(model.serial).toBe("C-18");
+    expect(model.serial).toBe("C-0018");
+    expect(model.address).toBe(RECEIPT_ADDRESS);
     expect(model.total).toContain("100.00");
     expect(model.particulars[0]?.amount).toContain("100.00");
     const { fileName } = buildReceiptPdfDoc(contributionCtx);
-    expect(fileName).toMatch(/^jamia-receipt-C-18-/);
+    expect(fileName).toMatch(/^jamia-receipt-C-0018-/);
     expectSlipTitles(contributionCtx);
   });
 
@@ -91,6 +93,32 @@ describe("buildReceiptPdfDoc", () => {
       },
       currency: "AED",
     });
+    expect(
+      buildReceiptModel({
+        kind: "expense",
+        expense: {
+          id: "exp-1",
+          name: "Water",
+          amount: 80,
+          date: ts(new Date("2026-06-01")),
+          month: "2026-06",
+          note: null,
+          isRecurring: false,
+          recurringId: null,
+          withdrawn: true,
+          withdrawnAt: ts(new Date("2026-06-02")),
+          withdrawnBy: "u",
+          addedAt: ts(new Date("2026-06-01")),
+          addedBy: "u",
+          type: "mosque",
+          householdId: null,
+          familyId: null,
+          mosqueSubCategory: "other",
+          receiptNo: 7,
+        },
+        currency: "AED",
+      }).serial,
+    ).toBe("E-0007");
   });
 
   it("lists payment months with amounts and a total", () => {
@@ -144,6 +172,7 @@ describe("buildReceiptPdfDoc", () => {
     expect(model.titleAr).toBe(RECEIPT_TITLE_AR);
     expect(model.titleMl).toBe(RECEIPT_TITLE_ML);
     expect(model.serial).toBe("P-1996");
+    expect(model.address).toBe(RECEIPT_ADDRESS);
     expect(model.particulars.map((p) => p.text)).toContain("2026-06");
     expect(model.particulars.map((p) => p.text)).toContain("2026-07");
     expect(model.total).toContain("500.00");

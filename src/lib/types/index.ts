@@ -16,6 +16,7 @@ export interface Setting {
   currency: string;
   receiptTitleAr: string;
   receiptTitleMl: string;
+  receiptAddress: string;
 }
 
 export interface Household {

@@ -20,7 +20,7 @@ export function formatReceiptSerial(
   if (typeof n !== "number" || !Number.isFinite(n) || n <= 0) {
     return `${prefix}-`;
   }
-  return `${prefix}-${Math.trunc(n)}`;
+  return `${prefix}-${String(Math.trunc(n)).padStart(4, "0")}`;
 }
 
 export function lastReceiptSeq(

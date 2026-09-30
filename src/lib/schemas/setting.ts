@@ -8,6 +8,7 @@ export const settingSchema = z.object({
   currency: z.string().min(1).max(8),
   receiptTitleAr: receiptTitle,
   receiptTitleMl: receiptTitle,
+  receiptAddress: receiptTitle,
 });
 
 export const updateSettingsSchema = z.object({
@@ -16,6 +17,7 @@ export const updateSettingsSchema = z.object({
   currency: z.string().min(1).max(8).optional(),
   receiptTitleAr: receiptTitle.optional(),
   receiptTitleMl: receiptTitle.optional(),
+  receiptAddress: receiptTitle.optional(),
 });
 
 export type SettingInput = z.infer<typeof settingSchema>;

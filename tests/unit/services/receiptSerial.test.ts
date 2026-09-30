@@ -9,8 +9,10 @@ import {
 describe("receiptSerial", () => {
   it("formats P/C/E prefixes", () => {
     expect(formatReceiptSerial("payment", 1996)).toBe("P-1996");
-    expect(formatReceiptSerial("contribution", 18)).toBe("C-18");
-    expect(formatReceiptSerial("expense", 7)).toBe("E-7");
+    expect(formatReceiptSerial("contribution", 18)).toBe("C-0018");
+    expect(formatReceiptSerial("expense", 7)).toBe("E-0007");
+    expect(formatReceiptSerial("payment", 10000)).toBe("P-10000");
+    expect(formatReceiptSerial("contribution", 1)).toBe("C-0001");
   });
 
   it("backfills old dumps from 1 by date then id", () => {

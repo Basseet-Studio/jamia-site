@@ -326,6 +326,7 @@
     "currency": "കറൻസി ലേബൽ",
     "receiptTitleAr": "രസീത് തലക്കെട്ട് (അറബി)",
     "receiptTitleMl": "രസീത് തലക്കെട്ട് (മലയാളം)",
+    "receiptAddress": "രസീത് വിലാസം",
     "saveSettings": "ക്രമീകരണങ്ങൾ സേവ് ചെയ്യുക",
     "saved": "സേവ് ചെയ്തു.",
     "warningTitle": "ഓപ്പണിംഗ് ബാലൻസ് മാറ്റണോ?",

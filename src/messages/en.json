@@ -342,6 +342,7 @@
     "currency": "Currency label",
     "receiptTitleAr": "Receipt title (Arabic)",
     "receiptTitleMl": "Receipt title (Malayalam)",
+    "receiptAddress": "Receipt address",
     "saveSettings": "Save settings",
     "saved": "Saved.",
     "warningTitle": "Change opening balance?",

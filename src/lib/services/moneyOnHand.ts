@@ -25,7 +25,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase/client";
-import { RECEIPT_TITLE_AR, RECEIPT_TITLE_ML } from "@/lib/brand";
+import { RECEIPT_ADDRESS, RECEIPT_TITLE_AR, RECEIPT_TITLE_ML } from "@/lib/brand";
 import type { MoneyOnHand, Setting } from "@/lib/types";
 
 /** Pure SC-009 formula parts → money on hand. */
@@ -181,5 +181,9 @@ export async function readSetting(): Promise<Setting | null> {
       typeof d.receiptTitleMl === "string" && d.receiptTitleMl.trim()
         ? d.receiptTitleMl.trim()
         : RECEIPT_TITLE_ML,
+    receiptAddress:
+      typeof d.receiptAddress === "string" && d.receiptAddress.trim()
+        ? d.receiptAddress.trim()
+        : RECEIPT_ADDRESS,
   };
 }

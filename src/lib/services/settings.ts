@@ -12,7 +12,7 @@ import {
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase/client";
 import { updateSettingsSchema, type UpdateSettingsInput } from "@/lib/schemas/setting";
-import { RECEIPT_TITLE_AR, RECEIPT_TITLE_ML } from "@/lib/brand";
+import { RECEIPT_ADDRESS, RECEIPT_TITLE_AR, RECEIPT_TITLE_ML } from "@/lib/brand";
 import type { Setting } from "@/lib/types";
 
 function titleOrDefault(value: unknown, fallback: string): string {
@@ -35,6 +35,7 @@ function toSetting(data: Record<string, unknown>): Setting | null {
     currency: data.currency,
     receiptTitleAr: titleOrDefault(data.receiptTitleAr, RECEIPT_TITLE_AR),
     receiptTitleMl: titleOrDefault(data.receiptTitleMl, RECEIPT_TITLE_ML),
+    receiptAddress: titleOrDefault(data.receiptAddress, RECEIPT_ADDRESS),
   };
 }
 
@@ -54,6 +55,7 @@ export async function getSettingsDump(): Promise<{
   updatedBy: string | null;
   receiptTitleAr: string;
   receiptTitleMl: string;
+  receiptAddress: string;
 } | null> {
   const snap = await getDoc(doc(getDb(), "settings", "global"));
   if (!snap.exists()) return null;
@@ -76,6 +78,7 @@ export async function getSettingsDump(): Promise<{
     updatedBy: typeof data.updatedBy === "string" ? data.updatedBy : null,
     receiptTitleAr: titleOrDefault(data.receiptTitleAr, RECEIPT_TITLE_AR),
     receiptTitleMl: titleOrDefault(data.receiptTitleMl, RECEIPT_TITLE_ML),
+    receiptAddress: titleOrDefault(data.receiptAddress, RECEIPT_ADDRESS),
   };
 }
 
@@ -119,6 +122,7 @@ export async function updateSettings(
       currency: parsed.currency ?? current.currency,
       receiptTitleAr: parsed.receiptTitleAr ?? current.receiptTitleAr,
       receiptTitleMl: parsed.receiptTitleMl ?? current.receiptTitleMl,
+      receiptAddress: parsed.receiptAddress ?? current.receiptAddress,
       updatedAt: serverTimestamp(),
       updatedBy: uid,
     };

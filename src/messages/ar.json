@@ -327,6 +327,7 @@
     "currency": "Currency label",
     "receiptTitleAr": "عنوان الإيصال (عربي)",
     "receiptTitleMl": "عنوان الإيصال (مالايالام)",
+    "receiptAddress": "عنوان الإيصال",
     "saveSettings": "Save settings",
     "saved": "Saved.",
     "warningTitle": "Change opening balance?",

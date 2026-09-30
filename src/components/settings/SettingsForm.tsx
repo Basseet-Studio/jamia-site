@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OpeningBalanceWarning } from "@/components/settings/OpeningBalanceWarning";
 import { useT } from "@/lib/i18n";
-import { RECEIPT_TITLE_AR, RECEIPT_TITLE_ML } from "@/lib/brand";
+import { RECEIPT_ADDRESS, RECEIPT_TITLE_AR, RECEIPT_TITLE_ML } from "@/lib/brand";
 import type { Setting } from "@/lib/types";
 
 export function SettingsForm() {
@@ -50,6 +50,7 @@ export function SettingsForm() {
       currency: "",
       receiptTitleAr: RECEIPT_TITLE_AR,
       receiptTitleMl: RECEIPT_TITLE_ML,
+      receiptAddress: RECEIPT_ADDRESS,
     },
   });
 
@@ -132,6 +133,14 @@ export function SettingsForm() {
                   id="set-title-ml"
                   maxLength={200}
                   {...form.register("receiptTitleMl")}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="set-address">{t("settings.receiptAddress")}</Label>
+                <Input
+                  id="set-address"
+                  maxLength={200}
+                  {...form.register("receiptAddress")}
                 />
               </div>
               <div className="space-y-2">
