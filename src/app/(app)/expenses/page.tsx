@@ -17,7 +17,12 @@ import { useT } from "@/lib/i18n";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { FullReportButton } from "@/components/excel/FullReportButton";
 import { PerScreenExportButton } from "@/components/excel/PerScreenExportButton";
-import type { Expense, ExpenseFilter, MosqueSubCategory } from "@/lib/types";
+import type {
+  Expense,
+  ExpenseFilter,
+  ExpenseType,
+  MosqueSubCategory,
+} from "@/lib/types";
 
 const SUB_OPTIONS: MosqueSubCategory[] = ["maintenance", "salary", "other"];
 const NONE = "__none__";
@@ -27,14 +32,18 @@ export default function ExpensesPage() {
   const { canFinancial } = usePermissions();
   const [filter, setFilter] = useState<"all" | string>(currentMonthKey());
   const [prevMonth, setPrevMonth] = useState<string>(currentMonthKey());
+  const [typeFilter, setTypeFilter] = useState<"all" | ExpenseType>("all");
   const [subFilter, setSubFilter] = useState<MosqueSubCategory | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    const expenseFilter: ExpenseFilter = { type: "mosque" };
-    if (subFilter) {
+    const expenseFilter: ExpenseFilter = {};
+    if (typeFilter !== "all") {
+      expenseFilter.type = typeFilter;
+    }
+    if (typeFilter === "mosque" && subFilter) {
       expenseFilter.mosqueSubCategory = subFilter;
     }
     const off = subscribeExpenses(
@@ -46,7 +55,7 @@ export default function ExpensesPage() {
       expenseFilter,
     );
     return off;
-  }, [filter, subFilter]);
+  }, [filter, subFilter, typeFilter]);
 
   const isAllTime = filter === "all";
 
@@ -86,31 +95,50 @@ export default function ExpensesPage() {
           </span>
         ) : null}
         <Select
-          value={subFilter ?? NONE}
-          onValueChange={(v) =>
-            setSubFilter(v === NONE ? null : (v as MosqueSubCategory))
-          }
+          value={typeFilter}
+          onValueChange={(v) => setTypeFilter(v as "all" | ExpenseType)}
         >
           <SelectTrigger className="w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={NONE}>
-              {t("expenses.subCategoryFilterAll")}
+            <SelectItem value="all">{t("expenses.typeFilterAll")}</SelectItem>
+            <SelectItem value="household">
+              {t("expenses.typeFilterHousehold")}
             </SelectItem>
-            {SUB_OPTIONS.map((s) => (
-              <SelectItem key={s} value={s}>
-                {t(`mosqueSubCategory.${s}`)}
-              </SelectItem>
-            ))}
+            <SelectItem value="mosque">
+              {t("expenses.typeFilterMosque")}
+            </SelectItem>
           </SelectContent>
         </Select>
+        {typeFilter === "mosque" ? (
+          <Select
+            value={subFilter ?? NONE}
+            onValueChange={(v) =>
+              setSubFilter(v === NONE ? null : (v as MosqueSubCategory))
+            }
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>
+                {t("expenses.subCategoryFilterAll")}
+              </SelectItem>
+              {SUB_OPTIONS.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {t(`mosqueSubCategory.${s}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
         <PerScreenExportButton
           buildFilter={() => ({
             kind: "expenses",
             month: filter,
-            subCategory: subFilter,
-            expenseType: "mosque",
+            subCategory: typeFilter === "mosque" ? subFilter : null,
+            expenseType: typeFilter,
           })}
           buildData={() => ({
             households: [],

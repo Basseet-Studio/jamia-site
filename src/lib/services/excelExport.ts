@@ -61,7 +61,7 @@ export type FilterSnapshot =
       kind: "expenses";
       month: string | "all";
       subCategory: ExpenseSubCategory | null;
-      expenseType: "mosque";
+      expenseType: "mosque" | "household" | "all";
     }
   | {
       kind: "recurring";
@@ -689,11 +689,13 @@ function buildExpensesSheet(
   filter: {
     month: "all" | string;
     subCategory: MosqueSubCategory | null;
-    expenseType: "mosque";
+    expenseType: "mosque" | "household" | "all";
   },
 ): Sheet {
   let rows: Expense[] = expenses;
-  rows = rows.filter((e) => e.type === filter.expenseType);
+  if (filter.expenseType !== "all") {
+    rows = rows.filter((e) => e.type === filter.expenseType);
+  }
   if (filter.month !== "all") {
     rows = rows.filter((e) => e.month === filter.month);
   }
@@ -837,7 +839,7 @@ export function buildWorkbook(
         buildExpensesSheet(data.expenses, ctx, {
           month: filter.month,
           subCategory: filter.subCategory,
-          expenseType: "mosque",
+          expenseType: filter.expenseType,
         }),
       );
       break;
