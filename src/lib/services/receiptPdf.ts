@@ -62,6 +62,7 @@ export interface ReceiptModel {
   date: string;
   particulars: ReceiptParticular[];
   total: string;
+  totalInWords: string;
   note: string | null;
 }
 
@@ -97,6 +98,90 @@ function formatMoney(amount: number, currency: string): string {
     " " +
     currency
   );
+}
+
+const ONES = [
+  "Zero",
+  "One",
+  "Two",
+  "Three",
+  "Four",
+  "Five",
+  "Six",
+  "Seven",
+  "Eight",
+  "Nine",
+  "Ten",
+  "Eleven",
+  "Twelve",
+  "Thirteen",
+  "Fourteen",
+  "Fifteen",
+  "Sixteen",
+  "Seventeen",
+  "Eighteen",
+  "Nineteen",
+];
+
+const TENS = [
+  "",
+  "",
+  "Twenty",
+  "Thirty",
+  "Forty",
+  "Fifty",
+  "Sixty",
+  "Seventy",
+  "Eighty",
+  "Ninety",
+];
+
+function intToWords(n: number): string {
+  if (n < 20) return ONES[n] ?? "Zero";
+  if (n < 100) {
+    const rest = n % 10;
+    const ten = TENS[Math.floor(n / 10)] ?? "";
+    return rest === 0 ? ten : `${ten}-${ONES[rest]}`;
+  }
+  if (n < 1000) {
+    const rest = n % 100;
+    const head = `${ONES[Math.floor(n / 100)]} Hundred`;
+    return rest === 0 ? head : `${head} ${intToWords(rest)}`;
+  }
+  if (n < 1_000_000) {
+    const rest = n % 1000;
+    const head = `${intToWords(Math.floor(n / 1000))} Thousand`;
+    return rest === 0 ? head : `${head} ${intToWords(rest)}`;
+  }
+  const rest = n % 1_000_000;
+  const head = `${intToWords(Math.floor(n / 1_000_000))} Million`;
+  return rest === 0 ? head : `${head} ${intToWords(rest)}`;
+}
+
+/** English receipt total. AED uses Dirham/Fil; other codes are appended as-is. */
+export function amountInWords(amount: number, currency: string): string {
+  const code = currency.trim().toUpperCase() || "AED";
+  const cents = Math.round(Math.abs(amount) * 100);
+  const major = Math.floor(cents / 100);
+  const minor = cents % 100;
+  const aed = code === "AED";
+  const majorUnit = aed ? (major === 1 ? "Dirham" : "Dirhams") : code;
+  const minorUnit = aed ? (minor === 1 ? "Fil" : "Fils") : null;
+
+  if (major === 0 && minor === 0) {
+    return `Zero ${aed ? "Dirhams" : code} Only`;
+  }
+  if (minor === 0) {
+    return `${intToWords(major)} ${majorUnit} Only`;
+  }
+  if (major === 0) {
+    return minorUnit
+      ? `${intToWords(minor)} ${minorUnit} Only`
+      : `${intToWords(minor)} ${code} Only`;
+  }
+  return minorUnit
+    ? `${intToWords(major)} ${majorUnit} and ${intToWords(minor)} ${minorUnit} Only`
+    : `${intToWords(major)} and ${intToWords(minor)} ${code} Only`;
 }
 
 function formatDate(value: { toDate?: () => Date } | Date | null | undefined): string {
@@ -162,6 +247,7 @@ export function buildReceiptModel(
         date: formatDate(ctx.payment.date),
         particulars,
         total: formatMoney(total, ctx.currency),
+        totalInWords: amountInWords(total, ctx.currency),
         note: ctx.payment.note,
       };
     }
@@ -179,6 +265,7 @@ export function buildReceiptModel(
           },
         ],
         total: formatMoney(ctx.contribution.amount, ctx.currency),
+        totalInWords: amountInWords(ctx.contribution.amount, ctx.currency),
         note: ctx.contribution.note,
       };
     case "expense": {
@@ -197,6 +284,7 @@ export function buildReceiptModel(
           },
         ],
         total: formatMoney(ctx.expense.amount, ctx.currency),
+        totalInWords: amountInWords(ctx.expense.amount, ctx.currency),
         note: ctx.expense.note,
       };
     }
@@ -313,7 +401,13 @@ export function buildReceiptPdfDoc(
   doc.line(left, totalBottom, right, totalBottom);
   doc.line(colX, bodyTop, colX, totalBottom);
 
-  y += 8;
+  y += 6;
+  doc.setFontSize(9);
+  const words = doc.splitTextToSize(model.totalInWords, innerW - 8) as string[];
+  doc.text(words, left + innerW / 2, y, { align: "center" });
+  y += 4 + Math.max(0, (words.length - 1) * 4);
+
+  y += 4;
   doc.setFontSize(9);
   doc.text("Signature", left + 4, y);
   y += 8;

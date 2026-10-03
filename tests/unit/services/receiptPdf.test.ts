@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Timestamp } from "firebase/firestore";
 import { RECEIPT_ADDRESS, RECEIPT_TITLE_AR, RECEIPT_TITLE_ML } from "@/lib/brand";
 import {
+  amountInWords,
   buildReceiptModel,
   buildReceiptPdfDoc,
   type ReceiptContext,
@@ -43,6 +44,7 @@ describe("buildReceiptPdfDoc", () => {
     expect(model.serial).toBe("C-0018");
     expect(model.address).toBe(RECEIPT_ADDRESS);
     expect(model.total).toContain("100.00");
+    expect(model.totalInWords).toBe("One Hundred Dirhams Only");
     expect(model.particulars[0]?.amount).toContain("100.00");
     const { fileName } = buildReceiptPdfDoc(contributionCtx);
     expect(fileName).toMatch(/^jamia-receipt-C-0018-/);
@@ -176,6 +178,18 @@ describe("buildReceiptPdfDoc", () => {
     expect(model.particulars.map((p) => p.text)).toContain("2026-06");
     expect(model.particulars.map((p) => p.text)).toContain("2026-07");
     expect(model.total).toContain("500.00");
+    expect(model.totalInWords).toBe("Five Hundred Dirhams Only");
     expect(model.note).toBe("zakat");
+  });
+});
+
+describe("amountInWords", () => {
+  it("writes whole dirhams and fils, and keeps other currencies as a code", () => {
+    expect(amountInWords(100, "AED")).toBe("One Hundred Dirhams Only");
+    expect(amountInWords(100.5, "aed")).toBe(
+      "One Hundred Dirhams and Fifty Fils Only",
+    );
+    expect(amountInWords(1, "AED")).toBe("One Dirham Only");
+    expect(amountInWords(100.5, "USD")).toBe("One Hundred and Fifty USD Only");
   });
 });
