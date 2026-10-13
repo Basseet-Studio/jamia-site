@@ -12,3 +12,11 @@ export const RECEIPT_TITLE_ML = "വീരമംഗലം പള്ളി ജു
 /** Printed under the receipt titles. Used when settings have no address yet. */
 export const RECEIPT_ADDRESS =
   "രജി: 121/14, വീരമംഗലം പി. ഒ., തൃക്കടീരി - 679 503, പാലക്കാട് ജില്ല";
+
+/** Centered under the address. Malayalam names already used in the app, plus രസീത്. */
+export const RECEIPT_LABEL_CONTRIBUTION = "സംഭാവന രസീത്";
+export const RECEIPT_LABEL_PAYMENT = "വരിസംഖ്യ രസീത്";
+export const RECEIPT_LABEL_EXPENSE = "ചെലവ് രസീത്";
+
+/** Printed on every slip, whatever Settings currently stores. */
+export const RECEIPT_CURRENCY = "INR";

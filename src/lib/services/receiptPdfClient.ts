@@ -2,6 +2,7 @@
 
 import {
   buildReceiptPdfDoc,
+  receiptKindLabel,
   resolveReceiptAddress,
   resolveReceiptTitles,
   type OrgNameImage,
@@ -69,12 +70,14 @@ export async function rasterizeOrgName(
   titleAr: string,
   titleMl: string,
   address: string,
+  kindLabel: string,
 ): Promise<OrgNameImage | undefined> {
   if (typeof document === "undefined") return undefined;
   await ensureHeaderFonts();
   const arSize = 22;
   const mlSize = 20;
   const addressSize = 13;
+  const kindSize = 16;
   const canvas = document.createElement("canvas");
   const probe = canvas.getContext("2d");
   if (!probe) return undefined;
@@ -94,9 +97,16 @@ export async function rasterizeOrgName(
     address,
     maxText,
   );
+  probe.font = `${kindSize}px "${ML_FAMILY}"`;
+  const kindLines = wrapLine(
+    (s) => probe.measureText(s).width,
+    kindLabel,
+    maxText,
+  );
   const arHeight = Math.ceil(arSize * 1.5);
   const mlHeight = Math.ceil(mlSize * 1.5);
   const addressHeight = Math.ceil(addressSize * 1.5);
+  const kindHeight = Math.ceil(kindSize * 1.5);
   const gap = 6;
   const padY = 4;
   const height =
@@ -105,6 +115,7 @@ export async function rasterizeOrgName(
     gap +
     Math.max(mlLines.length, 1) * mlHeight +
     (addressLines.length ? gap + addressLines.length * addressHeight : 0) +
+    (kindLines.length ? gap + kindLines.length * kindHeight : 0) +
     padY;
   canvas.width = canvasWidth;
   canvas.height = Math.max(height, 8);
@@ -136,6 +147,15 @@ export async function rasterizeOrgName(
       y += addressHeight;
     }
   }
+  if (kindLines.length) {
+    y += gap;
+    ctx.font = `${kindSize}px "${ML_FAMILY}"`;
+    ctx.direction = "ltr";
+    for (const line of kindLines) {
+      ctx.fillText(line, canvas.width / 2, y);
+      y += kindHeight;
+    }
+  }
   const pxToMm = 25.4 / 96;
   return {
     dataUrl: canvas.toDataURL("image/png"),
@@ -157,10 +177,12 @@ export async function printReceiptPdf(ctx: ReceiptContext): Promise<void> {
         : undefined,
     );
     const address = resolveReceiptAddress(settings?.receiptAddress);
+    const kindLabel = receiptKindLabel(ctx.kind);
     const orgNameImage = await rasterizeOrgName(
       titles.titleAr,
       titles.titleMl,
       address,
+      kindLabel,
     );
     const { doc } = buildReceiptPdfDoc(ctx, orgNameImage, { ...titles, address });
     logReceiptPdf("build_ok", "ok", { format: "a5-landscape" });

@@ -1,10 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { Timestamp } from "firebase/firestore";
-import { RECEIPT_ADDRESS, RECEIPT_TITLE_AR, RECEIPT_TITLE_ML } from "@/lib/brand";
+import {
+  RECEIPT_ADDRESS,
+  RECEIPT_LABEL_CONTRIBUTION,
+  RECEIPT_LABEL_EXPENSE,
+  RECEIPT_LABEL_PAYMENT,
+  RECEIPT_TITLE_AR,
+  RECEIPT_TITLE_ML,
+} from "@/lib/brand";
 import {
   amountInWords,
   buildReceiptModel,
   buildReceiptPdfDoc,
+  receiptKindLabel,
   type ReceiptContext,
 } from "@/lib/services/receiptPdf";
 
@@ -17,8 +25,11 @@ function expectSlipTitles(ctx: ReceiptContext) {
   expect(model.titleAr).toBe(RECEIPT_TITLE_AR);
   expect(model.titleMl).toBe(RECEIPT_TITLE_ML);
   expect(model.address).toBe(RECEIPT_ADDRESS);
+  expect(model.kindLabel).toBe(receiptKindLabel(ctx.kind));
   const { doc, org } = buildReceiptPdfDoc(ctx);
-  expect(org).toBe(`${RECEIPT_TITLE_AR}\n${RECEIPT_TITLE_ML}\n${RECEIPT_ADDRESS}`);
+  expect(org).toBe(
+    `${RECEIPT_TITLE_AR}\n${RECEIPT_TITLE_ML}\n${RECEIPT_ADDRESS}\n${receiptKindLabel(ctx.kind)}`,
+  );
   expect(doc.internal.pageSize.getWidth()).toBeCloseTo(210, 0);
   expect(doc.internal.pageSize.getHeight()).toBeCloseTo(148, 0);
 }
@@ -43,8 +54,10 @@ describe("buildReceiptPdfDoc", () => {
     const model = buildReceiptModel(contributionCtx);
     expect(model.serial).toBe("C-0018");
     expect(model.address).toBe(RECEIPT_ADDRESS);
+    expect(model.kindLabel).toBe(RECEIPT_LABEL_CONTRIBUTION);
     expect(model.total).toContain("100.00");
-    expect(model.totalInWords).toBe("One Hundred Dirhams Only");
+    expect(model.total).toContain("INR");
+    expect(model.totalInWords).toBe("One Hundred Rupees Only");
     expect(model.particulars[0]?.amount).toContain("100.00");
     const { fileName } = buildReceiptPdfDoc(contributionCtx);
     expect(fileName).toMatch(/^jamia-receipt-C-0018-/);
@@ -95,32 +108,34 @@ describe("buildReceiptPdfDoc", () => {
       },
       currency: "AED",
     });
-    expect(
-      buildReceiptModel({
-        kind: "expense",
-        expense: {
-          id: "exp-1",
-          name: "Water",
-          amount: 80,
-          date: ts(new Date("2026-06-01")),
-          month: "2026-06",
-          note: null,
-          isRecurring: false,
-          recurringId: null,
-          withdrawn: true,
-          withdrawnAt: ts(new Date("2026-06-02")),
-          withdrawnBy: "u",
-          addedAt: ts(new Date("2026-06-01")),
-          addedBy: "u",
-          type: "mosque",
-          householdId: null,
-          familyId: null,
-          mosqueSubCategory: "other",
-          receiptNo: 7,
-        },
-        currency: "AED",
-      }).serial,
-    ).toBe("E-0007");
+    const expense = buildReceiptModel({
+      kind: "expense",
+      expense: {
+        id: "exp-1",
+        name: "Water",
+        amount: 80,
+        date: ts(new Date("2026-06-01")),
+        month: "2026-06",
+        note: null,
+        isRecurring: false,
+        recurringId: null,
+        withdrawn: true,
+        withdrawnAt: ts(new Date("2026-06-02")),
+        withdrawnBy: "u",
+        addedAt: ts(new Date("2026-06-01")),
+        addedBy: "u",
+        type: "mosque",
+        householdId: null,
+        familyId: null,
+        mosqueSubCategory: "other",
+        receiptNo: 7,
+      },
+      currency: "AED",
+    });
+    expect(expense.serial).toBe("E-0007");
+    expect(expense.kindLabel).toBe(RECEIPT_LABEL_EXPENSE);
+    expect(expense.total).toContain("INR");
+    expect(expense.totalInWords).toBe("Eighty Rupees Only");
   });
 
   it("lists payment months with amounts and a total", () => {
@@ -177,8 +192,10 @@ describe("buildReceiptPdfDoc", () => {
     expect(model.address).toBe(RECEIPT_ADDRESS);
     expect(model.particulars.map((p) => p.text)).toContain("2026-06");
     expect(model.particulars.map((p) => p.text)).toContain("2026-07");
+    expect(model.kindLabel).toBe(RECEIPT_LABEL_PAYMENT);
     expect(model.total).toContain("500.00");
-    expect(model.totalInWords).toBe("Five Hundred Dirhams Only");
+    expect(model.total).toContain("INR");
+    expect(model.totalInWords).toBe("Five Hundred Rupees Only");
     expect(model.note).toBe("zakat");
   });
 });
@@ -190,6 +207,12 @@ describe("amountInWords", () => {
       "One Hundred Dirhams and Fifty Fils Only",
     );
     expect(amountInWords(1, "AED")).toBe("One Dirham Only");
+    expect(amountInWords(100, "INR")).toBe("One Hundred Rupees Only");
+    expect(amountInWords(100.5, "inr")).toBe(
+      "One Hundred Rupees and Fifty Paise Only",
+    );
+    expect(amountInWords(1, "INR")).toBe("One Rupee Only");
+    expect(amountInWords(0.01, "INR")).toBe("One Paisa Only");
     expect(amountInWords(100.5, "USD")).toBe("One Hundred and Fifty USD Only");
   });
 });

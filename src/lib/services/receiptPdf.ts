@@ -1,5 +1,13 @@
 import { jsPDF } from "jspdf";
-import { RECEIPT_ADDRESS, RECEIPT_TITLE_AR, RECEIPT_TITLE_ML } from "@/lib/brand";
+import {
+  RECEIPT_ADDRESS,
+  RECEIPT_CURRENCY,
+  RECEIPT_LABEL_CONTRIBUTION,
+  RECEIPT_LABEL_EXPENSE,
+  RECEIPT_LABEL_PAYMENT,
+  RECEIPT_TITLE_AR,
+  RECEIPT_TITLE_ML,
+} from "@/lib/brand";
 import type { Contribution, Expense, Payment } from "@/lib/types";
 import {
   describeTimestamp,
@@ -58,12 +66,24 @@ export interface ReceiptModel {
   titleAr: string;
   titleMl: string;
   address: string;
+  kindLabel: string;
   serial: string;
   date: string;
   particulars: ReceiptParticular[];
   total: string;
   totalInWords: string;
   note: string | null;
+}
+
+export function receiptKindLabel(kind: ReceiptKind): string {
+  switch (kind) {
+    case "payment":
+      return RECEIPT_LABEL_PAYMENT;
+    case "contribution":
+      return RECEIPT_LABEL_CONTRIBUTION;
+    case "expense":
+      return RECEIPT_LABEL_EXPENSE;
+  }
 }
 
 export function resolveReceiptTitles(input?: {
@@ -89,14 +109,14 @@ export interface OrgNameImage {
   heightMm: number;
 }
 
-function formatMoney(amount: number, currency: string): string {
+function formatMoney(amount: number): string {
   return (
     new Intl.NumberFormat("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(amount) +
     " " +
-    currency
+    RECEIPT_CURRENCY
   );
 }
 
@@ -158,18 +178,18 @@ function intToWords(n: number): string {
   return rest === 0 ? head : `${head} ${intToWords(rest)}`;
 }
 
-/** English receipt total. AED uses Dirham/Fil; other codes are appended as-is. */
+/** English receipt total. AED uses Dirham/Fil, INR uses Rupee/Paisa; other codes are appended as-is. */
 export function amountInWords(amount: number, currency: string): string {
   const code = currency.trim().toUpperCase() || "AED";
   const cents = Math.round(Math.abs(amount) * 100);
   const major = Math.floor(cents / 100);
   const minor = cents % 100;
-  const aed = code === "AED";
-  const majorUnit = aed ? (major === 1 ? "Dirham" : "Dirhams") : code;
-  const minorUnit = aed ? (minor === 1 ? "Fil" : "Fils") : null;
+  const units = namedCurrencyUnits(code, major, minor);
+  const majorUnit = units.major ?? code;
+  const minorUnit = units.minor;
 
   if (major === 0 && minor === 0) {
-    return `Zero ${aed ? "Dirhams" : code} Only`;
+    return `Zero ${units.zero ?? code} Only`;
   }
   if (minor === 0) {
     return `${intToWords(major)} ${majorUnit} Only`;
@@ -182,6 +202,28 @@ export function amountInWords(amount: number, currency: string): string {
   return minorUnit
     ? `${intToWords(major)} ${majorUnit} and ${intToWords(minor)} ${minorUnit} Only`
     : `${intToWords(major)} and ${intToWords(minor)} ${code} Only`;
+}
+
+function namedCurrencyUnits(
+  code: string,
+  major: number,
+  minor: number,
+): { major: string | null; minor: string | null; zero: string | null } {
+  if (code === "AED") {
+    return {
+      major: major === 1 ? "Dirham" : "Dirhams",
+      minor: minor === 1 ? "Fil" : "Fils",
+      zero: "Dirhams",
+    };
+  }
+  if (code === "INR") {
+    return {
+      major: major === 1 ? "Rupee" : "Rupees",
+      minor: minor === 1 ? "Paisa" : "Paise",
+      zero: "Rupees",
+    };
+  }
+  return { major: null, minor: null, zero: null };
 }
 
 function formatDate(value: { toDate?: () => Date } | Date | null | undefined): string {
@@ -223,6 +265,7 @@ export function buildReceiptModel(
   const serial = formatReceiptSerial(serialKind(ctx), receiptNoOf(ctx));
   const header = resolveReceiptTitles(titles);
   const address = resolveReceiptAddress(titles?.address);
+  const kindLabel = receiptKindLabel(ctx.kind);
   switch (ctx.kind) {
     case "payment": {
       const payments =
@@ -236,18 +279,19 @@ export function buildReceiptModel(
       for (const p of payments) {
         particulars.push({
           text: p.month,
-          amount: formatMoney(p.amount, ctx.currency),
+          amount: formatMoney(p.amount),
         });
       }
       return {
         titleAr: header.titleAr,
         titleMl: header.titleMl,
         address,
+        kindLabel,
         serial,
         date: formatDate(ctx.payment.date),
         particulars,
-        total: formatMoney(total, ctx.currency),
-        totalInWords: amountInWords(total, ctx.currency),
+        total: formatMoney(total),
+        totalInWords: amountInWords(total, RECEIPT_CURRENCY),
         note: ctx.payment.note,
       };
     }
@@ -256,16 +300,17 @@ export function buildReceiptModel(
         titleAr: header.titleAr,
         titleMl: header.titleMl,
         address,
+        kindLabel,
         serial,
         date: formatDate(ctx.contribution.date),
         particulars: [
           {
             text: ctx.contribution.contributorName,
-            amount: formatMoney(ctx.contribution.amount, ctx.currency),
+            amount: formatMoney(ctx.contribution.amount),
           },
         ],
-        total: formatMoney(ctx.contribution.amount, ctx.currency),
-        totalInWords: amountInWords(ctx.contribution.amount, ctx.currency),
+        total: formatMoney(ctx.contribution.amount),
+        totalInWords: amountInWords(ctx.contribution.amount, RECEIPT_CURRENCY),
         note: ctx.contribution.note,
       };
     case "expense": {
@@ -275,16 +320,17 @@ export function buildReceiptModel(
         titleAr: header.titleAr,
         titleMl: header.titleMl,
         address,
+        kindLabel,
         serial,
         date: formatDate(ctx.expense.date),
         particulars: [
           {
             text: `${ctx.expense.name} (${ctx.expense.type}${who}) · ${ctx.expense.month} · ${status}`,
-            amount: formatMoney(ctx.expense.amount, ctx.currency),
+            amount: formatMoney(ctx.expense.amount),
           },
         ],
-        total: formatMoney(ctx.expense.amount, ctx.currency),
-        totalInWords: amountInWords(ctx.expense.amount, ctx.currency),
+        total: formatMoney(ctx.expense.amount),
+        totalInWords: amountInWords(ctx.expense.amount, RECEIPT_CURRENCY),
         note: ctx.expense.note,
       };
     }
@@ -419,7 +465,7 @@ export function buildReceiptPdfDoc(
   return {
     doc,
     fileName,
-    org: `${model.titleAr}\n${model.titleMl}\n${model.address}`,
+    org: `${model.titleAr}\n${model.titleMl}\n${model.address}\n${model.kindLabel}`,
     model,
   };
 }

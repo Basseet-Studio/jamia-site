@@ -7,6 +7,7 @@
  */
 import {
   RECEIPT_ADDRESS,
+  RECEIPT_CURRENCY,
   RECEIPT_TITLE_AR,
   RECEIPT_TITLE_ML,
 } from "../src/lib/brand";
@@ -45,7 +46,7 @@ async function main() {
   await setDoc(doc(db, "settings", "global"), {
     defaultContributionTarget: 500,
     openingBalance: 0,
-    currency: "AED",
+    currency: RECEIPT_CURRENCY,
     receiptTitleAr: RECEIPT_TITLE_AR,
     receiptTitleMl: RECEIPT_TITLE_ML,
     receiptAddress: RECEIPT_ADDRESS,
