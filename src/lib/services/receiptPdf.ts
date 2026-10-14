@@ -440,15 +440,15 @@ export function buildReceiptPdfDoc(
   doc.line(left, y, right, y);
   y += 5;
   doc.setFontSize(10);
-  doc.text("Total", left + 4, y);
+  const totalLabel = "Total";
+  const totalLabelW = doc.getTextWidth(totalLabel);
+  const wordsGap = 4;
+  const wordsX = left + 4 + totalLabelW + wordsGap;
+  const wordsMaxW = Math.max(8, particularsW - 8 - totalLabelW - wordsGap);
+  const words = doc.splitTextToSize(model.totalInWords, wordsMaxW) as string[];
+  doc.text(totalLabel, left + 4, y);
+  doc.text(words, wordsX, y);
   doc.text(model.total, right - 4, y, { align: "right" });
-  y += 4;
-  doc.line(left, y, right, y);
-
-  y += 6;
-  doc.setFontSize(9);
-  const words = doc.splitTextToSize(model.totalInWords, particularsW - 8) as string[];
-  doc.text(words, left + 4, y);
   y += 4 + Math.max(0, (words.length - 1) * 4);
   const tableBottom = y;
   doc.line(left, tableBottom, right, tableBottom);
