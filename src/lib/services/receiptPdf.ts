@@ -443,15 +443,16 @@ export function buildReceiptPdfDoc(
   doc.text("Total", left + 4, y);
   doc.text(model.total, right - 4, y, { align: "right" });
   y += 4;
-  const totalBottom = y;
-  doc.line(left, totalBottom, right, totalBottom);
-  doc.line(colX, bodyTop, colX, totalBottom);
+  doc.line(left, y, right, y);
 
   y += 6;
   doc.setFontSize(9);
-  const words = doc.splitTextToSize(model.totalInWords, innerW - 8) as string[];
-  doc.text(words, left + innerW / 2, y, { align: "center" });
+  const words = doc.splitTextToSize(model.totalInWords, particularsW - 8) as string[];
+  doc.text(words, left + 4, y);
   y += 4 + Math.max(0, (words.length - 1) * 4);
+  const tableBottom = y;
+  doc.line(left, tableBottom, right, tableBottom);
+  doc.line(colX, bodyTop, colX, tableBottom);
 
   y += 4;
   doc.setFontSize(9);
