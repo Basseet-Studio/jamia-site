@@ -304,11 +304,13 @@ export async function recordPaymentWithCoverage(
     const shift = writes.reduce((s, w) => s + w.amount, 0);
     const { ref: settingsRef, data: settingsData } =
       await getSettingsSnapInTx(tx);
+    // One receipt covers every month in the group, so all siblings share a number.
     const { numbers, field, nextSeq } = nextReceiptNumbers(
       settingsData,
       "payment",
-      writes.length,
+      1,
     );
+    const receiptNo = numbers[0]!;
     tx.update(settingsRef, {
       moneyOnHand: moneyOnHandFromData(settingsData) + shift,
       [field]: nextSeq,
@@ -323,12 +325,12 @@ export async function recordPaymentWithCoverage(
         note: parsed.note,
         recordedAt: serverTimestamp(),
         recordedBy: uid,
-        receiptNo: numbers[i],
+        receiptNo,
         ...(groupId ? { coverageGroupId: groupId } : {}),
         ...(slot.primary ? attachmentFields : attachmentFieldsFromInput(null)),
       });
     }
-    return { ids: slotRefs.map((r) => r.id), numbers };
+    return { ids: slotRefs.map((r) => r.id), receiptNo };
   });
   return {
     ids: committed.ids,
@@ -338,7 +340,7 @@ export async function recordPaymentWithCoverage(
       month: w.month,
       amount: w.amount,
       primary: w.primary,
-      receiptNo: committed.numbers[i]!,
+      receiptNo: committed.receiptNo,
     })),
     date: parsed.date,
     note: parsed.note ?? null,

@@ -15,6 +15,7 @@ import {
   buildContributionReceiptContext,
   buildExpenseReceiptContext,
   buildPaymentReceiptContext,
+  paymentReceiptGroup,
 } from "@/lib/services/receiptPdfContext";
 import { printReceiptPdf } from "@/lib/services/receiptPdfClient";
 import {
@@ -177,6 +178,7 @@ export function PdfExportDebugPanel({
       householdId,
       family,
       currency: cur,
+      relatedPayments: paymentReceiptGroup(selectedPayment, payments),
     });
     addLog("info", `testing payment print id=${selectedPayment.id}`);
     logReceiptPdf("debug_test_payment", "info", {

@@ -15,6 +15,8 @@ import {
   receiptKindLabel,
   type ReceiptContext,
 } from "@/lib/services/receiptPdf";
+import { paymentReceiptGroup } from "@/lib/services/receiptPdfContext";
+import type { Payment } from "@/lib/types";
 
 function ts(d: Date): Timestamp {
   return Timestamp.fromDate(d);
@@ -190,13 +192,113 @@ describe("buildReceiptPdfDoc", () => {
     expect(model.titleMl).toBe(RECEIPT_TITLE_ML);
     expect(model.serial).toBe("P-1996");
     expect(model.address).toBe(RECEIPT_ADDRESS);
-    expect(model.particulars.map((p) => p.text)).toContain("2026-06");
-    expect(model.particulars.map((p) => p.text)).toContain("2026-07");
+    expect(model.particulars.map((p) => p.text)).toContain("Jun 2026");
+    expect(model.particulars.map((p) => p.text)).toContain("Jul 2026");
     expect(model.kindLabel).toBe(RECEIPT_LABEL_PAYMENT);
     expect(model.total).toContain("500.00");
     expect(model.total).toContain("INR");
     expect(model.totalInWords).toBe("Five Hundred Rupees Only");
     expect(model.note).toBe("zakat");
+  });
+});
+
+function payment(over: Partial<Payment>): Payment {
+  return {
+    id: "pay",
+    householdId: "hh",
+    familyId: "fam",
+    amount: 100,
+    date: ts(new Date(2026, 5, 17, 1, 0)),
+    month: "2026-06",
+    note: null,
+    recordedAt: ts(new Date(2026, 5, 17, 1, 0)),
+    recordedBy: "u",
+    coverageGroupId: "cg",
+    receiptNo: null,
+    ...over,
+  };
+}
+
+function paymentCtx(primary: Payment, related: Payment[]): ReceiptContext {
+  return {
+    kind: "payment",
+    payment: primary,
+    householdName: "HH",
+    familyName: "Fam",
+    relatedPayments: related,
+    currency: "INR",
+  };
+}
+
+describe("payment receipts covering several months", () => {
+  it("uses the lowest receipt number in the group and sorts months", () => {
+    const a = payment({ id: "a", month: "2026-07", receiptNo: 12 });
+    const b = payment({ id: "b", month: "2026-06", receiptNo: 11 });
+    const model = buildReceiptModel(paymentCtx(a, [a, b]));
+    expect(model.serial).toBe("P-0011");
+    expect(model.particulars.slice(1).map((p) => p.text)).toEqual([
+      "Jun 2026",
+      "Jul 2026",
+    ]);
+  });
+
+  it("prints the local calendar date, not the UTC one", () => {
+    const p = payment({ date: ts(new Date(2026, 5, 17, 1, 0)) });
+    expect(buildReceiptModel(paymentCtx(p, [p])).date).toBe("2026-06-17");
+  });
+
+  it("rounds float totals to two decimals", () => {
+    const a = payment({ id: "a", amount: 0.1, month: "2026-06" });
+    const b = payment({ id: "b", amount: 0.2, month: "2026-07" });
+    const model = buildReceiptModel(paymentCtx(a, [a, b]));
+    expect(model.total).toBe("0.30 INR");
+    expect(model.totalInWords).toBe("Thirty Paise Only");
+  });
+
+  it("continues on a new page and keeps the total for 12 months", () => {
+    const months = Array.from({ length: 12 }, (_, i) =>
+      payment({
+        id: `m${i}`,
+        month: `2026-${String(i + 1).padStart(2, "0")}`,
+        amount: 500,
+        receiptNo: 40,
+      }),
+    );
+    const ctx = paymentCtx(months[0]!, months);
+    const model = buildReceiptModel(ctx);
+    expect(model.particulars).toHaveLength(13);
+    expect(model.total).toBe("6,000.00 INR");
+    expect(model.totalInWords).toBe("Six Thousand Rupees Only");
+    const { doc } = buildReceiptPdfDoc(ctx, {
+      dataUrl:
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      widthMm: 194,
+      heightMm: 40,
+    });
+    expect(doc.getNumberOfPages()).toBeGreaterThan(1);
+  });
+});
+
+describe("paymentReceiptGroup", () => {
+  it("collects siblings of the same group and family, sorted by month", () => {
+    const a = payment({ id: "a", month: "2026-08" });
+    const b = payment({ id: "b", month: "2026-06" });
+    const other = payment({ id: "c", coverageGroupId: "other" });
+    const otherFamily = payment({ id: "d", familyId: "fam2" });
+    expect(
+      paymentReceiptGroup(a, [a, b, other, otherFamily]).map((p) => p.id),
+    ).toEqual(["b", "a"]);
+  });
+
+  it("returns just the payment when it has no group", () => {
+    const p = payment({ coverageGroupId: null });
+    expect(paymentReceiptGroup(p, [p, payment({ id: "x" })])).toEqual([p]);
+  });
+
+  it("includes the payment even if it is missing from the list", () => {
+    const a = payment({ id: "a", month: "2026-07" });
+    const b = payment({ id: "b", month: "2026-06" });
+    expect(paymentReceiptGroup(a, [b]).map((p) => p.id)).toEqual(["b", "a"]);
   });
 });
 

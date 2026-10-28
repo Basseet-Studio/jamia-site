@@ -15,6 +15,11 @@ describe("receiptSerial", () => {
     expect(formatReceiptSerial("contribution", 1)).toBe("C-0001");
   });
 
+  it("prints a dash when the receipt number is missing", () => {
+    expect(formatReceiptSerial("payment", null)).toBe("—");
+    expect(formatReceiptSerial("payment", 0)).toBe("—");
+  });
+
   it("backfills old dumps from 1 by date then id", () => {
     const assigned = assignMissingReceiptNumbers([
       { id: "pay-cg-1", date: "2026-06-17T00:00:00.000Z" },

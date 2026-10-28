@@ -13,7 +13,10 @@ import {
 } from "@/components/ui/table";
 import { DeletePaymentDialog } from "@/components/payments/DeletePaymentDialog";
 import { ReceiptPrintButtons } from "@/components/receipts/ReceiptPrintButtons";
-import { buildPaymentReceiptContext } from "@/lib/services/receiptPdfContext";
+import {
+  buildPaymentReceiptContext,
+  paymentReceiptGroup,
+} from "@/lib/services/receiptPdfContext";
 import { AttachmentLink } from "@/components/receipts/AttachmentLink";
 import { useT } from "@/lib/i18n";
 import { usePermissions } from "@/lib/hooks/usePermissions";
@@ -21,12 +24,15 @@ import { format } from "date-fns";
 
 export function PaymentHistoryTable({
   payments,
+  allPayments,
   householdId,
   family,
   householdName = "",
   showFamily = false,
 }: {
   payments: Payment[];
+  /** Unfiltered payments, so a receipt can include every month paid together. */
+  allPayments?: Payment[];
   householdId: string;
   family: Family | null;
   householdName?: string;
@@ -111,6 +117,10 @@ export function PaymentHistoryTable({
                       householdId,
                       family,
                       currency: cur,
+                      relatedPayments: paymentReceiptGroup(
+                        p,
+                        allPayments ?? payments,
+                      ),
                     })}
                   />
                   <AttachmentLink

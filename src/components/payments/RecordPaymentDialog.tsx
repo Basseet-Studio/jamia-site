@@ -33,7 +33,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { useMoneyOnHand } from "@/lib/hooks/useMoneyOnHand";
 import { useT } from "@/lib/i18n";
 import { formatCurrency } from "@/lib/utils/currency";
-import { format } from "date-fns";
+import { format, isValid, parse } from "date-fns";
 import type { Family, Household, Payment } from "@/lib/types";
 import { AttachmentUploadField } from "@/components/receipts/AttachmentUploadField";
 import { ReceiptPrintButtons } from "@/components/receipts/ReceiptPrintButtons";
@@ -402,7 +402,8 @@ export function RecordPaymentDialog({
                   value={format(form.watch("date"), "yyyy-MM-dd")}
                   onChange={(e) => {
                     const v = e.target.value;
-                    if (v) form.setValue("date", new Date(v));
+                    const d = v ? parse(v, "yyyy-MM-dd", new Date()) : null;
+                    if (d && isValid(d)) form.setValue("date", d);
                   }}
                 />
               </div>

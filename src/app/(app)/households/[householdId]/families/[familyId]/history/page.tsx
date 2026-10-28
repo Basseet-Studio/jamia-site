@@ -177,6 +177,7 @@ export default function FamilyHistoryPage({
 
       <PaymentHistoryTable
         payments={displayed}
+        allPayments={allPayments}
         householdId={householdId}
         householdName={householdName}
         family={family}
