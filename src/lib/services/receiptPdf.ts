@@ -415,10 +415,15 @@ export function buildReceiptPdfDoc(
   const colX = left + particularsW;
   const rowStep = 5;
   const lineStep = 4;
-  doc.setFontSize(9);
-  const words = doc.splitTextToSize(model.totalInWords, innerW - 8) as string[];
-  // Total row, amount in words and signature must fit below the last row.
-  const footerH = 36 + (words.length - 1) * lineStep;
+  doc.setFontSize(10);
+  const totalLabel = "Total";
+  const totalLabelW = doc.getTextWidth(totalLabel);
+  const wordsGap = 4;
+  const wordsX = left + 4 + totalLabelW + wordsGap;
+  const wordsMaxW = Math.max(8, particularsW - 8 - totalLabelW - wordsGap);
+  const words = doc.splitTextToSize(model.totalInWords, wordsMaxW) as string[];
+  // Total row (with amount in words) and signature must fit below the last row.
+  const footerH = 26 + (words.length - 1) * lineStep;
 
   const drawTableHeader = (continued: boolean) => {
     doc.setFontSize(10);
@@ -479,17 +484,13 @@ export function buildReceiptPdfDoc(
   doc.line(left, y, right, y);
   y += 5;
   doc.setFontSize(10);
-  doc.text("Total", left + 4, y);
+  doc.text(totalLabel, left + 4, y);
+  doc.text(words, wordsX, y);
   doc.text(model.total, right - 4, y, { align: "right" });
-  y += 4;
-  const totalBottom = y;
-  doc.line(left, totalBottom, right, totalBottom);
-  doc.line(colX, bodyTop, colX, totalBottom);
-
-  y += 6;
-  doc.setFontSize(9);
-  doc.text(words, left + innerW / 2, y, { align: "center" });
-  y += 4 + Math.max(0, (words.length - 1) * 4);
+  y += 4 + Math.max(0, (words.length - 1) * lineStep);
+  const tableBottom = y;
+  doc.line(left, tableBottom, right, tableBottom);
+  doc.line(colX, bodyTop, colX, tableBottom);
 
   y += 4;
   doc.setFontSize(9);
