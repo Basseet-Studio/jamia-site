@@ -255,7 +255,7 @@ describe("payment receipts covering several months", () => {
     expect(model.totalInWords).toBe("Thirty Paise Only");
   });
 
-  it("continues on a new page and keeps the total for 12 months", () => {
+  it("summarises 12 months on a single A5 page and keeps the total", () => {
     const months = Array.from({ length: 12 }, (_, i) =>
       payment({
         id: `m${i}`,
@@ -266,7 +266,11 @@ describe("payment receipts covering several months", () => {
     );
     const ctx = paymentCtx(months[0]!, months);
     const model = buildReceiptModel(ctx);
-    expect(model.particulars).toHaveLength(13);
+    expect(model.particulars.slice(1)).toEqual([
+      { text: "Amount paid", amount: "6,000.00 INR" },
+      { text: "Months covered: 12 (Jan 2026 - Dec 2026)", amount: null },
+      { text: "Per month", amount: "500.00 INR" },
+    ]);
     expect(model.total).toBe("6,000.00 INR");
     expect(model.totalInWords).toBe("Six Thousand Rupees Only");
     const { doc } = buildReceiptPdfDoc(ctx, {
@@ -275,7 +279,36 @@ describe("payment receipts covering several months", () => {
       widthMm: 194,
       heightMm: 40,
     });
-    expect(doc.getNumberOfPages()).toBeGreaterThan(1);
+    expect(doc.getNumberOfPages()).toBe(1);
+  });
+
+  it("still lists each month when 3 months are covered", () => {
+    const months = ["2026-01", "2026-02", "2026-03"].map((month, i) =>
+      payment({ id: `m${i}`, month, amount: 500 }),
+    );
+    const model = buildReceiptModel(paymentCtx(months[0]!, months));
+    expect(model.particulars.slice(1)).toEqual([
+      { text: "Jan 2026", amount: "500.00 INR" },
+      { text: "Feb 2026", amount: "500.00 INR" },
+      { text: "Mar 2026", amount: "500.00 INR" },
+    ]);
+  });
+
+  it("shows a min-max range per month when amounts differ", () => {
+    const amounts = [1000, 2000, 1500, 1000];
+    const months = amounts.map((amount, i) =>
+      payment({ id: `m${i}`, month: `2026-0${i + 1}`, amount }),
+    );
+    const ctx = paymentCtx(months[0]!, months);
+    const model = buildReceiptModel(ctx);
+    expect(model.particulars[3]).toEqual({
+      text: "Per month",
+      amount: "1,000.00 - 2,000.00 INR",
+    });
+    expect(model.total).toBe("5,500.00 INR");
+    const { doc } = buildReceiptPdfDoc(ctx);
+    doc.setFontSize(9);
+    expect(doc.getTextWidth("1,000.00 - 2,000.00 INR")).toBeLessThan(38 - 4);
   });
 });
 

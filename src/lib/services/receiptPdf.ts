@@ -111,15 +111,17 @@ export interface OrgNameImage {
   heightMm: number;
 }
 
+const SUMMARY_MONTH_THRESHOLD = 3;
+
+function formatNumber(amount: number): string {
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
 function formatMoney(amount: number): string {
-  return (
-    new Intl.NumberFormat("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount) +
-    " " +
-    RECEIPT_CURRENCY
-  );
+  return formatNumber(amount) + " " + RECEIPT_CURRENCY;
 }
 
 const ONES = [
@@ -292,11 +294,33 @@ export function buildReceiptModel(
       const particulars: ReceiptParticular[] = [
         { text: `${ctx.householdName} / ${ctx.familyName}`, amount: null },
       ];
-      for (const p of payments) {
-        particulars.push({
-          text: formatMonth(p.month),
-          amount: formatMoney(p.amount),
-        });
+      if (payments.length > SUMMARY_MONTH_THRESHOLD) {
+        const amounts = payments.map((p) => p.amount);
+        const min = roundMoney(Math.min(...amounts));
+        const max = roundMoney(Math.max(...amounts));
+        const first = formatMonth(payments[0]!.month);
+        const last = formatMonth(payments[payments.length - 1]!.month);
+        particulars.push(
+          { text: "Amount paid", amount: formatMoney(total) },
+          {
+            text: `Months covered: ${payments.length} (${first} - ${last})`,
+            amount: null,
+          },
+          {
+            text: "Per month",
+            amount:
+              min === max
+                ? formatMoney(min)
+                : `${formatNumber(min)} - ${formatMoney(max)}`,
+          },
+        );
+      } else {
+        for (const p of payments) {
+          particulars.push({
+            text: formatMonth(p.month),
+            amount: formatMoney(p.amount),
+          });
+        }
       }
       return {
         titleAr: header.titleAr,
