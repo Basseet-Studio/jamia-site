@@ -58,9 +58,13 @@ export function DeletePaymentDialog({
       householdId,
       familyId,
       coverageGroupId,
-    ).then((rows) => {
-      if (!cancelled) setSiblings(rows);
-    });
+    )
+      .then((rows) => {
+        if (!cancelled) setSiblings(rows);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) setError((e as Error).message);
+      });
     return () => {
       cancelled = true;
     };

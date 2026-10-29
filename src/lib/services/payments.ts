@@ -14,12 +14,11 @@
  * - deletePayment is group-aware: if the target doc carries a
  *   coverageGroupId, it deletes the whole group in one txn and decrements MOH
  *   by the group total. (FR-026, SC-004, SC-009)
- * - listPaymentsByCoverageGroup is a collection-group query helper for the
- *   delete-coverage-group dialog.
+ * - listPaymentsByCoverageGroup queries the family's payments by
+ *   coverageGroupId for the delete-coverage-group dialog.
  */
 import {
   collection,
-  collectionGroup,
   doc,
   getDocs,
   onSnapshot,
@@ -450,8 +449,7 @@ export async function deletePayment(
 /**
  * 003 — Fetch every payment doc sharing a coverageGroupId. Used by the
  * delete-coverage-group confirmation dialog to render the list of months
- * that will be removed before the user confirms. Backed by the new composite
- * index (`coverageGroupId ASC, recordedAt DESC`).
+ * that will be removed before the user confirms.
  */
 export async function listPaymentsByCoverageGroup(
   householdId: string,
@@ -460,23 +458,19 @@ export async function listPaymentsByCoverageGroup(
 ): Promise<Payment[]> {
   const snap = await getDocs(
     query(
-      collectionGroup(getDb(), "payments"),
+      collection(
+        getDb(),
+        "households",
+        householdId,
+        "families",
+        familyId,
+        "payments",
+      ),
       where("coverageGroupId", "==", coverageGroupId),
     ),
   );
-  return (
-    snap.docs
-      // The collection-group query can match siblings from other households,
-      // so filter to the family we care about.
-      .filter((d) => {
-        const ref = d.ref;
-        // ref path: households/{hh}/families/{fam}/payments/{pid}
-        const grand = ref.parent?.parent;
-        const hh = grand?.parent?.id;
-        const fam = grand?.id;
-        return hh === householdId && fam === familyId;
-      })
-      .map((d) => toPayment(householdId, familyId, d.id, d.data()))
+  return snap.docs.map((d) =>
+    toPayment(householdId, familyId, d.id, d.data()),
   );
 }
 

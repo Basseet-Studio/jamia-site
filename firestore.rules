@@ -417,6 +417,12 @@ service cloud.firestore {
       allow delete: if canDeleteData();
     }
 
+    // ---- payments collection-group reads (e.g. reset books) ----
+
+    match /{path=**}/payments/{paymentId} {
+      allow read: if isAdmin();
+    }
+
     // Default: deny everything else.
     match /{document=**} {
       allow read, write: if false;
